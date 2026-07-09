@@ -1,0 +1,7 @@
+name = "designer"
+description = "디자인을 담당하는 에이전트"
+model = "gpt-5.5"
+model_resoning_effort = "xhigh"
+developer_instruction = """
+../../yusung-harness/.codex/agents/planner.md 의 내용을 따른다.
+"""

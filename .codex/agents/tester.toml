@@ -1,0 +1,7 @@
+name = "tester"
+description = "작업 내역에 대한 테스트와 검증을 담당하는 에이전트"
+model = "gpt-5.5"
+model_resoning_effort = "xhigh"
+developer_instruction = """
+../../yusung-harness/.codex/agents/tester.md 의 내용을 따른다.
+"""

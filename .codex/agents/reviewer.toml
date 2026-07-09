@@ -1,0 +1,7 @@
+name = "reviewer"
+description = "작업 결과에 대한 평가를 담당하는 에이전트"
+model = "gpt-5.5"
+model_resoning_effort = "xhigh"
+developer_instruction = """
+../../yusung-harness/.codex/agents/reviewer.md 의 내용을 따른다.
+"""

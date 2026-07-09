@@ -1,0 +1,7 @@
+name = "architect"
+description = "아키텍쳐를 설계하는 에이전트"
+model = "gpt-5.5"
+model_resoning_effort = "xhigh"
+developer_instruction = """
+../../yusung-harness/.codex/agents/architect.md 의 내용을 따른다.
+"""
