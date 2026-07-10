@@ -15,6 +15,8 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 │ ├── 📄 designer.toml
 │ ├── 📄 doc-curator.md
 │ ├── 📄 doc-curator.toml
+│ ├── 📄 drafter.md
+│ ├── 📄 drafter.toml
 │ ├── 📄 planner.md
 │ ├── 📄 planner.toml
 │ ├── 📄 reviewer.md
@@ -22,10 +24,32 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 │ ├── 📄 tester.md
 │ ├── 📄 tester.toml
 ├── 📄 config.toml
+└── 📂 hooks/
+└── 📂 rules/
 └── 📂 skills/
+│ └── 📂 code/
+│ ├── 📄 SKILL.md
+│ └── 📂 assets/
+│ └── 📂 references/
+│ └── 📂 scripts/
 │ └── 📂 design/
+│ ├── 📄 SKILL.md
+│ └── 📂 assets/
+│ └── 📂 references/
+│ └── 📂 scripts/
+│ └── 📂 document/
+│ ├── 📄 SKILL.md
+│ └── 📂 assets/
+│ └── 📂 references/
+│ └── 📂 scripts/
 │ └── 📂 research/
 │ ├── 📄 SKILL.md
+│ └── 📂 assets/
+│ └── 📂 references/
+│ └── 📂 scripts/
+│ └── 📂 test/
+│ ├── 📄 SKILL.md
+│ └── 📂 assets/
 │ └── 📂 references/
 │ └── 📂 scripts/
 ```

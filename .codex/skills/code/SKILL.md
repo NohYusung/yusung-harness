@@ -2,3 +2,9 @@
 name: code
 description: 코드 베이스를 탐색하고, 코딩 작업을 수행하는 skill
 ---
+
+# 매 코딩을 진행학기 전에 Conventions 문서를 참조
+
+<HARD-GATE>
+사전 정의된 yusung-harness/docs/conventions 컨벤션 문서를 참조해서 항상 일정한 코드베이스 스타일을 유지한다.
+</HARD-GATE>
