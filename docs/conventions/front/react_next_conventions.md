@@ -1,6 +1,6 @@
 # React / Next.js 프로젝트 컨벤션
 
-> 하네스 파이프라인(분석 → 구현 → QA)에서 **모든 에이전트가 구현 전 반드시 참조**하는 규칙 문서.
+> 하네스 파이프라인에서 **모든 에이전트가 구현 전 반드시 참조**하는 규칙 문서.
 > 기준: [Next.js App Router](https://nextjs.org/docs/app), [React 19](https://react.dev), [Vercel React Best Practices](https://vercel.com/blog/react-best-practices)
 
 ---
