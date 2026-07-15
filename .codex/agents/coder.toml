@@ -1,7 +1,7 @@
 name = "coder"
 description = "코딩을 담당하는 에이전트"
-model = "gpt-5.5"
-model_resoning_effort = "xhigh"
+model = "gpt-5.6"
+model_resoning_effort = "ultra"
 developer_instruction = """
 ../../yusung-harness/.codex/agents/coder.md 의 내용을 따른다.
 """

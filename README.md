@@ -7,7 +7,7 @@
 ```toml
 [features.multi_agent_v2]
 enabled = true
-max_concurrent_threads_per_session = 7
+max_concurrent_threads_per_session = 10
 ```
 
 - 현재 노출된 codex의 agent tool들 목록은 다음과 같습니다.
@@ -22,6 +22,4 @@ max_concurrent_threads_per_session = 7
 
 ### 필수 프로그램
 
-```
 - open-design app 및 mcp 설치
-```

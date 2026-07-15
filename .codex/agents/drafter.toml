@@ -1,9 +1,0 @@
-name = "drafter"
-dexcription = "전반적인 기획을 잡는 에이전트"
-model = "gpt-5.5"
-model_reasoning_effort = "xhigh"
-developer_instruction = """
-../../yusung-harness/.codex/agents/drafter.md 의 내용을 따른다.
-"""
-
-
