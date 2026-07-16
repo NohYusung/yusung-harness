@@ -1,6 +1,152 @@
-// yusung-harness-dec - 로컬 문서관리 SQLite 스키마 
-// 설계: docs/ARCHITECTURE.md 
+// yusung-harness-doc - local document management schema
+// Domain source: docs/architecture/ARCHITECTURE.md
 
-database db {
-    provider = "sqlite"
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum RepoType {
+  LOCAL
+  REMOTE
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETED
+}
+
+model Project {
+  id            Int            @id @default(autoincrement())
+  title         String
+  repoPath      String
+  repoType      RepoType
+  description   String
+  plans         Plan[]
+  tasks         Task[]
+  wireframes    Wireframe[]
+  architectures Architecture[]
+  drafts        Draft[]
+  assets        Asset[]
+  designs       Design[]
+  reviews       Review[]
+
+  @@unique([repoPath, repoType])
+}
+
+model Plan {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  version   Int      @default(1)
+  content   String
+  title     String
+  tasks     Task[]
+
+  @@unique([projectId, version])
+  @@index([projectId])
+}
+
+model Asset {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  designs   Design[]
+  content   String
+  title     String
+
+  @@index([projectId])
+}
+
+model Design {
+  id          Int       @id @default(autoincrement())
+  projectId   Int
+  project     Project   @relation(fields: [projectId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  wireframeId Int
+  wireframe   Wireframe @relation(fields: [wireframeId], references: [id])
+  assetId     Int
+  asset       Asset     @relation(fields: [assetId], references: [id])
+  content     String
+  title       String
+
+  @@index([projectId])
+  @@index([assetId])
+  @@index([wireframeId])
+}
+
+model Architecture {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title     String
+  content   String
+
+  @@index([projectId])
+}
+
+model Task {
+  id        Int        @id @default(autoincrement())
+  projectId Int
+  project   Project    @relation(fields: [projectId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  planId    Int
+  plan      Plan       @relation(fields: [planId], references: [id])
+  status    TaskStatus @default(PENDING)
+  title     String
+  content   String?
+
+  @@index([projectId])
+  @@index([planId])
+}
+
+model Draft {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title     String
+  content   String
+
+  @@index([projectId])
+}
+
+model Wireframe {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  designs   Design[]
+  title     String
+  content   String
+
+  @@index([projectId])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title     String
+  content   String
+
+  @@index([projectId])
 }

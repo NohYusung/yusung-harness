@@ -9,7 +9,7 @@ doc-curator는 이 아키텍쳐를 기반으로, yusung-harness/apps 서버를 �
 
 ```prisma
 datasource db {
-    provider = "SQLite"
+    provider = "sqlite"
 }
 
 enum RepoType {
@@ -34,7 +34,7 @@ model Project {
     wireframes Wireframe[]
     architectures Architecture[]
     drafts Draft[]
-    assets Assets[]
+    assets Asset[]
     designs Design[]
     reviews Review[]
 }
@@ -44,39 +44,54 @@ model Plan {
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
     createdAt DateTime @default(now())
-    updatedAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
     version Int @default(1)
+    @@unique([projectId, version])
     //SQLite는 String 타입을 TEXT 타입으로 자동 매핑
     content String
     title String
     tasks Task[]
+    @@index([projectId])
 }
 
-model Assets {
+model Asset {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
     designs Design[]
     content String
+    title String
+    @@index([projectId])
 }
 
 model Design {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
     wireframeId Int
     wireframe Wireframe @relation(fields: [wireframeId], references: [id])
     assetId Int
-    asset Assets @relation(fields: [assetId], references: [id])
+    asset Asset @relation(fields: [assetId], references: [id])
     content String
+    title String
+    @@index([projectId])
+    @@index([assetId])
+    @@index([wireframeId])
 }
 
 model Architecture {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
     title String
     content String
+    @@index([projectId])
 }
 
 // task는 plan을 단위별로 분류한 작업 단위
@@ -84,30 +99,48 @@ model Task {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
     planId Int
     plan Plan @relation(fields: [planId], references: [id])
     status TaskStatus @default(PENDING)
+    title String
+    content String?
+    @@index([projectId])
+    @@index([planId])
 }
 
 model Draft {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
     title String
     content String
+    @@index([projectId])
 }
 
 model Wireframe {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
     designs Design[]
+    title String
     content String
+    @@index([projectId])
 }
 
 model Review {
-    id Int @id @default(autoIncremet())
+    id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    title String
+    content String
+    @@index([projectId])
 }
 ```

@@ -12,7 +12,8 @@ export class McpService {
       },
       {
         instructions: [
-          "이 mcp 는 작업내역을 tracking하고 산출물을 관리하는 문서관리형 mcp 이다",
+          "이 mcp 는 에이전트의 작업내역을 tracking하고 산출물을 관리하는 문서관리형 mcp 이다",
+          "yusung-harness의 doc-curator를 통해 관리된다",
         ].join(""), //배열의 모든 원소를 하나의 긴 문자열로 병합
       },
     );

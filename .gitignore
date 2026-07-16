@@ -1,0 +1,36 @@
+# macOS
+.DS_Store
+
+# Dependencies and package-manager caches
+node_modules/
+.pnpm-store/
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Build and test output
+dist/
+.next/
+out/
+coverage/
+next-env.d.ts
+*.tsbuildinfo
+
+# Tooling output
+.swc/
+.turbo/
+.vercel/
+
+# Prisma generated client and local SQLite databases
+apps/server/src/generated/prisma/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
