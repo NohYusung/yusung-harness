@@ -1,0 +1,6 @@
+// yusung-harness-dec - 로컬 문서관리 SQLite 스키마 
+// 설계: docs/ARCHITECTURE.md 
+
+database db {
+    provider = "sqlite"
+}

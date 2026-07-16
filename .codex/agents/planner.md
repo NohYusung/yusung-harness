@@ -67,4 +67,4 @@ session
 
 ### 기획이 확정 시 doc-curator 에이전트로 hand-off
 
-작업 완료 시 doc-curator 에이전트로 기획 내용을 hand off
+> 작업 완료 시 doc-curator 에이전트로 기획 내용을 hand off

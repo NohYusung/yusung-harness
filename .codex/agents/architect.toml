@@ -1,7 +1,7 @@
 name = "architect"
 description = "아키텍쳐를 설계하는 에이전트"
 model = "gpt-5.6-sol"
-model_resoning_effort = "ultra"
-developer_instruction = """
+model_reasoning_effort = "xhigh"
+developer_instructions = """
 ../../yusung-harness/.codex/agents/architect.md 의 내용을 따른다.
 """
