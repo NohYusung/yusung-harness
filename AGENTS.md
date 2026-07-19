@@ -102,7 +102,7 @@ functions.collaboration.spawn_agent
 
 - 만약 이미 호출된 에이전트가 있으면 추가로 호출하지 않고, 그 에이전트를 재사용한다.
 
-- subagent들은 서로간 send_message tool과 followup_task tool을 이용해 메시지를 주고 받으며, 겹치는 작업 영역을 조율한다.
+- subagent들은 서로간 send_message tool과 followup_task tool을 이용해 메시지를 주고 받으며, 겹치는 작업 영역을 조율하거나 협력을 진행한다.
 
 ```rs
 functions.collaboration.send_message

@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+
+  --color-canvas: #f7f7f4;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f2ef;
+  --color-ink: #18202f;
+  --color-muted: #667085;
+  --color-line: #e3e7ec;
+  --color-primary: #3156d9;
+  --color-primary-soft: #edf1ff;
+  --color-success: #0d7048;
+  --color-success-soft: #eaf8f1;
+  --color-warning: #874707;
+  --color-warning-soft: #fff5df;
+  --color-danger: #c43d4d;
+  --color-danger-soft: #fff0f2;
+  --color-violet: #7257c7;
+  --color-violet-soft: #f3efff;
+  --color-teal: #137b78;
+  --color-teal-soft: #e9f8f6;
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgb(24 32 47 / 0.05);
+}
+
+:root {
+  color-scheme: light;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-synthesis: none;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  min-width: 20rem;
+  background: var(--color-canvas);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 88% -8%, rgb(49 86 217 / 0.08), transparent 28rem),
+    var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -1,16 +1,44 @@
-import { Controller, Get, Post, Body, Param } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+} from "@nestjs/common";
+import { z } from "zod/v4";
 import { ProjectsService } from "./projects.service";
-import { Prisma } from "@prisma/client";
 
-@ApiTags("projects")
+const upsertProjectSchema = z.object({
+  title: z.string().trim().min(1),
+  repoPath: z.string().trim().min(1),
+  repoType: z.enum(["LOCAL", "REMOTE"]),
+  description: z.string().trim().min(1),
+});
+
 @Controller("projects")
-@ApiBearerAuth()
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
-  create(@Body() createProjectDto: Prisma.ProjectCreateInput) {
-    return this.projectsService.create(createProjectDto);
+  upsert(@Body() body: unknown) {
+    const input = upsertProjectSchema.safeParse(body);
+
+    if (!input.success) {
+      throw new BadRequestException(z.prettifyError(input.error));
+    }
+
+    return this.projectsService.upsert(input.data);
+  }
+
+  @Get()
+  list() {
+    return this.projectsService.list();
+  }
+
+  @Get(":projectId")
+  getContext(@Param("projectId", ParseIntPipe) projectId: number) {
+    return this.projectsService.getContext(projectId);
   }
 }
