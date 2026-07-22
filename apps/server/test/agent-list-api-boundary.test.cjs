@@ -1,0 +1,466 @@
+const assert = require("node:assert/strict");
+const { existsSync, readFileSync } = require("node:fs");
+const { join } = require("node:path");
+const test = require("node:test");
+
+const serverRoot = join(__dirname, "..");
+const source = (relativePath) => {
+  const path = join(serverRoot, "src", relativePath);
+
+  assert.equal(existsSync(path), true, `${relativePath}가 존재해야 한다`);
+  return readFileSync(path, "utf8");
+};
+
+const sourcePath = (relativePath) => join(serverRoot, "src", relativePath);
+
+const domains = [
+  {
+    resource: "plans",
+    model: "plan",
+    className: "Plans",
+    orderField: "version",
+  },
+  {
+    resource: "drafts",
+    model: "draft",
+    className: "Drafts",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "domains",
+    model: "domain",
+    className: "Domains",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "architectures",
+    model: "architecture",
+    className: "Architectures",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "tasks",
+    model: "task",
+    className: "Tasks",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "wireframes",
+    model: "wireframe",
+    className: "Wireframes",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "assets",
+    model: "asset",
+    className: "Assets",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "designs",
+    model: "design",
+    className: "Designs",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "reviews",
+    model: "review",
+    className: "Reviews",
+    orderField: "updatedAt",
+  },
+];
+
+const controllers = [
+  {
+    resource: "projects",
+    controllerFile: "project.controller.ts",
+    controllerClass: "ProjectController",
+    route: "projects",
+  },
+  ...domains.map(({ resource, className }) => ({
+    resource,
+    controllerFile: `${resource}.controller.ts`,
+    controllerClass: `${className}Controller`,
+    route: `${resource}/:projectId`,
+  })),
+];
+
+const methodBody = (content, methodName) => {
+  const signature = new RegExp(`(?:async\\s+)?${methodName}\\s*\\(`);
+  const signatureMatch = signature.exec(content);
+
+  assert.ok(signatureMatch, `${methodName} method가 존재해야 한다`);
+
+  const parametersStart = content.indexOf("(", signatureMatch.index);
+  let parametersEnd = -1;
+  let parenthesesDepth = 0;
+
+  for (let index = parametersStart; index < content.length; index += 1) {
+    if (content[index] === "(") parenthesesDepth += 1;
+    if (content[index] === ")") parenthesesDepth -= 1;
+
+    if (parenthesesDepth === 0) {
+      parametersEnd = index;
+      break;
+    }
+  }
+
+  assert.notEqual(parametersEnd, -1, `${methodName} method 파라미터가 완결되어야 한다`);
+
+  const blockStart = content.indexOf("{", parametersEnd);
+  assert.notEqual(blockStart, -1, `${methodName} method body가 존재해야 한다`);
+
+  let depth = 0;
+  for (let index = blockStart; index < content.length; index += 1) {
+    if (content[index] === "{") depth += 1;
+    if (content[index] === "}") depth -= 1;
+
+    if (depth === 0) {
+      return content.slice(blockStart + 1, index);
+    }
+  }
+
+  assert.fail(`${methodName} method body가 완결되어야 한다`);
+};
+
+const objectBodyAt = (content, blockStart, label) => {
+  assert.notEqual(blockStart, -1, `${label} object가 존재해야 한다`);
+
+  let depth = 0;
+  for (let index = blockStart; index < content.length; index += 1) {
+    if (content[index] === "{") depth += 1;
+    if (content[index] === "}") depth -= 1;
+
+    if (depth === 0) {
+      return content.slice(blockStart + 1, index);
+    }
+  }
+
+  assert.fail(`${label} object가 완결되어야 한다`);
+};
+
+const objectBodyAfter = (content, pattern, label) => {
+  const match = pattern.exec(content);
+
+  assert.ok(match, `${label}가 존재해야 한다`);
+  return objectBodyAt(content, content.indexOf("{", match.index + match[0].length), label);
+};
+
+const topLevelPropertyIndex = (content, property) => {
+  let depth = 0;
+
+  for (let index = 0; index < content.length; index += 1) {
+    if (content[index] === "{") depth += 1;
+    if (content[index] === "}") depth -= 1;
+    if (depth !== 0 || !/[A-Za-z_$]/.test(content[index])) continue;
+
+    const name = content.slice(index).match(/^[A-Za-z_$][\w$]*/)?.[0];
+    if (!name) continue;
+
+    let colonIndex = index + name.length;
+    while (/\s/.test(content[colonIndex])) colonIndex += 1;
+
+    if (name === property && content[colonIndex] === ":") {
+      return colonIndex;
+    }
+
+    index += name.length - 1;
+  }
+
+  return -1;
+};
+
+const topLevelObjectBody = (content, property) => {
+  const propertyIndex = topLevelPropertyIndex(content, property);
+
+  assert.notEqual(propertyIndex, -1, `${property} relation이 존재해야 한다`);
+  return objectBodyAt(
+    content,
+    content.indexOf("{", propertyIndex),
+    `${property} relation`,
+  );
+};
+
+test("프로젝트와 산출물 HTTP controller는 읽기 전용 목록 API를 노출한다", () => {
+  for (const {
+    resource,
+    controllerFile,
+    controllerClass,
+    route,
+  } of controllers) {
+    const controller = source(`services/${resource}/${controllerFile}`);
+
+    assert.doesNotMatch(controller, /\bAGENT\b/);
+    assert.match(
+      controller,
+      new RegExp(`@Controller\\(\\s*["']${route}["']\\s*\\)`),
+      `${resource} controller route가 일치해야 한다`,
+    );
+    assert.match(controller, new RegExp(`export class ${controllerClass}`));
+    assert.match(controller, /\/\*\*[\s\S]*?목록 조회[\s\S]*?\*\/[\s\n]*@Get\(\)/);
+    assert.doesNotMatch(controller, /@(Post|Put|Patch|Delete)\s*\(/);
+    assert.match(controller, /\/\/ 1\. Destructure body, params, query/);
+    assert.match(controller, /\/\/ 2\. Get context/);
+    assert.match(controller, /\/\/ 3\. Get result/);
+    assert.match(controller, /\/\/ 4\. Send response/);
+    assert.match(controller, /return\s+\{\s*data\s*\}/);
+
+    if (resource === "projects") {
+      assert.match(controller, /this\.projectsService\.list\s*\(\s*\)/);
+    } else {
+      assert.match(
+        controller,
+        /@Param\(\s*["']projectId["']\s*,\s*ParseIntPipe\s*\)\s*projectId:\s*number/,
+      );
+      if (resource !== "plans") {
+        assert.match(
+          controller,
+          new RegExp(`this\\.${resource}Service\\.list\\(\\s*\\{\\s*projectId\\s*\\}\\s*\\)`),
+        );
+      }
+    }
+  }
+});
+
+test("프로젝트 aggregate context 상세 API와 service 책임은 제거한다", () => {
+  const controller = source("services/projects/project.controller.ts");
+  const service = source("services/projects/projects.service.ts");
+
+  assert.doesNotMatch(controller, /@Get\(\s*["']:projectId["']\s*\)|\bgetContext\s*\(/);
+  assert.doesNotMatch(service, /\bAGENT\b|\bgetContext\s*\(/);
+});
+
+test("resource module과 AppModule은 목록 controller를 등록한다", () => {
+  for (const { resource, controllerClass } of controllers) {
+    const moduleSource = source(`services/${resource}/${resource}.module.ts`);
+
+    assert.match(moduleSource, new RegExp(`\\b${controllerClass}\\b`));
+    assert.match(
+      moduleSource,
+      new RegExp(`controllers:\\s*\\[[^\\]]*${controllerClass}[^\\]]*\\]`, "s"),
+    );
+  }
+
+  const appModule = source("app.module.ts");
+  for (const moduleName of [
+    "ProjectsModule",
+    "PlansModule",
+    "DraftsModule",
+    "TasksModule",
+    "DomainsModule",
+    "ArchitecturesModule",
+    "WireframesModule",
+    "AssetsModule",
+    "DesignsModule",
+    "ReviewsModule",
+  ]) {
+    assert.match(appModule, new RegExp(`\\b${moduleName}\\b`));
+  }
+});
+
+test("MCP get_project는 projectId가 있으면 9종 domain list service를 병렬 조립한다", () => {
+  const mcpService = source("mcp/mcp.service.ts");
+  const domainServices = [
+    "plans",
+    "tasks",
+    "drafts",
+    "domains",
+    "architectures",
+    "wireframes",
+    "assets",
+    "designs",
+    "reviews",
+  ];
+
+  assert.match(mcpService, /"get_project"/);
+  assert.match(mcpService, /readOnlyHint:\s*true/);
+  assert.doesNotMatch(mcpService, /projectsService\.getContext\s*\(/);
+  assert.match(mcpService, /Promise\.all\s*\(/);
+  for (const service of domainServices) {
+    assert.match(
+      mcpService,
+      new RegExp(`this\\.${service}Service\\.list\\(\\s*\\{\\s*projectId\\s*\\}`),
+      `${service}Service.list를 호출해야 한다`,
+    );
+  }
+});
+
+test("Plan 목록은 caller 정렬 옵션을 사용하고 controller가 optional query를 전달한다", () => {
+  const service = source("services/plans/plans.service.ts");
+  const controller = source("services/plans/plans.controller.ts");
+  const list = methodBody(service, "list");
+  const findManyArgs = objectBodyAfter(
+    list,
+    /this\.prisma\.plan\.findMany\s*\(/,
+    "Plan findMany args",
+  );
+  const controllerList = methodBody(controller, "list");
+
+  assert.doesNotMatch(service, /\bAGENT\b/);
+  assert.match(
+    service,
+    /options\?:\s*Pick<Prisma\.PlanFindManyArgs,\s*["']orderBy["']>/,
+  );
+  assert.match(list, /\.\.\.options/);
+  assert.equal(
+    topLevelPropertyIndex(findManyArgs, "orderBy"),
+    -1,
+    "PlansService.list가 top-level 정렬을 하드코딩하면 안 된다",
+  );
+  assert.match(
+    controller,
+    /new\s+ParseEnumPipe\s*\(\s*PlanVersionOrder\s*,\s*\{\s*optional:\s*true\s*\}\s*\)/,
+  );
+  assert.match(controller, /@Query\s*\(\s*["']versionOrder["']/);
+  assert.match(
+    controllerList,
+    /const\s+options\s*=\s*versionOrder\s*\?\s*\{\s*orderBy:\s*\{\s*version:\s*versionOrder\s*\}\s*\}\s*:\s*undefined/,
+  );
+  assert.match(
+    controllerList,
+    /this\.plansService\.list\s*\(\s*\{\s*projectId\s*\}\s*,\s*options\s*\)/,
+  );
+  assert.doesNotMatch(controllerList, /version:\s*["']desc["']/);
+});
+
+test("8종 목록 service는 project 소유권을 검증하고 각 table을 결정적 순서로 조회한다", () => {
+  for (const { resource, model, orderField } of domains.filter(
+    ({ resource }) => resource !== "plans",
+  )) {
+    const service = source(`services/${resource}/${resource}.service.ts`);
+    const body = methodBody(service, "list");
+    const ensureIndex = body.search(
+      /await\s+this\.projectsService\.ensureProject\s*\(\s*projectId\s*\)/,
+    );
+    const queryIndex = body.search(
+      new RegExp(`this\\.prisma\\.${model}\\.findMany\\s*\\(`),
+    );
+
+    assert.match(
+      service,
+      /async\s+list\s*\(\s*\{\s*projectId\s*\}\s*:\s*\{\s*projectId:\s*number\s*\}\s*\)/,
+      `${resource} list는 projectId를 인라인 구조 분해해야 한다`,
+    );
+    assert.ok(ensureIndex >= 0, `${resource} list는 project 존재를 검증해야 한다`);
+    assert.ok(queryIndex > ensureIndex, `${resource} list는 project 검증 후 조회해야 한다`);
+    assert.match(body, /where:\s*\{\s*projectId\s*\}/);
+    assert.match(
+      body,
+      new RegExp(`orderBy:\\s*\\{\\s*${orderField}:\\s*["']desc["']\\s*\\}`),
+      `${resource} list의 정렬 기준이 일관되어야 한다`,
+    );
+  }
+});
+
+test("HTML 산출물 공통 validator는 삭제하고 저장 service에서 참조하지 않는다", () => {
+  assert.equal(existsSync(sourcePath("common/html-artifact.ts")), false);
+
+  for (const resource of ["wireframes", "assets", "designs"]) {
+    const service = source(`services/${resource}/${resource}.service.ts`);
+
+    assert.doesNotMatch(service, /html-artifact|assertHtmlArtifact/);
+  }
+});
+
+test("디자인 목록은 dashboard context와 동일한 연결 산출물을 포함한다", () => {
+  const body = methodBody(source("services/designs/designs.service.ts"), "list");
+
+  assert.match(
+    body,
+    /include:\s*\{\s*wireframe:\s*true\s*,\s*asset:\s*true\s*\}/,
+  );
+});
+
+test("Plan과 Task 목록은 프론트 응답 타입의 중첩 relation을 포함한다", () => {
+  const planList = methodBody(source("services/plans/plans.service.ts"), "list");
+  const planInclude = objectBodyAfter(planList, /include\s*:/, "Plan include");
+
+  for (const relation of ["tasks", "assets", "wireframes", "designs", "reviews"]) {
+    assert.notEqual(
+      topLevelPropertyIndex(planInclude, relation),
+      -1,
+      `Plan.${relation}을 include해야 한다`,
+    );
+  }
+
+  const planTaskOptions = topLevelObjectBody(planInclude, "tasks");
+  assert.match(
+    planTaskOptions,
+    /orderBy:\s*\{\s*createdAt:\s*["']asc["']\s*\}/,
+  );
+  const planTaskInclude = objectBodyAfter(
+    planTaskOptions,
+    /include\s*:/,
+    "Plan.tasks include",
+  );
+  for (const relation of ["assets", "wireframes", "designs"]) {
+    assert.notEqual(
+      topLevelPropertyIndex(planTaskInclude, relation),
+      -1,
+      `Plan.tasks.${relation}을 include해야 한다`,
+    );
+    assert.match(
+      topLevelObjectBody(planTaskInclude, relation),
+      /orderBy:\s*\{\s*updatedAt:\s*["']desc["']\s*\}/,
+      `Plan.tasks.${relation}은 최신 수정순이어야 한다`,
+    );
+  }
+
+  for (const relation of ["assets", "wireframes", "designs", "reviews"]) {
+    assert.match(
+      topLevelObjectBody(planInclude, relation),
+      /orderBy:\s*\{\s*updatedAt:\s*["']desc["']\s*\}/,
+      `Plan.${relation}은 최신 수정순이어야 한다`,
+    );
+  }
+
+  const taskList = methodBody(source("services/tasks/tasks.service.ts"), "list");
+  const taskInclude = objectBodyAfter(taskList, /include\s*:/, "Task include");
+  for (const relation of ["assets", "wireframes", "designs"]) {
+    assert.notEqual(
+      topLevelPropertyIndex(taskInclude, relation),
+      -1,
+      `Task.${relation}을 include해야 한다`,
+    );
+  }
+
+  for (const [label, include] of [
+    ["Plan.designs", planInclude],
+    ["Plan.tasks.designs", planTaskInclude],
+    ["Task.designs", taskInclude],
+  ]) {
+    const designOptions = topLevelObjectBody(include, "designs");
+    const designInclude = objectBodyAfter(
+      designOptions,
+      /include\s*:/,
+      `${label} include`,
+    );
+
+    for (const relation of ["wireframe", "asset"]) {
+      assert.notEqual(
+        topLevelPropertyIndex(designInclude, relation),
+        -1,
+        `${label}.${relation}을 include해야 한다`,
+      );
+    }
+  }
+});
+
+test("Plan version 생성은 최신 version 조회에만 desc 정렬을 유지한다", () => {
+  const service = source("services/plans/plans.service.ts");
+  const createVersion = methodBody(service, "createVersion");
+  const latestPlanQuery = objectBodyAfter(
+    createVersion,
+    /transaction\.plan\.findFirst\s*\(/,
+    "latest Plan query",
+  );
+
+  assert.match(
+    topLevelObjectBody(latestPlanQuery, "orderBy"),
+    /version:\s*["']desc["']/,
+  );
+  assert.match(
+    topLevelObjectBody(latestPlanQuery, "select"),
+    /version:\s*true/,
+  );
+});

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yusung Harness — Artifact Workbench</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --canvas:#0b0e13; --panel:#11161e; --panel-2:#151b24; --panel-3:#1a222d;
+      --line:#283241; --line-strong:#3c4a5f; --text:#edf3fb; --muted:#9ba9ba;
+      --subtle:#6f7e91; --blue:#79b8ff; --blue-soft:#182a40; --lime:#b6e875;
+      --amber:#f1c16f; --rose:#ff8f9f; --focus:#a9d1ff; --radius:8px;
+      --sans:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-width:320px;min-height:100%;background:var(--canvas);color:var(--text);font-family:var(--sans)}
+    body{height:100dvh;overflow:hidden}
+    button,input,select{font:inherit;color:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .app{height:100dvh;display:grid;grid-template-rows:58px minmax(0,1fr)}
+    .topbar{display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);background:#0e1218}
+    .brand{display:flex;align-items:center;gap:10px;min-width:250px}
+    .mark{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line-strong);border-radius:7px;background:var(--panel-2);font:700 10px var(--mono);letter-spacing:.08em}
+    .brand strong{font-size:14px;letter-spacing:-.01em}.brand small{display:block;color:var(--subtle);font:10px var(--mono);margin-top:2px}
+    .global-search{position:relative;flex:1;max-width:680px}
+    .global-search input{width:100%;height:36px;border:1px solid var(--line);border-radius:7px;background:var(--panel);padding:0 90px 0 36px;font-size:13px}
+    .search-symbol{position:absolute;left:12px;top:9px;color:var(--subtle)}
+    .shortcut{position:absolute;right:8px;top:7px;border:1px solid var(--line);border-radius:5px;padding:3px 6px;color:var(--subtle);font:10px var(--mono)}
+    .top-meta{margin-left:auto;display:flex;align-items:center;gap:8px;font:11px var(--mono);color:var(--muted)}
+    .status-dot{width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 3px rgb(182 232 117 / .08)}
+    .mobile-nav{display:none;margin-left:auto;gap:4px}
+    .mobile-nav button,.icon-button{min-width:36px;height:36px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--muted)}
+    .workspace{min-height:0;display:grid;grid-template-columns:270px minmax(420px,1fr) 360px}
+    .pane{min-width:0;min-height:0;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column}
+    .pane:last-child{border-right:0}
+    .pane-head{min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+    .pane-head h2{margin:0;font-size:12px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .count{font:11px var(--mono);color:var(--subtle)}
+    .scroll{min-height:0;overflow:auto;scrollbar-color:var(--line) transparent;scrollbar-width:thin}
+    .project-card{margin:12px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2)}
+    .project-card select{width:100%;height:38px;border:0;background:transparent;font-weight:650;font-size:13px}
+    .project-card p{margin:7px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--subtle);font:10px var(--mono)}
+    .tree-section{padding:8px 8px 12px}.tree-label{padding:8px 10px;color:var(--subtle);font:10px var(--mono);text-transform:uppercase;letter-spacing:.1em}
+    .tree-button{width:100%;min-height:36px;border:0;border-radius:6px;background:transparent;display:flex;align-items:center;gap:9px;padding:7px 9px;text-align:left;color:var(--muted);font-size:13px}
+    .tree-button:hover{background:var(--panel-2);color:var(--text)}.tree-button[aria-pressed="true"]{background:var(--blue-soft);color:var(--text)}
+    .glyph{width:18px;color:var(--subtle);font:11px var(--mono);text-align:center}.tree-button[aria-pressed="true"] .glyph{color:var(--blue)}
+    .tree-name{flex:1}.tree-count{font:10px var(--mono);color:var(--subtle)}
+    .tree-child{padding-left:20px}.tree-child .tree-button{font-size:12px}
+    .tree-status{width:7px;height:7px;border-radius:50%;background:var(--amber)}.tree-status.done{background:var(--lime)}
+    .list-pane{background:var(--panel-2)}
+    .list-toolbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+    .list-toolbar select{height:34px;border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:0 28px 0 10px;font-size:12px}
+    .list-toolbar .crumb{flex:1;color:var(--muted);font:11px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .record-header,.record-row{display:grid;grid-template-columns:88px minmax(180px,1fr) 104px 72px;align-items:center;gap:12px;padding:0 16px}
+    .record-header{height:34px;border-bottom:1px solid var(--line);color:var(--subtle);font:10px var(--mono);text-transform:uppercase;letter-spacing:.06em}
+    .record-row{width:100%;min-height:56px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;color:var(--text)}
+    .record-row:hover{background:var(--panel-3)}.record-row[aria-selected="true"]{background:#1b2a3b;box-shadow:inset 2px 0 var(--blue)}
+    .type-code{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font:10px var(--mono)}
+    .type-dot{width:7px;height:7px;border-radius:2px;background:var(--blue)}
+    .type-dot.task{background:var(--lime)}.type-dot.design{background:#c3a6ff}.type-dot.asset{background:var(--amber)}.type-dot.review{background:var(--rose)}
+    .record-title{min-width:0}.record-title strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.record-title small{display:block;margin-top:4px;color:var(--subtle);font:10px var(--mono)}
+    .badge{display:inline-flex;width:max-content;border:1px solid var(--line);border-radius:99px;padding:3px 7px;color:var(--muted);font:10px var(--mono)}
+    .badge.complete{border-color:#3e5a39;color:var(--lime);background:#172019}.badge.pending{border-color:#594727;color:var(--amber);background:#211b12}
+    .rel-count{color:var(--subtle);font:11px var(--mono)}
+    .empty{padding:56px 24px;text-align:center;color:var(--muted)}
+    .empty strong{display:block;color:var(--text);margin-bottom:6px}.empty[hidden]{display:none}
+    .detail-pane{background:#0f141b}.detail-title{min-width:0}.detail-title h2{max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-size:13px;text-transform:none;letter-spacing:0}.detail-title p{margin:4px 0 0;color:var(--subtle);font:10px var(--mono)}
+    .detail-tabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}
+    .detail-tab{height:42px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-size:11px}
+    .detail-tab[aria-selected="true"]{color:var(--text);border-color:var(--blue);background:var(--panel)}
+    .detail-body{padding:18px}.tab-panel[hidden]{display:none}
+    .section-title{margin:20px 0 9px;color:var(--subtle);font:10px var(--mono);text-transform:uppercase;letter-spacing:.1em}.section-title:first-child{margin-top:0}
+    .meta-grid{display:grid;grid-template-columns:96px 1fr;gap:10px 12px;margin:0;font-size:12px}.meta-grid dt{color:var(--subtle)}.meta-grid dd{margin:0;color:var(--text);overflow-wrap:anywhere}.mono{font-family:var(--mono)}
+    .content-block{border-top:1px solid var(--line);margin-top:18px;padding-top:16px;color:#c4cfdd;font-size:13px;line-height:1.7}.content-block h3{margin:0 0 9px;color:var(--text);font-size:14px}.content-block ul{padding-left:18px}
+    .relation-list{list-style:none;margin:0;padding:0}.relation-list li{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px}.relation-arrow{color:var(--blue);font-family:var(--mono)}.relation-list small{display:block;color:var(--subtle);margin-top:3px}
+    .preview{min-height:310px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#f4f6f8;color:#171a1f}.preview-bar{height:34px;display:flex;align-items:center;gap:5px;padding:0 10px;background:#e7ebef;border-bottom:1px solid #c9d0d8}.preview-bar span{width:7px;height:7px;border-radius:50%;background:#aeb8c4}.preview-content{padding:22px}.preview-content .mini-nav{height:18px;border-radius:4px;background:#dbe2ea;margin-bottom:18px}.preview-content .mini-hero{height:88px;border-radius:6px;background:linear-gradient(135deg,#d9e8ff,#e8defe);padding:18px;font-weight:700}.preview-content .mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.preview-content .mini-grid i{height:54px;border:1px solid #d1d8df;border-radius:5px;background:white}
+    .source{display:none;white-space:pre-wrap;margin:0;color:#a7d2ff;background:#0a0e13;padding:14px;min-height:310px;font:11px/1.6 var(--mono)}
+    .preview-toggle{display:flex;gap:6px;margin-bottom:10px}.preview-toggle button{height:30px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--muted);font-size:11px}.preview-toggle button[aria-pressed="true"]{color:var(--text);border-color:var(--blue)}
+    .mobile-back{display:none;height:36px;border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:0 10px;color:var(--muted)}
+    @media (max-width:1000px){.workspace{grid-template-columns:230px minmax(360px,1fr) 310px}.record-header,.record-row{grid-template-columns:76px minmax(160px,1fr) 90px}.record-header>*:last-child,.record-row>*:last-child{display:none}}
+    @media (max-width:760px){
+      body{overflow:auto}.app{min-height:100dvh;height:auto;grid-template-rows:58px minmax(calc(100dvh - 58px),auto)}.brand{min-width:0}.brand small,.top-meta,.shortcut{display:none}.global-search{max-width:none}.mobile-nav{display:flex}.workspace{display:block;min-height:calc(100dvh - 58px)}
+      .pane{display:none;border:0;min-height:calc(100dvh - 58px)}body[data-mobile-pane="tree"] .tree-pane,body[data-mobile-pane="records"] .list-pane,body[data-mobile-pane="detail"] .detail-pane{display:flex}.mobile-back{display:inline-flex;align-items:center}.pane-head{position:sticky;top:0;z-index:4}.record-header{display:none}.record-row{grid-template-columns:76px minmax(150px,1fr) 88px;padding:0 12px}.detail-title h2{max-width:190px}.detail-body{padding:16px}.project-card{margin-top:18px}
+    }
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+  </style>
+</head>
+<body data-mobile-pane="records">
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="mark" aria-hidden="true">YH</span><span><strong>Artifact Workbench</strong><small>Yusung Harness · LOCAL</small></span></div>
+      <label class="global-search"><span class="sr-only">Search records</span><span class="search-symbol" aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search titles, types, or IDs"><span class="shortcut">⌘ K</span></label>
+      <div class="top-meta"><span class="status-dot"></span><span>/workspace/yusung-harness</span></div>
+      <nav class="mobile-nav" aria-label="Mobile panes"><button type="button" data-pane="tree" aria-label="Open tree">Tree</button><button type="button" data-pane="records" aria-label="Open records">List</button><button type="button" data-pane="detail" aria-label="Open detail">Info</button></nav>
+    </header>
+    <main class="workspace">
+      <aside class="pane tree-pane" aria-label="Project artifact tree">
+        <div class="pane-head"><h2>Explorer</h2><span class="count">45 records</span></div>
+        <div class="scroll">
+          <div class="project-card"><label for="project" class="sr-only">Project</label><select id="project"><option>Yusung Harness · LOCAL</option><option>Sageum Agent · LOCAL</option><option>Issue Board · REMOTE</option></select><p>/workspace/yusung-harness</p></div>
+          <nav class="tree-section" aria-label="Artifact types">
+            <div class="tree-label">Project records</div>
+            <button class="tree-button" type="button" data-type="All" aria-pressed="true"><span class="glyph">◇</span><span class="tree-name">All records</span><span class="tree-count">45</span></button>
+            <button class="tree-button" type="button" data-type="Plan" aria-pressed="false"><span class="glyph">PL</span><span class="tree-name">Plans</span><span class="tree-count">4</span></button>
+            <div class="tree-child">
+              <button class="tree-button" type="button" data-id="plan-4" aria-pressed="false"><span class="glyph">v4</span><span class="tree-name">MCP-only pipeline</span></button>
+              <button class="tree-button" type="button" data-id="task-api" aria-pressed="false"><span class="tree-status done"></span><span class="tree-name">API boundary</span></button>
+              <button class="tree-button" type="button" data-id="task-browser" aria-pressed="false"><span class="tree-status"></span><span class="tree-name">Browser QA</span></button>
+            </div>
+            <button class="tree-button" type="button" data-type="Task" aria-pressed="false"><span class="glyph">TK</span><span class="tree-name">Tasks · 8 complete</span><span class="tree-count">12</span></button>
+            <button class="tree-button" type="button" data-type="Draft" aria-pressed="false"><span class="glyph">DR</span><span class="tree-name">Drafts</span><span class="tree-count">3</span></button>
+            <button class="tree-button" type="button" data-type="Domain" aria-pressed="false"><span class="glyph">DM</span><span class="tree-name">Domain</span><span class="tree-count">6</span></button>
+            <button class="tree-button" type="button" data-type="Architecture" aria-pressed="false"><span class="glyph">AR</span><span class="tree-name">Architecture</span><span class="tree-count">8</span></button>
+            <button class="tree-button" type="button" data-type="Wireframe" aria-pressed="false"><span class="glyph">WF</span><span class="tree-name">Wireframes</span><span class="tree-count">5</span></button>
+            <button class="tree-button" type="button" data-type="Asset" aria-pressed="false"><span class="glyph">AS</span><span class="tree-name">Assets</span><span class="tree-count">7</span></button>
+            <button class="tree-button" type="button" data-type="Design" aria-pressed="false"><span class="glyph">DS</span><span class="tree-name">Designs</span><span class="tree-count">4</span></button>
+            <button class="tree-button" type="button" data-type="Review" aria-pressed="false"><span class="glyph">RV</span><span class="tree-name">Reviews</span><span class="tree-count">2</span></button>
+          </nav>
+        </div>
+      </aside>
+      <section class="pane list-pane" aria-labelledby="records-heading">
+        <div class="pane-head"><div><button class="mobile-back" type="button" data-pane="tree">← Tree</button><h2 id="records-heading" style="display:inline;margin-left:8px">Records</h2></div><span id="result-count" class="count" aria-live="polite">12 visible</span></div>
+        <div class="list-toolbar"><span class="crumb">Yusung Harness / <strong id="scope-name">All records</strong></span><label><span class="sr-only">Status</span><select id="status-filter"><option value="All">All status</option><option>Completed</option><option>Pending</option></select></label></div>
+        <div class="record-header" aria-hidden="true"><span>Type</span><span>Title</span><span>Status</span><span>Links</span></div>
+        <div id="records" class="scroll" role="listbox" aria-label="Artifact records">
+          <button class="record-row" type="button" role="option" aria-selected="true" data-id="plan-4"><span class="type-code"><i class="type-dot"></i>Plan</span><span class="record-title"><strong>MCP-only document pipeline</strong><small>v4 · current plan</small></span><span class="badge">Current</span><span class="rel-count">12</span></button>
+          <button class="record-row" type="button" role="option" aria-selected="false" data-id="task-api"><span class="type-code"><i class="type-dot task"></i>Task</span><span class="record-title"><strong>API boundary</strong><small>#220 · Plan v4</small></span><span class="badge complete">Completed</span><span class="rel-count">4</span></button>
+          <button class="record-row" type="button" role="option" aria-selected="false" data-id="task-route"><span class="type-code"><i class="type-dot task"></i>Task</span><span class="record-title"><strong>Dashboard route refactor</strong><small>#221 · Plan v4</small></span><span class="badge complete">Completed</span><span class="rel-count">3</span></button>
+          <button class="record-row" type="button" role="option" aria-selected="false" data-id="task-browser"><span class="type-code"><i class="type-dot task"></i>Task</span><span class="record-title"><strong>Browser QA</strong><small>#222 · Plan v4</small></span><span class="badge pending">Pending</span><span class="rel-count">2</span></button>
+          <button class="record-row" type="button" role="option" aria-selected="false" data-id="task-architecture"><span class="type-code"><i class="type-dot task"></i>Task</span><span class="record-title"><strong>Architecture sync</strong><small>#223 · Plan v4</small></span><span class="badge pending">Pending</span><span class="rel-count">1</span></button>
+          <button class="record-row" type="button" role="option" aria-selected="false" data-id="design-67"><span class="type-code"><i class="type-dot design"></i>Design</span><span class="record-title"><strong>Workbench production UI</strong><small>#67 · Task 222</small></span><span class="badge">HTML</span><span class="rel-count">3</span></button>
+        </div>
+        <div id="empty" class="empty" hidden><strong>No matching records</strong>Try another search or type filter.</div>
+      </section>
+      <aside class="pane detail-pane" aria-labelledby="detail-heading">
+        <div class="pane-head"><button class="mobile-back" type="button" data-pane="records">← List</button><div class="detail-title"><h2 id="detail-heading">MCP-only document pipeline</h2><p id="detail-id">PLAN · #104 · v4</p></div><button class="icon-button" id="copy-link" type="button" aria-label="Copy deep link">↗</button></div>
+        <div class="detail-tabs" role="tablist" aria-label="Record details"><button class="detail-tab" type="button" role="tab" aria-selected="true" aria-controls="metadata-panel" data-tab="metadata">Metadata</button><button class="detail-tab" type="button" role="tab" aria-selected="false" aria-controls="relations-panel" data-tab="relations">Relations</button><button class="detail-tab" type="button" role="tab" aria-selected="false" aria-controls="preview-panel" data-tab="preview">Preview</button></div>
+        <div class="detail-body scroll">
+          <section class="tab-panel" id="metadata-panel" role="tabpanel"><p class="section-title">Record metadata</p><dl class="meta-grid"><dt>Type</dt><dd id="meta-type">Plan</dd><dt>Status</dt><dd id="meta-status">Current version</dd><dt>Project</dt><dd>Yusung Harness</dd><dt>Updated</dt><dd id="meta-updated" class="mono">Jul 22, 2026 · 08:42</dd><dt>Source</dt><dd id="meta-source" class="mono">plan/104</dd></dl><div class="content-block"><h3 id="content-title">MCP-only document pipeline</h3><p id="content-copy">Route document operations exclusively through MCP tools while the dashboard stays a read-only inspection surface.</p><ul id="content-points"><li>8 tools registered on a stateless transport</li><li>Domain services preserve project and task relationships</li><li>Dashboard reads nine resource lists in parallel</li></ul></div></section>
+          <section class="tab-panel" id="relations-panel" role="tabpanel" hidden><p class="section-title">Connected records</p><ul id="relations" class="relation-list"></ul></section>
+          <section class="tab-panel" id="preview-panel" role="tabpanel" hidden><div class="preview-toggle"><button type="button" data-preview="render" aria-pressed="true">Rendered</button><button type="button" data-preview="source" aria-pressed="false">Source</button></div><div id="rendered-preview" class="preview" aria-label="Selected artifact preview"><div class="preview-bar"><span></span><span></span><span></span></div><div class="preview-content"><div class="mini-nav"></div><div class="mini-hero">Yusung Harness dashboard</div><div class="mini-grid"><i></i><i></i><i></i></div></div></div><pre id="source-preview" class="source"><code>&lt;main class=&quot;dashboard&quot;&gt;
+  &lt;header&gt;Yusung Harness&lt;/header&gt;
+  &lt;section aria-label=&quot;Artifacts&quot;&gt;...&lt;/section&gt;
+&lt;/main&gt;</code></pre></section>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <script>
+    const records = [
+      {id:'plan-4',type:'Plan',title:'MCP-only document pipeline',meta:'v4 · current plan',status:'Current',links:12,updated:'Jul 22, 2026 · 08:42',source:'plan/104',copy:'Route document operations exclusively through MCP tools while the dashboard stays a read-only inspection surface.',relations:['Task → API boundary','Task → Dashboard route refactor','Task → Browser QA','Review → MCP boundary review']},
+      {id:'task-api',type:'Task',title:'API boundary',meta:'#220 · Plan v4',status:'Completed',links:4,updated:'Jul 22, 2026 · 07:28',source:'task/220',copy:'Expose resource lists through the new resource-first REST route contract.',relations:['Parent ← Plan v4','Wireframe → API list states','Design → API inspection view','Review → Route contract QA']},
+      {id:'task-route',type:'Task',title:'Dashboard route refactor',meta:'#221 · Plan v4',status:'Completed',links:3,updated:'Jul 22, 2026 · 07:46',source:'task/221',copy:'Align all dashboard clients with /resource/:projectId list routes.',relations:['Parent ← Plan v4','Asset → Route map','Design → Dashboard shell']},
+      {id:'task-browser',type:'Task',title:'Browser QA',meta:'#222 · Plan v4',status:'Pending',links:2,updated:'Jul 22, 2026 · 08:10',source:'task/222',copy:'Verify responsive navigation, HTML preview and keyboard focus in the browser.',relations:['Parent ← Plan v4','Wireframe → Mobile drill-down']},
+      {id:'task-architecture',type:'Task',title:'Architecture sync',meta:'#223 · Plan v4',status:'Pending',links:1,updated:'Jul 22, 2026 · 08:12',source:'task/223',copy:'Keep the deployment snapshot aligned with the MCP-only boundary.',relations:['Parent ← Plan v4']},
+      {id:'draft-31',type:'Draft',title:'Dashboard information model',meta:'#31 · text document',status:'Draft',links:2,updated:'Jul 21, 2026 · 18:20',source:'draft/31',copy:'Initial grouping of project context, plans, tasks and generated outputs.',relations:['Plan → MCP-only document pipeline','Domain → Project records']},
+      {id:'domain-11',type:'Domain',title:'Harness domain snapshot',meta:'#11 · 6 entities',status:'Snapshot',links:8,updated:'Jul 21, 2026 · 17:04',source:'domain/11',copy:'Project, Plan, Task and artifact relationships used by the dashboard.',relations:['Entity → Project','Entity → Plan','Entity → Task','Relation → Project owns Plan']},
+      {id:'architecture-18',type:'Architecture',title:'Harness production',meta:'#18 · 8 nodes',status:'Snapshot',links:7,updated:'Jul 21, 2026 · 16:48',source:'architecture/18',copy:'Next.js dashboard, Nest API, MCP transport and SQLite persistence.',relations:['Node → Next.js Web','Node → Nest API','Connection → Dashboard API · HTTPS']},
+      {id:'wireframe-41',type:'Wireframe',title:'Artifact workbench flow',meta:'#41 · Task 222',status:'HTML',links:2,updated:'Jul 22, 2026 · 08:16',source:'wireframe/41',copy:'Three-pane exploration flow for desktop and step-through flow for mobile.',relations:['Task ← Browser QA','Design → Workbench production UI']},
+      {id:'asset-54',type:'Asset',title:'Workbench interface tokens',meta:'#54 · Task 221',status:'HTML',links:2,updated:'Jul 22, 2026 · 08:18',source:'asset/54',copy:'Dark surface, focus, status and typography tokens for the dense workbench.',relations:['Task ← Dashboard route refactor','Design → Workbench production UI']},
+      {id:'design-67',type:'Design',title:'Workbench production UI',meta:'#67 · Task 222',status:'HTML',links:3,updated:'Jul 22, 2026 · 08:24',source:'design/67',copy:'A high-density inspection interface with tree, record list and live inspector.',relations:['Wireframe ← Artifact workbench flow','Asset ← Workbench interface tokens','Task ← Browser QA']},
+      {id:'review-12',type:'Review',title:'MCP boundary review',meta:'#12 · Plan v4',status:'Completed',links:1,updated:'Jul 22, 2026 · 08:31',source:'review/12',copy:'Transport routing and service boundaries match the intended architecture.',relations:['Plan ← MCP-only document pipeline']}
+    ];
+    const state={type:'All',status:'All',query:'',selected:'plan-4'};
+    const recordsEl=document.getElementById('records');
+    const emptyEl=document.getElementById('empty');
+    const search=document.getElementById('search');
+    const typeClass={Task:'task',Design:'design',Asset:'asset',Review:'review'};
+    function visibleRecords(){return records.filter(r=>(state.type==='All'||r.type===state.type)&&(state.status==='All'||r.status===state.status)&&(`${r.title} ${r.type} ${r.id}`.toLowerCase().includes(state.query.toLowerCase())))}
+    function renderRecords(){const visible=visibleRecords();recordsEl.replaceChildren(...visible.map(r=>{const b=document.createElement('button');b.type='button';b.className='record-row';b.setAttribute('role','option');b.setAttribute('aria-selected',String(r.id===state.selected));b.dataset.id=r.id;b.innerHTML=`<span class="type-code"><i class="type-dot ${typeClass[r.type]||''}"></i>${r.type}</span><span class="record-title"><strong>${r.title}</strong><small>${r.meta}</small></span><span class="badge ${r.status.toLowerCase()}">${r.status}</span><span class="rel-count">${r.links}</span>`;return b;}));emptyEl.hidden=visible.length>0;document.getElementById('result-count').textContent=`${visible.length} visible`;}
+    function selectRecord(id){const r=records.find(item=>item.id===id);if(!r)return;state.selected=id;document.getElementById('detail-heading').textContent=r.title;document.getElementById('detail-id').textContent=`${r.type.toUpperCase()} · ${r.id.replace('-', ' #')}`;document.getElementById('meta-type').textContent=r.type;document.getElementById('meta-status').textContent=r.status;document.getElementById('meta-updated').textContent=r.updated;document.getElementById('meta-source').textContent=r.source;document.getElementById('content-title').textContent=r.title;document.getElementById('content-copy').textContent=r.copy;const rel=document.getElementById('relations');rel.replaceChildren(...r.relations.map(item=>{const li=document.createElement('li');li.innerHTML=`<span class="relation-arrow">→</span><span>${item}<small>Connected through project context</small></span>`;return li;}));renderRecords();document.body.dataset.mobilePane='detail';}
+    recordsEl.addEventListener('click',e=>{const row=e.target.closest('[data-id]');if(row)selectRecord(row.dataset.id)});
+    document.querySelectorAll('.tree-button').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.tree-button').forEach(b=>b.setAttribute('aria-pressed','false'));button.setAttribute('aria-pressed','true');if(button.dataset.type){state.type=button.dataset.type;document.getElementById('scope-name').textContent=state.type==='All'?'All records':state.type;renderRecords();document.body.dataset.mobilePane='records'}else if(button.dataset.id){selectRecord(button.dataset.id)}}));
+    search.addEventListener('input',()=>{state.query=search.value;renderRecords()});
+    search.addEventListener('keydown',e=>{if(e.key==='Escape'){search.value='';state.query='';renderRecords();search.blur()}});
+    document.getElementById('status-filter').addEventListener('change',e=>{state.status=e.target.value;renderRecords()});
+    document.querySelectorAll('.detail-tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.detail-tab').forEach(t=>t.setAttribute('aria-selected','false'));document.querySelectorAll('.tab-panel').forEach(p=>p.hidden=true);tab.setAttribute('aria-selected','true');document.getElementById(`${tab.dataset.tab}-panel`).hidden=false;}));
+    document.querySelectorAll('[data-preview]').forEach(button=>button.addEventListener('click',()=>{const sourceMode=button.dataset.preview==='source';document.querySelectorAll('[data-preview]').forEach(b=>b.setAttribute('aria-pressed','false'));button.setAttribute('aria-pressed','true');document.getElementById('rendered-preview').style.display=sourceMode?'none':'block';document.getElementById('source-preview').style.display=sourceMode?'block':'none'}));
+    document.querySelectorAll('[data-pane]').forEach(button=>button.addEventListener('click',()=>{document.body.dataset.mobilePane=button.dataset.pane}));
+    document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();search.focus()}});
+    document.getElementById('copy-link').addEventListener('click',e=>{e.currentTarget.textContent='✓';setTimeout(()=>e.currentTarget.textContent='↗',900)});
+    document.getElementById('project').addEventListener('change',e=>{document.querySelector('.brand small').textContent=e.target.value});
+    renderRecords();selectRecord(state.selected);
+  </script>
+</body>
+</html>

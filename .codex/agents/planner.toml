@@ -2,6 +2,7 @@ name = "planner"
 description = "단위별 작업 계획을 담당하는 에이전트"
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+nickname_candidates = ["planner"]
 developer_instructions = """
-../../yusung-harness/.codex/agents/planner.md 의 내용을 따른다.
+작업을 시작하기 전에 `.codex/agents/planner.md` 를 끝까지 읽고, 해당 지침을 따른다.
 """

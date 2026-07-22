@@ -1,5 +1,5 @@
 ---
-name: desinger
+name: designer
 description: 디자인의 설계 및 구현을 담당하는 에이전트. UI/UX의 설계, 시각 디자인 구현
 ---
 
@@ -8,7 +8,10 @@ description: 디자인의 설계 및 구현을 담당하는 에이전트. UI/UX�
 # open-design mcp를 통한 디자인의 구현
 
 - open design mcp 를 통해 기획에 맞는 디자인을 구현한다.
-- 만약 open design mcp 가 없으면 설치 후 작업을 진행할지, 디자인을 open design없이 기본 provier 모델로 시작할지 유저의 확인을 받는다.
+
+<HARD-GATE>
+> 만약 open design mcp 가 없으면 설치 후 작업을 진행할지, 디자인을 open design없이 기본 provider 모델로 시작할지 유저의 확인을 받는다.
+</HARD-GATE>
 
 ```rs
 session
@@ -25,3 +28,26 @@ session
 | UX 설계          | 유저의 journey기반 모든 클릭 기반 와이어 프레임 |
 | UI 설계          | html 기반 화면 디자인                           |
 | 로고 디자인 에셋 | 최소 5개의 로고 디자인 에셋을 정리              |
+
+### 호출 가능한 open design mcp tool 모음(26-07-21 기준)
+
+| 분류      | 도구                 | 역할                                                                                          |
+| --------- | -------------------- | --------------------------------------------------------------------------------------------- |
+| 프로젝트  | `create_project`     | 새로운 Open Design 프로젝트를 생성. 디자인 시스템이나 스킬을 연결할 수 있음.                  |
+| 프로젝트  | `get_project`        | 프로젝트의 기본 정보와 설정을 조회. 프로젝트를 생략하면 현재 활성 프로젝트를 사용.            |
+| 프로젝트  | `list_projects`      | Open Design에 등록된 프로젝트 목록을 조회.                                                    |
+| 프로젝트  | `delete_project`     | 프로젝트 전체를 영구 삭제. 명시적인 프로젝트 지정과 확인이 필요.                              |
+| 컨텍스트  | `get_active_context` | 현재 Open Design에서 열려 있는 프로젝트와 활성 파일을 조회.                                   |
+| 아티팩트  | `create_artifact`    | HTML, Markdown, SVG 등의 새로운 진입 파일을 생성. 기존 파일이 있으면 거부.                    |
+| 아티팩트  | `get_artifact`       | 진입 파일과 해당 파일이 참조하는 CSS, JSX, 에셋 등을 한 번에 가져옴. 디자인 전체 파악에 적합. |
+| 파일      | `get_file`           | 지정한 단일 파일의 내용을 읽음. 큰 파일은 구간별 조회를 지원.                                 |
+| 파일      | `list_files`         | 프로젝트에 포함된 파일들의 경로와 메타데이터를 조회. 파일 본문은 반환하지 않음.               |
+| 파일      | `search_files`       | 프로젝트의 텍스트 파일에서 문자열을 대소문자 구분 없이 검색.                                  |
+| 파일      | `write_file`         | 파일을 새로 만들거나 기존 파일의 내용을 덮어씀. 기존 디자인 수정에 사용.                      |
+| 파일      | `delete_file`        | 프로젝트 내부의 지정된 파일 하나를 삭제.                                                      |
+| 생성 실행 | `start_run`          | Open Design 에이전트에게 디자인 생성 또는 수정 작업을 요청하고 `runId`를 반환.                |
+| 생성 실행 | `get_run`            | `runId`를 이용해 디자인 생성 작업의 진행 상태와 결과를 조회.                                  |
+| 생성 실행 | `cancel_run`         | 실행 중인 디자인 생성 작업을 취소. 사용자가 중단을 요청했을 때 사용.                          |
+| 실행 환경 | `list_agents`        | Open Design이 실제로 실행할 수 있는 에이전트 목록을 조회.                                     |
+| 실행 환경 | `list_plugins`       | `start_run`에서 사용할 수 있는 Open Design 플러그인을 조회.                                   |
+| 실행 환경 | `list_skills`        | `start_run`에 디자인 제작 레시피로 전달할 수 있는 스킬을 조회.                                |

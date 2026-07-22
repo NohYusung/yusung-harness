@@ -1,26 +1,47 @@
 import type {
   ArtifactDocument,
+  ArtifactRecord,
+  Asset,
+  Design,
+  Domain,
   Plan,
   ProjectContext,
   ProjectSummary,
+  Review,
   Task,
+  Wireframe,
 } from "@/types/dashboard";
 
 const createdAt = "2026-07-18T01:00:00.000Z";
 const updatedAt = "2026-07-18T02:00:00.000Z";
 
-export function createArtifact(
-  overrides: Partial<ArtifactDocument> = {},
-): ArtifactDocument {
+function createArtifactRecord(
+  overrides: Partial<ArtifactRecord> = {},
+): ArtifactRecord {
   return {
     id: 1,
     projectId: 1,
     createdAt,
     updatedAt,
-    title: "산출물",
-    content: "산출물 내용",
+    title: "Record",
     ...overrides,
   };
+}
+
+export function createArtifact(
+  overrides: Partial<ArtifactDocument> = {},
+): ArtifactDocument {
+  return {
+    ...createArtifactRecord(),
+    content: "Record content",
+    ...overrides,
+  };
+}
+
+export function createDomain(
+  overrides: Partial<Domain> = {},
+): Domain {
+  return createArtifact({ title: "Domain", ...overrides });
 }
 
 export function createTask(overrides: Partial<Task> = {}): Task {
@@ -31,17 +52,71 @@ export function createTask(overrides: Partial<Task> = {}): Task {
     createdAt,
     updatedAt,
     status: "PENDING",
-    title: "작업",
+    title: "Task",
     content: null,
+    assets: [],
+    wireframes: [],
+    designs: [],
+    ...overrides,
+  };
+}
+
+export function createAsset(overrides: Partial<Asset> = {}): Asset {
+  return {
+    ...createArtifactRecord({ title: "Asset" }),
+    planId: 1,
+    taskId: 1,
+    html: "<!doctype html><html><head><style>:root{--brand:#3559c7}</style></head><body><main>Logo and color palette</main></body></html>",
+    ...overrides,
+  };
+}
+
+export function createWireframe(
+  overrides: Partial<Wireframe> = {},
+): Wireframe {
+  return {
+    ...createArtifactRecord({ title: "Wireframe" }),
+    planId: 1,
+    taskId: 1,
+    html: "<!doctype html><html><head><title>User journey</title></head><body><a href='#next'>Next</a><section id='next'>Next step</section></body></html>",
+    ...overrides,
+  };
+}
+
+export function createDesign(overrides: Partial<Design> = {}): Design {
+  const asset = overrides.asset ?? createAsset();
+  const wireframe = overrides.wireframe ?? createWireframe();
+
+  return {
+    ...createArtifactRecord({ title: "Design" }),
+    planId: 1,
+    taskId: 1,
+    assetId: asset.id,
+    wireframeId: wireframe.id,
+    asset,
+    wireframe,
+    html: "<!doctype html><html><head><style>body{color:#171b2a}</style></head><body><main>Production design</main></body></html>",
+    ...overrides,
+  };
+}
+
+export function createReview(overrides: Partial<Review> = {}): Review {
+  return {
+    ...createArtifact({ title: "Review" }),
+    planId: 1,
     ...overrides,
   };
 }
 
 export function createPlan(overrides: Partial<Plan> = {}): Plan {
   return {
-    ...createArtifact({ title: "계획" }),
+    ...createArtifact({ title: "Plan" }),
     version: 1,
     tasks: [],
+    assets: [],
+    wireframes: [],
+    designs: [],
+    reviews: [],
     ...overrides,
   };
 }
@@ -54,10 +129,11 @@ export function createProjectContext(
     title: "Yusung Harness",
     repoPath: "/workspace/yusung-harness",
     repoType: "LOCAL",
-    description: "에이전트 산출물 프로젝트",
+    description: "Harness agent Project records",
     plans: [],
     tasks: [],
     drafts: [],
+    domains: [],
     architectures: [],
     wireframes: [],
     assets: [],
@@ -80,6 +156,7 @@ export function createProjectSummary(
       plans: context.plans.length,
       tasks: context.tasks.length,
       drafts: context.drafts.length,
+      domains: context.domains.length,
       architectures: context.architectures.length,
       wireframes: context.wireframes.length,
       assets: context.assets.length,

@@ -16,6 +16,7 @@ export function deriveDashboardSummary(
     plans,
     tasks,
     drafts,
+    domains,
     architectures,
     wireframes,
     assets,
@@ -27,6 +28,7 @@ export function deriveDashboardSummary(
     plans.length +
     tasks.length +
     drafts.length +
+    domains.length +
     architectures.length +
     wireframes.length +
     assets.length +
@@ -43,6 +45,7 @@ export function deriveDashboardSummary(
     ...plans.map(({ updatedAt }) => updatedAt),
     ...tasks.map(({ updatedAt }) => updatedAt),
     ...drafts.map(({ updatedAt }) => updatedAt),
+    ...domains.map(({ updatedAt }) => updatedAt),
     ...architectures.map(({ updatedAt }) => updatedAt),
     ...wireframes.map(({ updatedAt }) => updatedAt),
     ...assets.map(({ updatedAt }) => updatedAt),

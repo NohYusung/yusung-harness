@@ -111,3 +111,7 @@ functions.collaboration.wait_agent
 ```
 
 - 이 판단을 매 phase마다 반복한다.
+
+## 에이전트는 직접 이 레포 루트와 그 내부에 재귀적으로 존재하는 md파일들을 유저의 요청없이 직접 수정하지 않는다.
+
+> ex : '.codex/agents/planner.md', 'CLAUDE.md', ...

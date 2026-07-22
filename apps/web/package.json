@@ -13,6 +13,7 @@
     "test:boundary": "node --test test/*-boundary.test.cjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "geist": "^1.7.2",
     "lucide-react": "^1.25.0",
     "next": "^16.2.10",

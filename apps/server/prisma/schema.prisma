@@ -3,9 +3,6 @@
 
 generator client {
   provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  runtime      = "nodejs"
-  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -30,6 +27,7 @@ model Project {
   description   String
   plans         Plan[]
   tasks         Task[]
+  domains       Domain[]
   wireframes    Wireframe[]
   architectures Architecture[]
   drafts        Draft[]
@@ -41,15 +39,19 @@ model Project {
 }
 
 model Plan {
-  id        Int      @id @default(autoincrement())
-  projectId Int
-  project   Project  @relation(fields: [projectId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  version   Int      @default(1)
-  content   String
-  title     String
-  tasks     Task[]
+  id         Int         @id @default(autoincrement())
+  projectId  Int
+  project    Project     @relation(fields: [projectId], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  version    Int         @default(1)
+  content    String
+  title      String
+  tasks      Task[]
+  assets     Asset[]
+  wireframes Wireframe[]
+  designs    Design[]
+  reviews    Review[]
 
   @@unique([projectId, version])
   @@index([projectId])
@@ -59,29 +61,41 @@ model Asset {
   id        Int      @id @default(autoincrement())
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])
+  planId    Int
+  plan      Plan     @relation(fields: [planId], references: [id])
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   designs   Design[]
-  content   String
+  html      String
   title     String
 
   @@index([projectId])
+  @@index([planId])
+  @@index([taskId])
 }
 
 model Design {
   id          Int       @id @default(autoincrement())
   projectId   Int
   project     Project   @relation(fields: [projectId], references: [id])
+  planId      Int
+  plan        Plan      @relation(fields: [planId], references: [id])
+  taskId      Int
+  task        Task      @relation(fields: [taskId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   wireframeId Int
   wireframe   Wireframe @relation(fields: [wireframeId], references: [id])
   assetId     Int
   asset       Asset     @relation(fields: [assetId], references: [id])
-  content     String
+  html        String
   title       String
 
   @@index([projectId])
+  @@index([planId])
+  @@index([taskId])
   @@index([assetId])
   @@index([wireframeId])
 }
@@ -98,17 +112,32 @@ model Architecture {
   @@index([projectId])
 }
 
-model Task {
-  id        Int        @id @default(autoincrement())
+model Domain {
+  id        Int      @id @default(autoincrement())
   projectId Int
-  project   Project    @relation(fields: [projectId], references: [id])
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  planId    Int
-  plan      Plan       @relation(fields: [planId], references: [id])
-  status    TaskStatus @default(PENDING)
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   title     String
-  content   String?
+  content   String
+
+  @@index([projectId])
+}
+
+model Task {
+  id         Int         @id @default(autoincrement())
+  projectId  Int
+  project    Project     @relation(fields: [projectId], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  planId     Int
+  plan       Plan        @relation(fields: [planId], references: [id])
+  status     TaskStatus  @default(PENDING)
+  title      String
+  content    String?
+  assets     Asset[]
+  wireframes Wireframe[]
+  designs    Design[]
 
   @@index([projectId])
   @@index([planId])
@@ -130,23 +159,32 @@ model Wireframe {
   id        Int      @id @default(autoincrement())
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])
+  planId    Int
+  plan      Plan     @relation(fields: [planId], references: [id])
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   designs   Design[]
   title     String
-  content   String
+  html      String
 
   @@index([projectId])
+  @@index([planId])
+  @@index([taskId])
 }
 
 model Review {
   id        Int      @id @default(autoincrement())
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])
+  planId    Int
+  plan      Plan     @relation(fields: [planId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   title     String
   content   String
 
   @@index([projectId])
+  @@index([planId])
 }

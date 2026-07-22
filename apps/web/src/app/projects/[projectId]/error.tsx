@@ -21,14 +21,14 @@ export default function ProjectError({ error, reset }: ProjectErrorProps) {
           !
         </span>
         <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em]">
-          프로젝트를 불러오지 못했습니다
+          Could not load the Project
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted">
-          서버 연결을 확인한 뒤 다시 시도해 주세요.
+          Check the server connection and try again.
         </p>
         {error.digest ? (
           <p className="mt-3 font-mono text-xs text-muted">
-            오류 참조: {error.digest}
+            Error reference: {error.digest}
           </p>
         ) : null}
         <div className="mt-7 flex flex-col justify-center gap-2 sm:flex-row">
@@ -37,13 +37,13 @@ export default function ProjectError({ error, reset }: ProjectErrorProps) {
             onClick={() => reset()}
             className="inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none"
           >
-            다시 시도
+            Try again
           </button>
           <Link
             href="/"
             className="inline-flex min-h-11 items-center justify-center rounded-control border bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none"
           >
-            프로젝트 목록으로
+            Back to Project list
           </Link>
         </div>
       </section>

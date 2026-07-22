@@ -18,19 +18,19 @@ export function Summary({ summary }: SummaryProps) {
     {
       eyebrow: "Saved records",
       icon: "Σ",
-      label: "전체 산출물",
+      label: "Total records",
       value: summary.totalArtifacts.toLocaleString("ko-KR"),
     },
     {
       eyebrow: `${summary.taskCompletionPercent}% complete`,
       icon: "✓",
-      label: "작업 진행",
+      label: "Task progress",
       value: `${summary.completedTasks} / ${summary.totalTasks}`,
     },
     {
       eyebrow: "Latest plan",
       icon: "V",
-      label: "현재 계획",
+      label: "Current Plan",
       value:
         summary.latestPlanVersion === null
           ? "—"
@@ -39,51 +39,51 @@ export function Summary({ summary }: SummaryProps) {
     {
       eyebrow: "Last updated",
       icon: "↻",
-      label: "최근 활동",
+      label: "Last activity",
       value: summary.lastActivityAt
         ? formatDashboardDate(summary.lastActivityAt)
-        : "활동 없음",
+        : "No activity",
     },
   ];
 
   return (
     <section aria-labelledby="summary-heading" className="mt-8">
       <h2 id="summary-heading" className="sr-only">
-        프로젝트 요약
+        Project summary
       </h2>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid overflow-hidden rounded-card border bg-surface sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card, index) => (
           <article
             key={card.label}
-            className="rounded-card border bg-surface p-5 shadow-card"
+            className="border-b border-r p-4 last:border-b-0 sm:p-5 xl:border-b-0"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-medium text-muted">{card.label}</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-ink">
+                <p className="text-xs font-medium text-subtle">{card.label}</p>
+                <p className="mt-2 text-xl font-semibold tracking-[-0.025em] text-ink">
                   {card.value}
                 </p>
               </div>
               <span
                 aria-hidden="true"
-                className="grid size-9 shrink-0 place-items-center rounded-control bg-primary-soft font-mono text-xs font-semibold text-primary"
+                className="grid size-7 shrink-0 place-items-center rounded-control bg-surface-muted font-mono text-micro font-semibold text-muted"
               >
                 {card.icon}
               </span>
             </div>
-            <p className="mt-4 font-mono text-micro tracking-[0.08em] text-muted uppercase">
+            <p className="mt-4 font-mono text-micro text-subtle">
               {card.eyebrow}
             </p>
             {index === 1 ? (
               <div className="mt-3">
                 <div
                   role="progressbar"
-                  aria-label="완료된 작업 비율"
+                  aria-label="Completed Task ratio"
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={summary.taskCompletionPercent}
-                  aria-valuetext={`${summary.completedTasks}/${summary.totalTasks} 완료`}
-                  className="h-1.5 overflow-hidden rounded-full bg-surface-muted"
+                  aria-valuetext={`${summary.completedTasks}/${summary.totalTasks} completed`}
+                  className="h-1 overflow-hidden rounded-full bg-surface-muted"
                 >
                   <div
                     className="h-full rounded-full bg-success transition-[width] motion-reduce:transition-none"

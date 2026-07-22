@@ -2,8 +2,9 @@ name = "doc-curator"
 description = "문서 작성 및 관리를 담당하는 에이전트"
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+nickname_candidates = ["doc-curator"]
 developer_instructions = """
-../../yusung-harness/.codex/agents/doc-curator.md 의 내용을 따른다.
+작업을 시작하기 전에 `.codex/agents/doc-curator.md` 를 끝까지 읽고, 해당 지침을 따른다.
 """
 
 [mcp_servers.yusung-harness-doc]

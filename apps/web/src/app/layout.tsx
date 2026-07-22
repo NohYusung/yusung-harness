@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     default: "Yusung Harness",
     template: "%s · Yusung Harness",
   },
-  description: "에이전트가 저장한 프로젝트 산출물을 한곳에서 살펴봅니다.",
+  description: "Inspect Project records saved by harness agents.",
 };
 
 export default function RootLayout({

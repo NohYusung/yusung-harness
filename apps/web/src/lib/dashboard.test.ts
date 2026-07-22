@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { deriveDashboardSummary } from "@/lib/dashboard";
 import {
   createArtifact,
+  createAsset,
+  createDesign,
   createPlan,
   createProjectContext,
+  createReview,
   createTask,
+  createWireframe,
 } from "@/test/fixtures/dashboard";
 
 describe("deriveDashboardSummary", () => {
@@ -19,36 +23,39 @@ describe("deriveDashboardSummary", () => {
     });
   });
 
-  it("8종 산출물 합계와 작업 완료율, 최신 계획, 마지막 활동을 계산한다", () => {
+  it("9종 산출물 합계와 작업 완료율, 최신 계획, 마지막 활동을 계산한다", () => {
     const completedTask = createTask({ id: 1, status: "COMPLETED" });
     const pendingTask = createTask({ id: 2, status: "PENDING" });
     const context = createProjectContext({
       plans: [createPlan({ version: 4, tasks: [completedTask, pendingTask] })],
       tasks: [completedTask, pendingTask],
-      drafts: [createArtifact({ id: 3, title: "초안" })],
-      architectures: [createArtifact({ id: 4, title: "아키텍처" })],
-      wireframes: [createArtifact({ id: 5, title: "와이어프레임" })],
-      assets: [createArtifact({ id: 6, title: "에셋" })],
+      drafts: [createArtifact({ id: 3, title: "Draft" })],
+      domains: [createArtifact({ id: 9, title: "Domain" })],
+      architectures: [createArtifact({ id: 4, title: "Architecture" })],
+      wireframes: [createWireframe({ id: 5, title: "Wireframe" })],
+      assets: [createAsset({ id: 6, title: "Asset" })],
       designs: [
-        {
-          ...createArtifact({ id: 7, title: "디자인" }),
+        createDesign({
+          id: 7,
+          title: "Design",
           wireframeId: 5,
           assetId: 6,
-          wireframe: createArtifact({ id: 5, title: "와이어프레임" }),
-          asset: createArtifact({ id: 6, title: "에셋" }),
-        },
+          wireframe: createWireframe({ id: 5, title: "Wireframe" }),
+          asset: createAsset({ id: 6, title: "Asset" }),
+        }),
       ],
       reviews: [
-        createArtifact({
+        createReview({
           id: 8,
-          title: "리뷰",
+          planId: 4,
+          title: "Review",
           updatedAt: "2026-07-20T09:30:00.000Z",
         }),
       ],
     });
 
     expect(deriveDashboardSummary(context)).toEqual({
-      totalArtifacts: 9,
+      totalArtifacts: 10,
       completedTasks: 1,
       totalTasks: 2,
       taskCompletionPercent: 50,
