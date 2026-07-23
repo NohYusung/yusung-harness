@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getPlans, getProjectDashboard, getProjects } from "@/lib/api";
+import { getPlans, getProjectDashboard, getProjects, getTasks } from "@/lib/api";
 import {
   createProjectContext,
   createProjectSummary,
@@ -61,7 +61,22 @@ describe("dashboard API helpers", () => {
     );
   });
 
-  it("대시보드 데이터는 project 목록과 9종 REST list를 한 번에 병렬 조립한다", async () => {
+  it("Task 목록은 선택한 project와 plan 범위의 REST API에 요청한다", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [] }), {
+        headers: { "content-type": "application/json" },
+        status: 200,
+      }),
+    );
+
+    await expect(getTasks(7, 13)).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:4000/tasks/7/13",
+      { cache: "no-store" },
+    );
+  });
+
+  it("선택한 Plan 대시보드는 project 목록과 plan-scoped Task REST list를 병렬 조립한다", async () => {
     const context = createProjectContext({ id: 7 });
     const projects = [createProjectSummary(context)];
     const relationResponses = [
@@ -85,12 +100,15 @@ describe("dashboard API helpers", () => {
       );
     }
 
-    await expect(getProjectDashboard(7)).resolves.toEqual({ projects, context });
+    await expect(getProjectDashboard(7, 13)).resolves.toEqual({
+      projects,
+      context,
+    });
     expect(fetchMock.mock.calls).toEqual(
       [
         "/projects",
         "/plans/7?versionOrder=desc",
-        "/tasks/7",
+        "/tasks/7/13",
         "/drafts/7",
         "/domains/7",
         "/architectures/7",
@@ -129,7 +147,7 @@ describe("dashboard API helpers", () => {
     ];
     for (const response of responses) fetchMock.mockResolvedValueOnce(response);
 
-    await expect(getProjectDashboard(7)).rejects.toMatchObject({
+    await expect(getProjectDashboard(7, 13)).rejects.toMatchObject({
       name: "HarnessApiError",
       status: 502,
     });

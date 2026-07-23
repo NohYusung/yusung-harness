@@ -47,28 +47,30 @@ function emptyWorkspaceRootClasses(componentSource, helperName) {
   return classes;
 }
 
-test("Dashboard는 헤더·탭과 full-bleed workspace를 세로 가용 높이로 조립한다", () => {
-  const dashboard = source("components/features/dashboard/Dashboard.tsx");
+test("Artifact Workbench는 58px topbar와 full-bleed 3-pane을 viewport에 조립한다", () => {
+  const workbench = source(
+    "components/features/dashboard/ArtifactWorkbench.tsx",
+  );
 
   assert.match(
-    dashboard,
-    /<main\b[^>]*className=["'][^"']*\bmin-w-0\b[^"']*\blg:h-dvh\b[^"']*\blg:overflow-hidden\b[^"']*["']/,
-    "desktop main은 viewport 높이를 소유하고 page overflow를 막아야 한다",
+    workbench,
+    /className=["'][^"']*\bgrid\b[^"']*\bh-dvh\b[^"']*\bgrid-rows-\[58px_minmax\(0,1fr\)\][^"']*\boverflow-hidden\b[^"']*["']/,
+    "workbench root는 58px topbar 아래 viewport 가용 높이를 소유해야 한다",
   );
   assert.match(
-    dashboard,
-    /<main\b[^>]*>[\s\S]*?<div\b[^>]*className=["'][^"']*\bflex\b[^"']*\bmin-h-dvh\b[^"']*\bw-full\b[^"']*\bflex-col\b[^"']*\blg:h-full\b[^"']*["']/,
-    "main 직계 content shell은 폭 전체와 세로 가용 높이를 소유해야 한다",
+    workbench,
+    /<main\b[^>]*className=["'][^"']*\bmin-h-0\b[^"']*\bmd:grid-cols-\[230px_minmax\(0,1fr\)_var\(--detail-pane-width\)\][^"']*\blg:grid\b[^"']*\blg:grid-cols-\[270px_minmax\(0,1fr\)_var\(--detail-pane-width\)\][^"']*["']/,
+    "desktop workspace는 270px / fluid / 가변 detail pane의 세 pane이어야 한다",
   );
   assert.match(
-    dashboard,
-    /className=["'][^"']*\bflex\b[^"']*\bmin-h-0\b[^"']*\bflex-1\b[^"']*\boverflow-hidden\b[^"']*["'][\s\S]*?<DomainWorkspace\b[\s\S]*?<ArchitectureWorkspace\b[\s\S]*?<ArtifactBrowser\b/,
-    "세 workspace는 max-width container 밖의 같은 full-bleed flex 영역을 사용해야 한다",
+    workbench,
+    /["']--detail-pane-width["']:\s*`\$\{[^}]+\}%`/,
+    "detail pane CSS 변수는 viewport에 따라 계산되는 percentage를 사용해야 한다",
   );
-  assert.doesNotMatch(
-    dashboard,
-    /className=["'][^"']*(?:\bmx-auto\b|\bmax-w-)/,
-    "Dashboard shell은 centered 또는 max-width 폭 제한을 두지 않아야 한다",
+  assert.match(
+    workbench,
+    /<aside\b[^>]*aria-label=["']Project artifact tree["'][\s\S]*?<section\b[^>]*aria-labelledby=["']records-heading["'][\s\S]*?<aside\b[^>]*aria-labelledby=["']detail-heading["']/,
+    "tree, record list, inspector가 한 main 안의 3-pane 순서를 유지해야 한다",
   );
 });
 

@@ -81,7 +81,10 @@ const controllers = [
     resource,
     controllerFile: `${resource}.controller.ts`,
     controllerClass: `${className}Controller`,
-    route: `${resource}/:projectId`,
+    route:
+      resource === "tasks"
+        ? "tasks/:projectId/:planId"
+        : `${resource}/:projectId`,
   })),
 ];
 
@@ -212,7 +215,16 @@ test("프로젝트와 산출물 HTTP controller는 읽기 전용 목록 API를 �
         controller,
         /@Param\(\s*["']projectId["']\s*,\s*ParseIntPipe\s*\)\s*projectId:\s*number/,
       );
-      if (resource !== "plans") {
+      if (resource === "tasks") {
+        assert.match(
+          controller,
+          /@Param\(\s*["']planId["']\s*,\s*ParseIntPipe\s*\)\s*planId:\s*number/,
+        );
+        assert.match(
+          controller,
+          /this\.tasksService\.list\(\s*\{\s*projectId\s*,\s*planId\s*\}\s*\)/,
+        );
+      } else if (resource !== "plans") {
         assert.match(
           controller,
           new RegExp(`this\\.${resource}Service\\.list\\(\\s*\\{\\s*projectId\\s*\\}\\s*\\)`),
@@ -323,9 +335,9 @@ test("Plan 목록은 caller 정렬 옵션을 사용하고 controller가 optional
   assert.doesNotMatch(controllerList, /version:\s*["']desc["']/);
 });
 
-test("8종 목록 service는 project 소유권을 검증하고 각 table을 결정적 순서로 조회한다", () => {
+test("일반 목록 service는 project 소유권을 검증하고 각 table을 결정적 순서로 조회한다", () => {
   for (const { resource, model, orderField } of domains.filter(
-    ({ resource }) => resource !== "plans",
+    ({ resource }) => resource !== "plans" && resource !== "tasks",
   )) {
     const service = source(`services/${resource}/${resource}.service.ts`);
     const body = methodBody(service, "list");

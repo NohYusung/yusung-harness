@@ -79,3 +79,38 @@ test("TasksService.list는 제거된 산출물 relation 없이 project의 Task�
   ]);
   assert.equal(Object.hasOwn(calls[1][1], "include"), false);
 });
+
+test("TasksService.list는 선택한 project와 plan에 속한 Task만 조회한다", async () => {
+  const calls = [];
+  const tasks = [{ id: 11, projectId: 7, planId: 3 }];
+  const prisma = {
+    task: {
+      findMany: async (args) => {
+        calls.push(["task.findMany", args]);
+        return tasks;
+      },
+    },
+  };
+  const projectsService = {
+    ensureProject: async (projectId) => {
+      calls.push(["projects.ensureProject", projectId]);
+    },
+  };
+  const TasksService = loadTasksService();
+  const service = new TasksService(prisma, projectsService);
+
+  const result = await service.list({ projectId: 7, planId: 3 });
+
+  assert.deepEqual(result, tasks);
+  assert.deepEqual(calls, [
+    ["projects.ensureProject", 7],
+    [
+      "task.findMany",
+      {
+        where: { projectId: 7, planId: 3 },
+        orderBy: { updatedAt: "desc" },
+      },
+    ],
+  ]);
+  assert.equal(Object.hasOwn(calls[1][1], "include"), false);
+});

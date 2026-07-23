@@ -86,7 +86,9 @@ model Design {
   asset       Asset     @relation(fields: [assetId], references: [id])
   html        String
   title       String
+  version     Int       @default(1)
 
+  @@unique([projectId, assetId, version])
   @@index([projectId])
   @@index([assetId])
   @@index([wireframeId])
@@ -154,7 +156,9 @@ model Wireframe {
   designs   Design[]
   title     String
   html      String
+  page      String   @default(cuid())
 
+  @@unique([projectId, page])
   @@index([projectId])
 }
 

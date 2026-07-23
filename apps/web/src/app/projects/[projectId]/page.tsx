@@ -52,22 +52,30 @@ export default async function ProjectPage({
     notFound();
   }
 
-  const { projects, context } = await getProjectDashboard(projectId).catch(
-    (error: unknown) => {
-      if (error instanceof HarnessApiError && error.status === 404) {
-        notFound();
-      }
+  const activeRelation = isWorkspaceRelation(query.type)
+    ? query.type
+    : "plans";
+  const selectedArtifactId = toArtifactId(query.id);
+  const selectedPlanId =
+    activeRelation === "plans" ? selectedArtifactId : null;
 
-      throw error;
-    },
-  );
+  const { projects, context } = await getProjectDashboard(
+    projectId,
+    selectedPlanId,
+  ).catch((error: unknown) => {
+    if (error instanceof HarnessApiError && error.status === 404) {
+      notFound();
+    }
+
+    throw error;
+  });
 
   return (
     <Dashboard
       projects={projects}
       context={context}
-      activeRelation={isWorkspaceRelation(query.type) ? query.type : "plans"}
-      selectedArtifactId={toArtifactId(query.id)}
+      activeRelation={activeRelation}
+      selectedArtifactId={selectedArtifactId}
       selectedTaskId={toArtifactId(query.taskId)}
     />
   );

@@ -21,12 +21,21 @@ export class TasksService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  /** 프로젝트의 작업을 최근 수정순으로 조회한다. */
-  async list({ projectId }: { projectId: number }) {
+  /** 프로젝트 전체 또는 선택한 계획의 작업을 최근 수정순으로 조회한다. */
+  async list({
+    projectId,
+    planId,
+  }: {
+    projectId: number;
+    planId?: number;
+  }) {
     await this.projectsService.ensureProject(projectId);
 
     return this.prisma.task.findMany({
-      where: { projectId },
+      where: {
+        projectId,
+        ...(planId === undefined ? {} : { planId }),
+      },
       orderBy: { updatedAt: "desc" },
     });
   }

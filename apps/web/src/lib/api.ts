@@ -73,12 +73,17 @@ async function getProjectResource<T>(
   resource: string,
   schema: ZodType<ListResponse<T>>,
   searchParams?: string,
+  childId?: number,
 ): Promise<T[]> {
   assertProjectId(projectId);
+  const childPath = childId === undefined ? "" : `/${childId}`;
   const query = searchParams ? `?${searchParams}` : "";
-  const response = await fetch(`${apiUrl}/${resource}/${projectId}${query}`, {
-    cache: "no-store",
-  });
+  const response = await fetch(
+    `${apiUrl}/${resource}/${projectId}${childPath}${query}`,
+    {
+      cache: "no-store",
+    },
+  );
 
   await assertSuccessful(response, `${resource} for project ${projectId}`);
   const payload = schema.parse(await response.json());
@@ -106,9 +111,19 @@ export function getPlans(projectId: number): Promise<Plan[]> {
   );
 }
 
-/** 프로젝트의 Task 목록을 조회한다. */
-export function getTasks(projectId: number): Promise<Task[]> {
-  return getProjectResource(projectId, "tasks", taskListResponseSchema);
+/** 프로젝트에서 선택한 Plan의 Task 목록을 조회한다. */
+export function getTasks(projectId: number, planId: number): Promise<Task[]> {
+  if (!Number.isSafeInteger(planId) || planId <= 0) {
+    throw new Error(`Invalid plan ID: ${planId}`);
+  }
+
+  return getProjectResource(
+    projectId,
+    "tasks",
+    taskListResponseSchema,
+    undefined,
+    planId,
+  );
 }
 
 /** 프로젝트의 Draft 목록을 조회한다. */
@@ -154,9 +169,10 @@ export function getReviews(projectId: number): Promise<Review[]> {
   return getProjectResource(projectId, "reviews", reviewListResponseSchema);
 }
 
-/** 프로젝트 목록과 선택 프로젝트의 9종 REST 목록을 병렬 조립한다. */
+/** 프로젝트 목록과 선택 프로젝트의 REST 목록을 병렬 조립한다. */
 export async function getProjectDashboard(
   projectId: number,
+  selectedPlanId?: number | null,
 ): Promise<ProjectDashboard> {
   assertProjectId(projectId);
 
@@ -164,7 +180,7 @@ export async function getProjectDashboard(
   const [
     projects,
     plans,
-    tasks,
+    selectedPlanTasks,
     drafts,
     domains,
     architectures,
@@ -175,7 +191,9 @@ export async function getProjectDashboard(
   ] = await Promise.all([
     getProjects(),
     getPlans(projectId),
-    getTasks(projectId),
+    selectedPlanId
+      ? getTasks(projectId, selectedPlanId)
+      : Promise.resolve(null),
     getDrafts(projectId),
     getDomains(projectId),
     getArchitectures(projectId),
@@ -190,6 +208,9 @@ export async function getProjectDashboard(
   if (!project) {
     throw new HarnessApiError(`Project ${projectId} not found`, 404);
   }
+
+  /** Plan 선택 전에는 Plan 응답에 포함된 Task를 프로젝트 목록으로 사용한다. */
+  const tasks = selectedPlanTasks ?? plans.flatMap((plan) => plan.tasks);
 
   /** `_count`를 제외한 기본 필드와 9종 목록으로 context를 완성한다. */
   return {

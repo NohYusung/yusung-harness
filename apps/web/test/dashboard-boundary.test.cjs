@@ -174,19 +174,20 @@ test("App Router page는 목록 redirect/empty와 project Server Component 경�
   );
 });
 
-test("Dashboard는 일곱 개의 상단 menu와 Plan hierarchy browser를 조립한다", () => {
+test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한다", () => {
   const dashboard = source("components/features/dashboard/Dashboard.tsx");
-  const artifactBrowser = source(
-    "components/features/dashboard/ArtifactBrowser.tsx",
-  );
-  const navigation = source(
-    "components/features/dashboard/ProjectWorkspaceNav.tsx",
+  const workbench = source(
+    "components/features/dashboard/ArtifactWorkbench.tsx",
   );
   const htmlSidePage = source(
     "components/features/dashboard/ArtifactHtmlSidePage.tsx",
   );
 
-  assert.match(dashboard, /<ArtifactBrowser\b/);
+  assert.match(dashboard, /<ArtifactWorkbench\b/);
+  assert.doesNotMatch(
+    dashboard,
+    /<ProjectSidebar\b|<DashboardHeader\b|<ProjectWorkspaceNav\b/,
+  );
   assert.doesNotMatch(dashboard, /<Summary\b|deriveDashboardSummary/);
   assert.doesNotMatch(dashboard, /PipelineStrip|ArtifactSidePeek/);
   assert.equal(
@@ -197,36 +198,16 @@ test("Dashboard는 일곱 개의 상단 menu와 Plan hierarchy browser를 조립
     existsSync(sourcePath("components/features/dashboard/ArtifactSidePeek.tsx")),
     false,
   );
-  for (const label of [
-    "Plan",
-    "Draft",
-    "Domain",
-    "Architecture",
-    "Wireframe",
-    "Asset",
-    "Design",
-  ]) {
-    assert.match(navigation, new RegExp(`label:\\s*["']${label}["']`));
-  }
-  for (const label of ["Project", "Task", "Review"]) {
-    assert.doesNotMatch(navigation, new RegExp(`label:\\s*["']${label}["']`));
-  }
   assert.match(
-    navigation,
-    /label:\s*["']Plan["'][\s\S]*?label:\s*["']Draft["'][\s\S]*?label:\s*["']Domain["'][\s\S]*?label:\s*["']Architecture["'][\s\S]*?label:\s*["']Wireframe["'][\s\S]*?label:\s*["']Asset["'][\s\S]*?label:\s*["']Design["']/,
+    workbench,
+    /relationOrder\s*:[^=]*=\s*\[[^\]]*["']plans["'][^\]]*["']tasks["'][^\]]*["']drafts["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']designs["'][^\]]*["']reviews["']/s,
   );
-  assert.match(artifactBrowser, /\|\s*["']wireframes["']/);
-  assert.match(artifactBrowser, /\|\s*["']assets["']/);
-  assert.match(artifactBrowser, /\|\s*["']designs["']/);
-  assert.match(artifactBrowser, /context\.wireframes\.map\s*\(/);
-  assert.match(artifactBrowser, /context\.assets\.map\s*\(/);
-  assert.match(artifactBrowser, /context\.designs\.map\s*\(/);
-
-  assert.match(artifactBrowser, /selectedTaskId/);
-  assert.match(artifactBrowser, /Plan hierarchy/);
-  assert.match(artifactBrowser, /Task details/);
-  assert.match(artifactBrowser, /<ArtifactHtmlSidePage\b/);
-  assert.doesNotMatch(artifactBrowser, /<details\b|<iframe\b/);
+  assert.match(workbench, /aria-label=["']Project artifact tree["']/);
+  assert.match(workbench, /aria-label=["']Artifact types["']/);
+  assert.match(workbench, /aria-label=["']Artifact records["']/);
+  assert.match(workbench, /aria-label=["']Record details["']/);
+  assert.match(workbench, /<ArtifactHtmlSidePage\b/);
+  assert.doesNotMatch(workbench, /<details\b|<iframe\b/);
   assert.match(htmlSidePage, /role=["']separator["']/);
   assert.match(htmlSidePage, /onPointerDown/);
   assert.match(htmlSidePage, /sandbox=["']allow-scripts["']/);

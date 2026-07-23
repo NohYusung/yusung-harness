@@ -56,19 +56,24 @@ test("DomainWorkspace는 ERD를, ArchitectureWorkspace는 배포 graph와 legacy
   assert.doesNotMatch(architectureWorkspace, /getLatestDomainErd|parseDomainErd/);
 });
 
-test("Dashboard navigation은 Domain과 Architecture workspace를 독립 메뉴로 조립한다", () => {
-  const browser = source("components/features/dashboard/ArtifactBrowser.tsx");
+test("통합 Workbench는 Domain과 Architecture record type을 독립적으로 조립한다", () => {
+  const workbench = source(
+    "components/features/dashboard/ArtifactWorkbench.tsx",
+  );
   const dashboard = source("components/features/dashboard/Dashboard.tsx");
-  const navigation = source("components/features/dashboard/ProjectWorkspaceNav.tsx");
   const page = source("app/projects/[projectId]/page.tsx");
 
-  assert.match(browser, /WorkspaceRelation\s*=\s*[\s\S]*?["']domains["']/);
-  assert.match(browser, /WorkspaceRelation\s*=\s*[\s\S]*?["']architectures["']/);
-  assert.match(navigation, /label:\s*["']Domain["'][\s\S]*?relation:\s*["']domains["']/);
-  assert.match(navigation, /label:\s*["']Architecture["'][\s\S]*?relation:\s*["']architectures["']/);
-  assert.match(navigation, /getLatestDomainErd\s*\(\s*context\.domains\s*\)/);
-  assert.match(navigation, /getLatestDeploymentArchitecture\s*\(\s*context\.architectures\s*\)/);
-  assert.match(dashboard, /activeRelation\s*===\s*["']domains["'][\s\S]*?<DomainWorkspace\b/);
-  assert.match(dashboard, /activeRelation\s*===\s*["']architectures["'][\s\S]*?<ArchitectureWorkspace\b/);
+  assert.match(
+    workbench,
+    /relationOrder\s*:[^=]*=\s*\[[^\]]*["']domains["'][^\]]*["']architectures["']/s,
+  );
+  assert.match(workbench, /domains:\s*context\.domains/);
+  assert.match(workbench, /architectures:\s*context\.architectures/);
+  assert.match(workbench, /domains:\s*\{[\s\S]*?label:\s*["']Domain["']/);
+  assert.match(
+    workbench,
+    /architectures:\s*\{[\s\S]*?label:\s*["']Architecture["']/,
+  );
+  assert.match(dashboard, /<ArtifactWorkbench\b/);
   assert.match(page, /workspaceRelations\s*=\s*\[[^\]]*["']domains["'][^\]]*["']architectures["']/s);
 });

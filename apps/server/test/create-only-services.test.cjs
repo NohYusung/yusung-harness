@@ -82,7 +82,7 @@ const createOnlyContracts = [
       "title",
       "html",
     ],
-    forbiddenFields: ["id", "taskId", "planId"],
+    forbiddenFields: ["id", "taskId", "planId", "version"],
   },
   {
     resource: "drafts",
@@ -100,7 +100,7 @@ const createOnlyContracts = [
     resource: "wireframes",
     model: "wireframe",
     fields: ["projectId", "title", "html"],
-    forbiddenFields: ["id", "taskId", "planId"],
+    forbiddenFields: ["id", "taskId", "planId", "page"],
   },
 ];
 
@@ -259,7 +259,7 @@ test("DesignsService.create는 관련 산출물을 검증하고 design.create만
     title: "Design",
     html: "<!doctype html><html><body>Design</body></html>",
   };
-  const created = { id: 31, ...input };
+  const created = { id: 31, ...input, version: 5 };
   const transaction = {
     wireframe: {
       findUnique: async (args) => {
@@ -274,8 +274,9 @@ test("DesignsService.create는 관련 산출물을 검증하고 design.create만
       },
     },
     design: {
-      findUnique: async () => {
-        throw new Error("design.findUnique must not be called");
+      findFirst: async (args) => {
+        calls.push(["design.findFirst", args]);
+        return { version: 4 };
       },
       create: async (args) => {
         calls.push(["design.create", args]);
@@ -306,6 +307,14 @@ test("DesignsService.create는 관련 산출물을 검증하고 design.create만
     ["wireframe.findUnique", { where: { id: 21 } }],
     ["asset.findUnique", { where: { id: 22 } }],
     [
+      "design.findFirst",
+      {
+        where: { projectId: 7, assetId: 22 },
+        orderBy: { version: "desc" },
+        select: { version: true },
+      },
+    ],
+    [
       "design.create",
       {
         data: {
@@ -314,6 +323,7 @@ test("DesignsService.create는 관련 산출물을 검증하고 design.create만
           assetId: 22,
           title: "Design",
           html: "<!doctype html><html><body>Design</body></html>",
+          version: 5,
         },
       },
     ],
@@ -346,6 +356,7 @@ test("DesignsService.create는 같은 project의 Asset과 Wireframe만 조합한
           }),
         },
         design: {
+          findFirst: async () => null,
           create: async () => {
             createCalled = true;
           },

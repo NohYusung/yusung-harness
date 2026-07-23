@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
 
@@ -40,27 +41,50 @@ export class DesignsService {
   }) {
     await this.projectsService.ensureProject(projectId);
 
-    const design = await this.prisma.$transaction(async (transaction) => {
-      const [wireframe, asset] = await Promise.all([
-        transaction.wireframe.findUnique({ where: { id: wireframeId } }),
-        transaction.asset.findUnique({ where: { id: assetId } }),
-      ]);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (transaction) => {
+          const [wireframe, asset, latestDesign] = await Promise.all([
+            transaction.wireframe.findUnique({ where: { id: wireframeId } }),
+            transaction.asset.findUnique({ where: { id: assetId } }),
+            transaction.design.findFirst({
+              where: { projectId, assetId },
+              orderBy: { version: "desc" },
+              select: { version: true },
+            }),
+          ]);
 
-      this.assertRelatedProject(wireframe, projectId, "Wireframe", wireframeId);
-      this.assertRelatedProject(asset, projectId, "Asset", assetId);
+          this.assertRelatedProject(
+            wireframe,
+            projectId,
+            "Wireframe",
+            wireframeId,
+          );
+          this.assertRelatedProject(asset, projectId, "Asset", assetId);
 
-      return transaction.design.create({
-        data: {
-          projectId,
-          wireframeId,
-          assetId,
-          title,
-          html,
-        },
-      });
-    });
+          return transaction.design.create({
+            data: {
+              projectId,
+              wireframeId,
+              assetId,
+              title,
+              html,
+              version: (latestDesign?.version ?? 0) + 1,
+            },
+          });
+        });
+      } catch (error: unknown) {
+        const isVersionConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002";
 
-    return design;
+        if (!isVersionConflict || attempt === 2) {
+          throw error;
+        }
+      }
+    }
+
+    throw new Error("Failed to allocate the next design version");
   }
 
   private assertRelatedProject(

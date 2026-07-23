@@ -49,13 +49,13 @@ test("Web API는 project 목록과 9종 project-scoped REST list helper를 제�
   assert.match(getPlansBody, /["']versionOrder=desc["']/);
 });
 
-test("getProjectDashboard는 10개 REST helper를 한 Promise.all에서 조립한다", () => {
+test("getProjectDashboard는 선택한 plan 범위의 Task와 REST helper를 한 Promise.all에서 조립한다", () => {
   const api = source("lib/api.ts");
   const page = source("app/projects/[projectId]/page.tsx");
   const helpers = [
     "getProjects()",
     "getPlans(projectId)",
-    "getTasks(projectId)",
+    "getTasks(projectId, selectedPlanId)",
     "getDrafts(projectId)",
     "getDomains(projectId)",
     "getArchitectures(projectId)",
@@ -71,7 +71,14 @@ test("getProjectDashboard는 10개 REST helper를 한 Promise.all에서 조립�
   for (const helper of helpers) {
     assert.match(promiseAll, new RegExp(helper.replace(/[()]/g, "\\$&")));
   }
-  assert.match(page, /getProjectDashboard\s*\(\s*projectId\s*\)/);
+  assert.match(
+    page,
+    /getProjectDashboard\s*\(\s*projectId\s*,\s*selectedPlanId\s*,?\s*\)/,
+  );
+  assert.match(
+    page,
+    /selectedPlanId\s*=\s*[\s\S]*?activeRelation\s*===\s*["']plans["']\s*\?\s*selectedArtifactId\s*:\s*null/,
+  );
   assert.doesNotMatch(page, /getProjectContext|getPlans|getTasks|getDrafts|getDomains|getArchitectures|getWireframes|getAssets|getDesigns|getReviews|Promise\.all\s*\(\s*\[\s*getProjects/);
   assert.match(page, /dynamic\s*=\s*["']force-dynamic["']/);
 });
