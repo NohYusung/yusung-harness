@@ -371,15 +371,16 @@ test("디자인 목록은 dashboard context와 동일한 연결 산출물을 포
   );
 });
 
-test("Plan과 Task 목록은 프론트 응답 타입의 중첩 relation을 포함한다", () => {
+test("Plan은 Task만 포함하고 Task 목록은 제거된 산출물 relation을 포함하지 않는다", () => {
   const planList = methodBody(source("services/plans/plans.service.ts"), "list");
   const planInclude = objectBodyAfter(planList, /include\s*:/, "Plan include");
 
-  for (const relation of ["tasks", "assets", "wireframes", "designs", "reviews"]) {
-    assert.notEqual(
+  assert.notEqual(topLevelPropertyIndex(planInclude, "tasks"), -1);
+  for (const relation of ["assets", "wireframes", "designs", "reviews"]) {
+    assert.equal(
       topLevelPropertyIndex(planInclude, relation),
       -1,
-      `Plan.${relation}을 include해야 한다`,
+      `제거된 Plan.${relation} relation을 include하면 안 된다`,
     );
   }
 
@@ -388,71 +389,29 @@ test("Plan과 Task 목록은 프론트 응답 타입의 중첩 relation을 포�
     planTaskOptions,
     /orderBy:\s*\{\s*createdAt:\s*["']asc["']\s*\}/,
   );
-  const planTaskInclude = objectBodyAfter(
-    planTaskOptions,
-    /include\s*:/,
-    "Plan.tasks include",
-  );
-  for (const relation of ["assets", "wireframes", "designs"]) {
-    assert.notEqual(
-      topLevelPropertyIndex(planTaskInclude, relation),
-      -1,
-      `Plan.tasks.${relation}을 include해야 한다`,
-    );
-    assert.match(
-      topLevelObjectBody(planTaskInclude, relation),
-      /orderBy:\s*\{\s*updatedAt:\s*["']desc["']\s*\}/,
-      `Plan.tasks.${relation}은 최신 수정순이어야 한다`,
-    );
-  }
-
-  for (const relation of ["assets", "wireframes", "designs", "reviews"]) {
-    assert.match(
-      topLevelObjectBody(planInclude, relation),
-      /orderBy:\s*\{\s*updatedAt:\s*["']desc["']\s*\}/,
-      `Plan.${relation}은 최신 수정순이어야 한다`,
-    );
-  }
+  assert.doesNotMatch(planTaskOptions, /\binclude\s*:/);
 
   const taskList = methodBody(source("services/tasks/tasks.service.ts"), "list");
-  const taskInclude = objectBodyAfter(taskList, /include\s*:/, "Task include");
+  assert.doesNotMatch(taskList, /\binclude\s*:/);
   for (const relation of ["assets", "wireframes", "designs"]) {
-    assert.notEqual(
-      topLevelPropertyIndex(taskInclude, relation),
-      -1,
-      `Task.${relation}을 include해야 한다`,
-    );
-  }
-
-  for (const [label, include] of [
-    ["Plan.designs", planInclude],
-    ["Plan.tasks.designs", planTaskInclude],
-    ["Task.designs", taskInclude],
-  ]) {
-    const designOptions = topLevelObjectBody(include, "designs");
-    const designInclude = objectBodyAfter(
-      designOptions,
-      /include\s*:/,
-      `${label} include`,
-    );
-
-    for (const relation of ["wireframe", "asset"]) {
-      assert.notEqual(
-        topLevelPropertyIndex(designInclude, relation),
-        -1,
-        `${label}.${relation}을 include해야 한다`,
-      );
-    }
+    assert.doesNotMatch(taskList, new RegExp(`\\b${relation}\\s*:`));
   }
 });
 
-test("Plan version 생성은 최신 version 조회에만 desc 정렬을 유지한다", () => {
+test("Plan 생성은 task 중첩 없이 최신 version 다음 값을 사용한다", () => {
   const service = source("services/plans/plans.service.ts");
-  const createVersion = methodBody(service, "createVersion");
+
+  assert.match(service, /async\s+create\s*\(/);
+  const create = methodBody(service, "create");
   const latestPlanQuery = objectBodyAfter(
-    createVersion,
+    create,
     /transaction\.plan\.findFirst\s*\(/,
     "latest Plan query",
+  );
+  const planCreate = objectBodyAfter(
+    create,
+    /transaction\.plan\.create\s*\(/,
+    "Plan create args",
   );
 
   assert.match(
@@ -463,4 +422,7 @@ test("Plan version 생성은 최신 version 조회에만 desc 정렬을 유지�
     topLevelObjectBody(latestPlanQuery, "select"),
     /version:\s*true/,
   );
+  assert.equal(topLevelPropertyIndex(planCreate, "include"), -1);
+  assert.doesNotMatch(planCreate, /tasks\s*:\s*\{[\s\S]*?create\s*:/);
+  assert.doesNotMatch(service, /async\s+createVersion\s*\(/);
 });

@@ -36,7 +36,8 @@ export function ProjectSwitcher({
         >
           {projects.map((project) => (
             <option key={project.id} value={project.id}>
-              {project.title} · {project.repoType}
+              {project.title} · {project.repoPaths.length} repo
+              {project.repoPaths.length === 1 ? "" : "s"}
             </option>
           ))}
         </select>

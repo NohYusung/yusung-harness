@@ -30,7 +30,7 @@ const loadProjectsService = () => {
   loadedModule.filename = servicePath;
   loadedModule.paths = Module._nodeModulePaths(dirname(servicePath));
   loadedModule.require = (request) => {
-    if (request === "../../generated/prisma/enums") {
+    if (request === "@prisma/client") {
       return { RepoType: { LOCAL: "LOCAL", REMOTE: "REMOTE" } };
     }
     if (request === "../../prisma/prisma.service") {
@@ -43,12 +43,14 @@ const loadProjectsService = () => {
   return loadedModule.exports.ProjectsService;
 };
 
-test("ProjectsService.create는 prisma.project.create({ data })만 호출한다", async () => {
+test("ProjectsService.create는 Project와 repository 경로를 nested create로 생성한다", async () => {
   const calls = [];
   const input = {
     title: "Harness",
-    repoPath: "/workspace/harness",
-    repoType: "LOCAL",
+    repoPaths: [
+      { path: "/workspace/harness-backend", repoType: "LOCAL" },
+      { path: "https://github.com/yusung/harness-web", repoType: "REMOTE" },
+    ],
     description: "Harness project",
   };
   const createdProject = { id: 1, ...input };
@@ -74,7 +76,71 @@ test("ProjectsService.create는 prisma.project.create({ data })만 호출한다"
   const result = await service.create(input);
 
   assert.deepEqual(result, createdProject);
-  assert.deepEqual(calls, [["create", { data: input }]]);
+  assert.deepEqual(calls, [
+    [
+      "create",
+      {
+        data: {
+          title: input.title,
+          description: input.description,
+          repoPaths: { create: input.repoPaths },
+        },
+        include: {
+          repoPaths: {
+            select: { path: true, repoType: true },
+            orderBy: [{ path: "asc" }, { id: "asc" }],
+          },
+        },
+      },
+    ],
+  ]);
   assert.equal(calls.some(([method]) => method === "upsert"), false);
   assert.equal(calls.some(([method]) => method === "update"), false);
+});
+
+test("ProjectsService.list는 repository 경로를 결정적 순서로 조회한다", async () => {
+  const calls = [];
+  const prisma = {
+    project: {
+      findMany: async (args) => {
+        calls.push(["findMany", args]);
+        return [];
+      },
+    },
+  };
+  const ProjectsService = loadProjectsService();
+  const service = new ProjectsService(prisma);
+
+  await service.list();
+
+  assert.deepEqual(calls[0][1].select.repoPaths, {
+    select: { path: true, repoType: true },
+    orderBy: [{ path: "asc" }, { id: "asc" }],
+  });
+  assert.equal(Object.hasOwn(calls[0][1].select, "repoPath"), false);
+  assert.equal(Object.hasOwn(calls[0][1].select, "repoType"), false);
+});
+
+test("ProjectsService.create는 빈 repository 경로 목록을 거부한다", async () => {
+  const calls = [];
+  const prisma = {
+    project: {
+      create: async (args) => {
+        calls.push(["create", args]);
+      },
+    },
+  };
+  const ProjectsService = loadProjectsService();
+  const service = new ProjectsService(prisma);
+
+  await assert.rejects(
+    () =>
+      service.create({
+        title: "Empty repositories",
+        repoPaths: [],
+        description: "Invalid Project",
+      }),
+    /at least one repository/i,
+  );
+  assert.deepEqual(calls, []);
 });

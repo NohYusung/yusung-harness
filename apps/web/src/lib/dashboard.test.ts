@@ -47,7 +47,6 @@ describe("deriveDashboardSummary", () => {
       reviews: [
         createReview({
           id: 8,
-          planId: 4,
           title: "Review",
           updatedAt: "2026-07-20T09:30:00.000Z",
         }),

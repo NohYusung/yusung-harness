@@ -8,6 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
+import { PrismaService } from "../prisma/prisma.service";
 import { ArchitecturesService } from "../services/architectures/architectures.service";
 import { AssetsService } from "../services/assets/assets.service";
 import { DesignsService } from "../services/designs/designs.service";
@@ -20,11 +21,61 @@ import { TasksService } from "../services/tasks/tasks.service";
 import { WireframesService } from "../services/wireframes/wireframes.service";
 
 const projectIdSchema = z.number().int().positive().describe("Project ID");
-const taskIdSchema = z.number().int().positive().describe("Task ID");
+const domainIdSchema = z.number().int().positive().describe("Domain ID");
 const htmlSchema = z
   .string()
   .min(1)
   .describe("Complete HTML document including doctype, html, head, and body");
+
+type SqliteInteger = bigint | number;
+type SqliteSchemaObjectType = "index" | "table" | "trigger" | "view";
+
+interface SqliteSchemaObjectRow {
+  type: SqliteSchemaObjectType;
+  name: string;
+  tableName: string;
+  sql: string | null;
+}
+
+interface SqliteColumnRow {
+  cid: SqliteInteger;
+  name: string;
+  type: string;
+  notNull: SqliteInteger;
+  defaultValue: string | null;
+  primaryKeyOrdinal: SqliteInteger;
+  hidden: SqliteInteger;
+}
+
+interface SqliteIndexRow {
+  name: string;
+  isUnique: SqliteInteger;
+  origin: string;
+  partial: SqliteInteger;
+}
+
+interface SqliteIndexColumnRow {
+  sequence: SqliteInteger;
+  columnId: SqliteInteger;
+  name: string | null;
+  descending: SqliteInteger;
+  collation: string | null;
+  key: SqliteInteger;
+}
+
+interface SqliteForeignKeyRow {
+  id: SqliteInteger;
+  sequence: SqliteInteger;
+  referencedTable: string;
+  fromColumn: string;
+  toColumn: string | null;
+  onUpdate: string;
+  onDelete: string;
+  match: string;
+}
+
+const toNumber = (value: SqliteInteger): number => Number(value);
+const toBoolean = (value: SqliteInteger): boolean => toNumber(value) === 1;
 
 /** HTTP 요청 단위로 생성한 MCP server와 stateless transport 조합. */
 export interface McpConnection {
@@ -37,6 +88,7 @@ export class McpService {
   private readonly logger = new Logger(McpService.name);
 
   constructor(
+    private readonly prismaService: PrismaService,
     private readonly projectsService: ProjectsService,
     private readonly plansService: PlansService,
     private readonly tasksService: TasksService,
@@ -49,7 +101,7 @@ export class McpService {
     private readonly reviewsService: ReviewsService,
   ) {}
 
-  /** 8개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 11개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -77,8 +129,26 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 프로젝트 조회와 산출물 생성 도구 8개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 11개를 등록한다. */
   private registerTools(server: McpServer): void {
+    /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
+    server.registerTool(
+      "get_context",
+      {
+        title: "Get Context",
+        description:
+          "Returns the complete SQLite schema context, including DDL, tables, columns, indexes, and foreign-key relationships.",
+        inputSchema: z.object({}).strict(),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      () => this.execute(() => this.getSchemaContext()),
+    );
+
     /** projectId 유무에 따라 프로젝트 목록 또는 단일 프로젝트 context를 조회한다. */
     server.registerTool(
       "get_project",
@@ -102,16 +172,22 @@ export class McpService {
         ),
     );
 
-    /** repository 경로와 유형을 고유 키로 프로젝트를 생성한다. */
+    /** 하나 이상의 repository 경로를 연결한 프로젝트를 생성한다. */
     server.registerTool(
       "create_project",
       {
         title: "Create Project",
-        description: "Creates a Project for the selected repository.",
+        description: "Creates a Project for one or more repositories.",
         inputSchema: z.object({
           title: z.string().trim().min(1),
-          repoPath: z.string().trim().min(1),
-          repoType: z.enum(["LOCAL", "REMOTE"]),
+          repoPaths: z
+            .array(
+              z.object({
+                path: z.string().trim().min(1),
+                repoType: z.enum(["LOCAL", "REMOTE"]),
+              }),
+            )
+            .min(1),
           description: z.string().trim().min(1),
         }),
         annotations: {
@@ -124,25 +200,16 @@ export class McpService {
       (input) => this.execute(() => this.projectsService.create(input)),
     );
 
-    /** 프로젝트의 다음 plan version과 선택적인 초기 task를 생성한다. */
+    /** 프로젝트의 다음 plan version을 생성한다. */
     server.registerTool(
       "create_plan",
       {
         title: "Create Plan",
-        description:
-          "Creates the next Plan version and optionally creates its initial Tasks.",
+        description: "Creates the next Plan version for a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           title: z.string().trim().min(1),
           content: z.string().min(1),
-          tasks: z
-            .array(
-              z.object({
-                title: z.string().trim().min(1),
-                content: z.string().optional(),
-              }),
-            )
-            .default([]),
         }),
         annotations: {
           readOnlyHint: false,
@@ -151,7 +218,7 @@ export class McpService {
           openWorldHint: false,
         },
       },
-      (input) => this.execute(() => this.plansService.createVersion(input)),
+      (input) => this.execute(() => this.plansService.create(input)),
     );
 
     /** 프로젝트에 text draft를 생성한다. */
@@ -172,7 +239,52 @@ export class McpService {
           openWorldHint: false,
         },
       },
-      (input) => this.execute(() => this.draftsService.save(input)),
+      (input) => this.execute(() => this.draftsService.create(input)),
+    );
+
+    /** 에이전트가 분석한 프로젝트 codebase의 Domain 문서를 생성한다. */
+    server.registerTool(
+      "create_domain",
+      {
+        title: "Create Domain",
+        description:
+          "Creates a codebase Domain analysis document for a Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          title: z.string().trim().min(1),
+          content: z.string().min(1),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.domainsService.create(input)),
+    );
+
+    /** 기존 Domain 분석 문서의 제목과 내용을 교체한다. */
+    server.registerTool(
+      "update_domain",
+      {
+        title: "Update Domain",
+        description:
+          "Replaces the title and content of a Domain analysis document in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          domainId: domainIdSchema,
+          title: z.string().trim().min(1),
+          content: z.string().min(1),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.domainsService.update(input)),
     );
 
     /** 선택한 plan에 task를 생성한다. */
@@ -197,16 +309,15 @@ export class McpService {
       (input) => this.execute(() => this.tasksService.create(input)),
     );
 
-    /** 같은 task의 wireframe과 asset을 조합한 HTML design을 생성한다. */
+    /** 같은 프로젝트의 wireframe과 asset을 조합한 HTML design을 생성한다. */
     server.registerTool(
       "create_design",
       {
         title: "Create Design",
         description:
-          "Creates production-ready HTML by combining a Wireframe and Asset from the same Project, Plan, and Task.",
+          "Creates production-ready HTML by combining a Wireframe and Asset from the same Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
-          taskId: taskIdSchema,
           wireframeId: z.number().int().positive(),
           assetId: z.number().int().positive(),
           title: z.string().trim().min(1),
@@ -219,18 +330,17 @@ export class McpService {
           openWorldHint: false,
         },
       },
-      (input) => this.execute(() => this.designsService.save(input)),
+      (input) => this.execute(() => this.designsService.create(input)),
     );
 
-    /** task에 연결된 HTML wireframe을 생성한다. */
+    /** 프로젝트에 속한 HTML wireframe을 생성한다. */
     server.registerTool(
       "create_wireframe",
       {
         title: "Create Wireframe",
-        description: "Creates an HTML Wireframe for a Task.",
+        description: "Creates an HTML Wireframe for a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
-          taskId: taskIdSchema,
           title: z.string().trim().min(1),
           html: htmlSchema,
         }),
@@ -241,18 +351,17 @@ export class McpService {
           openWorldHint: false,
         },
       },
-      (input) => this.execute(() => this.wireframesService.save(input)),
+      (input) => this.execute(() => this.wireframesService.create(input)),
     );
 
-    /** task에 연결된 HTML asset을 생성한다. */
+    /** 프로젝트에 속한 HTML asset을 생성한다. */
     server.registerTool(
       "create_asset",
       {
         title: "Create Asset",
-        description: "Creates an HTML Asset for a Task.",
+        description: "Creates an HTML Asset for a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
-          taskId: taskIdSchema,
           title: z.string().trim().min(1),
           html: htmlSchema,
         }),
@@ -263,8 +372,176 @@ export class McpService {
           openWorldHint: false,
         },
       },
-      (input) => this.execute(() => this.assetsService.save(input)),
+      (input) => this.execute(() => this.assetsService.create(input)),
     );
+  }
+
+  /** SQLite catalog와 PRAGMA를 조합해 agent용 database schema context를 만든다. */
+  private async getSchemaContext() {
+    const schemaObjectRows = await this.prismaService.$queryRaw<
+      SqliteSchemaObjectRow[]
+    >`
+      SELECT
+        type,
+        name,
+        tbl_name AS "tableName",
+        sql
+      FROM sqlite_schema
+      WHERE type IN ('table', 'index', 'view', 'trigger')
+        AND name NOT LIKE 'sqlite_%'
+      ORDER BY type, name
+    `;
+
+    const schemaObjects = [...schemaObjectRows].sort(
+      (left, right) =>
+        left.type.localeCompare(right.type) ||
+        left.name.localeCompare(right.name),
+    );
+    const schemaObjectByName = new Map(
+      schemaObjects.map((schemaObject) => [schemaObject.name, schemaObject]),
+    );
+    const tableObjects = schemaObjects
+      .filter(({ type }) => type === "table")
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    const tables = await Promise.all(
+      tableObjects.map(async ({ name, sql }) => {
+        const [columnRows, indexRows, foreignKeyRows] = await Promise.all([
+          this.prismaService.$queryRaw<SqliteColumnRow[]>`
+            SELECT
+              cid,
+              name,
+              type,
+              "notnull" AS "notNull",
+              dflt_value AS "defaultValue",
+              pk AS "primaryKeyOrdinal",
+              hidden
+            FROM pragma_table_xinfo(${name})
+            ORDER BY cid
+          `,
+          this.prismaService.$queryRaw<SqliteIndexRow[]>`
+            SELECT
+              name,
+              "unique" AS "isUnique",
+              origin,
+              partial
+            FROM pragma_index_list(${name})
+            ORDER BY name
+          `,
+          this.prismaService.$queryRaw<SqliteForeignKeyRow[]>`
+            SELECT
+              id,
+              seq AS "sequence",
+              "table" AS "referencedTable",
+              "from" AS "fromColumn",
+              "to" AS "toColumn",
+              on_update AS "onUpdate",
+              on_delete AS "onDelete",
+              match
+            FROM pragma_foreign_key_list(${name})
+            ORDER BY id, seq
+          `,
+        ]);
+
+        const columns = columnRows
+          .map((column) => ({
+            ordinal: toNumber(column.cid),
+            name: column.name,
+            dataType: column.type,
+            notNull: toBoolean(column.notNull),
+            defaultValue: column.defaultValue,
+            primaryKeyOrdinal: toNumber(column.primaryKeyOrdinal),
+            hidden: toNumber(column.hidden),
+          }))
+          .sort((left, right) => left.ordinal - right.ordinal);
+
+        const indexes = await Promise.all(
+          indexRows
+            .sort((left, right) => left.name.localeCompare(right.name))
+            .map(async (index) => {
+              const indexColumnRows = await this.prismaService.$queryRaw<
+                SqliteIndexColumnRow[]
+              >`
+                SELECT
+                  seqno AS "sequence",
+                  cid AS "columnId",
+                  name,
+                  "desc" AS "descending",
+                  coll AS "collation",
+                  "key"
+                FROM pragma_index_xinfo(${index.name})
+                ORDER BY seqno
+              `;
+
+              return {
+                name: index.name,
+                unique: toBoolean(index.isUnique),
+                origin: index.origin,
+                partial: toBoolean(index.partial),
+                sql: schemaObjectByName.get(index.name)?.sql ?? null,
+                columns: indexColumnRows
+                  .map((column) => ({
+                    sequence: toNumber(column.sequence),
+                    columnId: toNumber(column.columnId),
+                    name: column.name,
+                    descending: toBoolean(column.descending),
+                    collation: column.collation,
+                    key: toBoolean(column.key),
+                  }))
+                  .sort((left, right) => left.sequence - right.sequence),
+              };
+            }),
+        );
+
+        const foreignKeysById = new Map<
+          number,
+          {
+            id: number;
+            referencedTable: string;
+            onUpdate: string;
+            onDelete: string;
+            match: string;
+            columns: Array<{
+              sequence: number;
+              from: string;
+              to: string | null;
+            }>;
+          }
+        >();
+
+        for (const row of foreignKeyRows) {
+          const id = toNumber(row.id);
+          const foreignKey = foreignKeysById.get(id) ?? {
+            id,
+            referencedTable: row.referencedTable,
+            onUpdate: row.onUpdate,
+            onDelete: row.onDelete,
+            match: row.match,
+            columns: [],
+          };
+
+          foreignKey.columns.push({
+            sequence: toNumber(row.sequence),
+            from: row.fromColumn,
+            to: row.toColumn,
+          });
+          foreignKeysById.set(id, foreignKey);
+        }
+
+        const foreignKeys = [...foreignKeysById.values()]
+          .map((foreignKey) => ({
+            ...foreignKey,
+            columns: foreignKey.columns.sort(
+              (left, right) => left.sequence - right.sequence,
+            ),
+          }))
+          .sort((left, right) => left.id - right.id);
+
+        return { name, sql, columns, indexes, foreignKeys };
+      }),
+    );
+
+    return { dialect: "sqlite", schemaObjects, tables };
   }
 
   /** 프로젝트 기본 정보와 9종 도메인 목록을 하나의 MCP context로 조립한다. */
@@ -283,10 +560,7 @@ export class McpService {
       reviews,
     ] = await Promise.all([
       this.projectsService.list(),
-      this.plansService.list(
-        { projectId },
-        { orderBy: { version: "desc" } },
-      ),
+      this.plansService.list({ projectId }, { orderBy: { version: "desc" } }),
       this.tasksService.list({ projectId }),
       this.draftsService.list({ projectId }),
       this.domainsService.list({ projectId }),
@@ -307,8 +581,7 @@ export class McpService {
     return {
       id: project.id,
       title: project.title,
-      repoPath: project.repoPath,
-      repoType: project.repoType,
+      repoPaths: project.repoPaths,
       description: project.description,
       plans,
       tasks,

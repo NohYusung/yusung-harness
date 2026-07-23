@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { PrismaModule } from "../prisma/prisma.module";
 import { ArchitecturesModule } from "../services/architectures/architectures.module";
 import { AssetsModule } from "../services/assets/assets.module";
 import { DesignsModule } from "../services/designs/designs.module";
@@ -14,6 +15,7 @@ import { McpService } from "./mcp.service";
 
 @Module({
   imports: [
+    PrismaModule,
     ProjectsModule,
     TasksModule,
     PlansModule,

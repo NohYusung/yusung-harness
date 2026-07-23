@@ -74,18 +74,21 @@ test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응�
     );
   }
 
-  assert.match(types, /interface\s+Task\b[\s\S]*?assets:\s*Asset\[\]/);
-  assert.match(types, /interface\s+Task\b[\s\S]*?wireframes:\s*Wireframe\[\]/);
-  assert.match(types, /interface\s+Task\b[\s\S]*?designs:\s*Design\[\]/);
-  assert.match(types, /interface\s+Plan\b[\s\S]*?assets:\s*Asset\[\]/);
-  assert.match(types, /interface\s+Plan\b[\s\S]*?wireframes:\s*Wireframe\[\]/);
-  assert.match(types, /interface\s+Plan\b[\s\S]*?designs:\s*Design\[\]/);
-  assert.match(types, /interface\s+Plan\b[\s\S]*?reviews:\s*Review\[\]/);
+  const taskType = types.match(/interface\s+Task\s*\{([\s\S]*?)\n\}/)?.[1];
+  const planType = types.match(/interface\s+Plan[^\{]*\{([\s\S]*?)\n\}/)?.[1];
+
+  assert.ok(taskType);
+  assert.ok(planType);
+  assert.doesNotMatch(taskType, /\b(?:assets|wireframes|designs):/);
+  assert.match(planType, /\btasks:\s*Task\[\]/);
+  assert.doesNotMatch(planType, /\b(?:assets|wireframes|designs|reviews):/);
   assert.match(validation, /tasks:\s*z\.array\s*\(\s*taskSchema\s*\)/);
   assert.match(types, /interface\s+HtmlArtifactDocument\b[\s\S]*?html:\s*string/);
-  assert.match(types, /type\s+Asset\s*=\s*TaskLinkedHtmlArtifact/);
-  assert.match(types, /type\s+Wireframe\s*=\s*TaskLinkedHtmlArtifact/);
-  assert.match(types, /interface\s+Design\s+extends\s+TaskLinkedHtmlArtifact/);
+  assert.match(types, /type\s+Asset\s*=\s*HtmlArtifactDocument/);
+  assert.match(types, /type\s+Wireframe\s*=\s*HtmlArtifactDocument/);
+  assert.match(types, /interface\s+Design\s+extends\s+HtmlArtifactDocument/);
+  assert.match(types, /type\s+Review\s*=\s*ArtifactDocument/);
+  assert.doesNotMatch(types, /TaskLinkedHtmlArtifact|PlanLinkedDocument/);
   assert.match(validation, /html:\s*htmlDocumentSchema/);
 });
 

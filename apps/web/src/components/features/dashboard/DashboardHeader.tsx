@@ -12,6 +12,20 @@ export function DashboardHeader({
   context,
   projects,
 }: DashboardHeaderProps) {
+  const primaryRepository = context.repoPaths[0];
+  const repositoryTitle = context.repoPaths.map(({ path }) => path).join("\n");
+  const repositoryBadge =
+    context.repoPaths.length === 1
+      ? primaryRepository?.repoType
+      : `${context.repoPaths.length} REPOS`;
+  const repositorySummary = primaryRepository
+    ? `${primaryRepository.path}${
+        context.repoPaths.length > 1
+          ? ` +${context.repoPaths.length - 1}`
+          : ""
+      }`
+    : "No repository";
+
   return (
     <header className="shrink-0 border-b bg-canvas px-4 py-3 sm:px-6 lg:min-h-14 lg:px-5 lg:py-0">
       <div className="mb-3 rounded-card border bg-sidebar p-3 lg:hidden">
@@ -36,13 +50,13 @@ export function DashboardHeader({
             className="size-1.5 shrink-0 rounded-full bg-success"
           />
           <span className="shrink-0 rounded-control border bg-surface px-2 py-1 font-mono text-micro font-semibold text-muted">
-            {context.repoType}
+            {repositoryBadge}
           </span>
           <p
             className="hidden max-w-80 truncate font-mono xl:block"
-            title={context.repoPath}
+            title={repositoryTitle}
           >
-            {context.repoPath}
+            {repositorySummary}
           </p>
         </div>
       </div>

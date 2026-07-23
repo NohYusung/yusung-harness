@@ -14,10 +14,13 @@ const serverRoot = join(__dirname, "..");
 const servicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
 
 const expectedToolNames = [
+  "get_context",
   "get_project",
   "create_project",
   "create_plan",
   "create_draft",
+  "create_domain",
+  "update_domain",
   "create_task",
   "create_design",
   "create_wireframe",
@@ -80,8 +83,10 @@ const createHarness = () => {
   const project = {
     id: 17,
     title: "Harness",
-    repoPath: "/workspace/harness",
-    repoType: "LOCAL",
+    repoPaths: [
+      { path: "/workspace/harness-backend", repoType: "LOCAL" },
+      { path: "https://github.com/yusung/harness-web", repoType: "REMOTE" },
+    ],
     description: "Harness project",
     _count: {},
   };
@@ -103,6 +108,9 @@ const createHarness = () => {
     return domainResults[domain];
   };
   const services = {
+    prismaService: {
+      $queryRaw: async () => [],
+    },
     projectsService: {
       list: async () => {
         calls.push(["projectsService", "list"]);
@@ -119,16 +127,16 @@ const createHarness = () => {
     },
     plansService: {
       list: listService("plansService", "plans"),
-      createVersion: async (input) => {
-        calls.push(["plansService", "createVersion", input]);
-        return result("plansService", "createVersion", input);
+      create: async (input) => {
+        calls.push(["plansService", "create", input]);
+        return result("plansService", "create", input);
       },
     },
     draftsService: {
       list: listService("draftsService", "drafts"),
-      save: async (input) => {
-        calls.push(["draftsService", "save", input]);
-        return result("draftsService", "save", input);
+      create: async (input) => {
+        calls.push(["draftsService", "create", input]);
+        return result("draftsService", "create", input);
       },
     },
     tasksService: {
@@ -140,27 +148,35 @@ const createHarness = () => {
     },
     designsService: {
       list: listService("designsService", "designs"),
-      save: async (input) => {
-        calls.push(["designsService", "save", input]);
-        return result("designsService", "save", input);
+      create: async (input) => {
+        calls.push(["designsService", "create", input]);
+        return result("designsService", "create", input);
       },
     },
     wireframesService: {
       list: listService("wireframesService", "wireframes"),
-      save: async (input) => {
-        calls.push(["wireframesService", "save", input]);
-        return result("wireframesService", "save", input);
+      create: async (input) => {
+        calls.push(["wireframesService", "create", input]);
+        return result("wireframesService", "create", input);
       },
     },
     assetsService: {
       list: listService("assetsService", "assets"),
-      save: async (input) => {
-        calls.push(["assetsService", "save", input]);
-        return result("assetsService", "save", input);
+      create: async (input) => {
+        calls.push(["assetsService", "create", input]);
+        return result("assetsService", "create", input);
       },
     },
     domainsService: {
       list: listService("domainsService", "domains"),
+      create: async (input) => {
+        calls.push(["domainsService", "create", input]);
+        return result("domainsService", "create", input);
+      },
+      update: async (input) => {
+        calls.push(["domainsService", "update", input]);
+        return result("domainsService", "update", input);
+      },
     },
     architecturesService: {
       list: listService("architecturesService", "architectures"),
@@ -171,6 +187,18 @@ const createHarness = () => {
   };
   const McpService = loadMcpService();
   const service = Object.assign(new McpService(), services);
+  service.getSchemaContext = async () => {
+    calls.push(["mcpService", "getSchemaContext"]);
+    return {
+      dialect: "sqlite",
+      schemaObjects: [
+        { type: "table", name: "Project", tableName: "Project", sql: null },
+      ],
+      tables: [
+        { name: "Project", sql: null, columns: [], indexes: [], foreignKeys: [] },
+      ],
+    };
+  };
   const tools = new Map();
 
   service.registerTools({
@@ -222,7 +250,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 8개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 11개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -230,11 +258,37 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 8개 도구와 정
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 8);
+  assert.equal(tools.size, 11);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
   }
+});
+
+test("get_context는 전체 SQLite schema context를 읽기 전용으로 반환한다", async () => {
+  const harness = createHarness();
+  const response = await harness.invoke("get_context", {});
+  const tool = harness.tools.get("get_context");
+
+  assert.deepEqual(harness.calls, [["mcpService", "getSchemaContext"]]);
+  assert.deepEqual(response, {
+    dialect: "sqlite",
+    schemaObjects: [
+      { type: "table", name: "Project", tableName: "Project", sql: null },
+    ],
+    tables: [
+      { name: "Project", sql: null, columns: [], indexes: [], foreignKeys: [] },
+    ],
+  });
+  assert.equal(tool.definition.annotations.readOnlyHint, true);
+  assert.equal(tool.definition.annotations.destructiveHint, false);
+  assert.equal(tool.definition.annotations.idempotentHint, true);
+  assert.equal(tool.definition.annotations.openWorldHint, false);
+  assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), []);
+  assert.equal(
+    tool.definition.inputSchema.safeParse({ tableName: "Project" }).success,
+    false,
+  );
 });
 
 test("get_project는 projectId가 있으면 9종 domain list를 병렬 조립한다", async () => {
@@ -266,8 +320,7 @@ test("get_project는 projectId가 있으면 9종 domain list를 병렬 조립한
   assert.deepEqual(contextResponse, {
     id: harness.project.id,
     title: harness.project.title,
-    repoPath: harness.project.repoPath,
-    repoType: harness.project.repoType,
+    repoPaths: harness.project.repoPaths,
     description: harness.project.description,
     ...harness.domainResults,
   });
@@ -280,8 +333,10 @@ test("get_project는 projectId가 있으면 9종 domain list를 병렬 조립한
 
 const createProjectInput = {
   title: "Harness",
-  repoPath: "/workspace/harness",
-  repoType: "LOCAL",
+  repoPaths: [
+    { path: "/workspace/harness-backend", repoType: "LOCAL" },
+    { path: "https://github.com/yusung/harness-web", repoType: "REMOTE" },
+  ],
   description: "Harness project",
 };
 
@@ -305,6 +360,18 @@ test("create_project 공개 계약에는 upsert와 update 의미가 없다", () 
   assert.doesNotMatch(tool.definition.description, /\b(?:upsert|updates?)\b/i);
   assert.equal(tool.definition.annotations.idempotentHint, false);
   assert.equal(Object.hasOwn(tool.definition.inputSchema.shape, "id"), false);
+  assert.equal(
+    Object.hasOwn(tool.definition.inputSchema.shape, "repoPath"),
+    false,
+  );
+  assert.equal(
+    Object.hasOwn(tool.definition.inputSchema.shape, "repoPaths"),
+    true,
+  );
+  assert.equal(
+    tool.definition.inputSchema.shape.repoPaths.safeParse([]).success,
+    false,
+  );
 });
 
 const createToolCases = [
@@ -317,22 +384,31 @@ const createToolCases = [
   {
     name: "create_plan",
     service: "plansService",
-    method: "createVersion",
+    method: "create",
     input: {
       projectId: 1,
       title: "Plan",
       content: "Plan content",
-      tasks: [{ title: "Task", content: "Task content" }],
     },
   },
   {
     name: "create_draft",
     service: "draftsService",
-    method: "save",
+    method: "create",
     input: {
       projectId: 1,
       title: "Draft",
       content: "Draft content",
+    },
+  },
+  {
+    name: "create_domain",
+    service: "domainsService",
+    method: "create",
+    input: {
+      projectId: 1,
+      title: "Domain analysis",
+      content: "Domain analysis content",
     },
   },
   {
@@ -349,10 +425,9 @@ const createToolCases = [
   {
     name: "create_design",
     service: "designsService",
-    method: "save",
+    method: "create",
     input: {
       projectId: 1,
-      taskId: 3,
       wireframeId: 4,
       assetId: 5,
       title: "Design",
@@ -362,10 +437,9 @@ const createToolCases = [
   {
     name: "create_wireframe",
     service: "wireframesService",
-    method: "save",
+    method: "create",
     input: {
       projectId: 1,
-      taskId: 3,
       title: "Wireframe",
       html: "<!doctype html><html><head></head><body>Wireframe</body></html>",
     },
@@ -373,10 +447,9 @@ const createToolCases = [
   {
     name: "create_asset",
     service: "assetsService",
-    method: "save",
+    method: "create",
     input: {
       projectId: 1,
-      taskId: 3,
       title: "Asset",
       html: "<!doctype html><html><head></head><body>Asset</body></html>",
     },
@@ -410,7 +483,140 @@ test("create_* 도구는 입력을 해당 도메인 service에 그대로 위임�
   }
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 8개 공개 계약을 따른다", async (t) => {
+test("project 산출물 MCP 입력 schema는 제거된 taskId와 planId를 노출하지 않는다", () => {
+  const { tools } = createHarness();
+  const expectedFields = {
+    create_asset: ["projectId", "title", "html"],
+    create_wireframe: ["projectId", "title", "html"],
+    create_design: [
+      "projectId",
+      "wireframeId",
+      "assetId",
+      "title",
+      "html",
+    ],
+  };
+
+  for (const [toolName, fields] of Object.entries(expectedFields)) {
+    const shape = tools.get(toolName).definition.inputSchema.shape;
+
+    assert.deepEqual(Object.keys(shape), fields);
+    assert.equal(Object.hasOwn(shape, "taskId"), false);
+    assert.equal(Object.hasOwn(shape, "planId"), false);
+  }
+});
+
+test("Domain 생성·수정 도구는 입력, annotations, service 위임 계약을 지킨다", async () => {
+  const harness = createHarness();
+  const createInput = {
+    projectId: 17,
+    title: "Domain analysis",
+    content: "Domain analysis content",
+  };
+  const updateInput = {
+    projectId: 17,
+    domainId: 23,
+    title: "Updated domain analysis",
+    content: "Updated domain analysis content",
+  };
+
+  const created = await harness.invoke("create_domain", createInput);
+  const updated = await harness.invoke("update_domain", updateInput);
+
+  assert.deepEqual(harness.calls, [
+    ["domainsService", "create", createInput],
+    ["domainsService", "update", updateInput],
+  ]);
+  assert.deepEqual(created, {
+    service: "domainsService",
+    method: "create",
+    input: createInput,
+  });
+  assert.deepEqual(updated, {
+    service: "domainsService",
+    method: "update",
+    input: updateInput,
+  });
+
+  const createTool = harness.tools.get("create_domain");
+  const updateTool = harness.tools.get("update_domain");
+
+  assert.deepEqual(Object.keys(createTool.definition.inputSchema.shape), [
+    "projectId",
+    "title",
+    "content",
+  ]);
+  assert.deepEqual(Object.keys(updateTool.definition.inputSchema.shape), [
+    "projectId",
+    "domainId",
+    "title",
+    "content",
+  ]);
+  for (const invalidId of [0, -1, 1.5]) {
+    assert.equal(
+      createTool.definition.inputSchema.safeParse({
+        ...createInput,
+        projectId: invalidId,
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateTool.definition.inputSchema.safeParse({
+        ...updateInput,
+        projectId: invalidId,
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateTool.definition.inputSchema.safeParse({
+        ...updateInput,
+        domainId: invalidId,
+      }).success,
+      false,
+    );
+  }
+  assert.equal(
+    updateTool.definition.inputSchema.safeParse({
+      projectId: 17,
+      title: "Missing domain id",
+      content: "content",
+    }).success,
+    false,
+  );
+  for (const tool of [createTool, updateTool]) {
+    const baseInput = tool === createTool ? createInput : updateInput;
+
+    assert.equal(
+      tool.definition.inputSchema.safeParse({ ...baseInput, title: "   " })
+        .success,
+      false,
+    );
+    assert.equal(
+      tool.definition.inputSchema.safeParse({ ...baseInput, content: "" })
+        .success,
+      false,
+    );
+    assert.equal(
+      tool.definition.inputSchema.parse({ ...baseInput, title: "  Domain  " })
+        .title,
+      "Domain",
+    );
+  }
+  assert.deepEqual(createTool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  });
+  assert.deepEqual(updateTool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
+  });
+});
+
+test("실제 MCP tools/list와 제거된 도구 호출도 11개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 
@@ -469,7 +675,7 @@ test("실제 MCP get_project는 optional projectId를 검증하고 service 오�
   });
 });
 
-test("실제 MCP create_plan은 tasks 기본값을 적용한다", async (t) => {
+test("실제 MCP create_plan은 tasks 입력 없이 plansService.create에 위임한다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 
@@ -487,15 +693,18 @@ test("실제 MCP create_plan은 tasks 기본값을 적용한다", async (t) => {
   assert.deepEqual(harness.calls, [
     [
       "plansService",
-      "createVersion",
+      "create",
       {
         projectId: 1,
         title: "Plan without initial tasks",
         content: "Plan content",
-        tasks: [],
       },
     ],
   ]);
+  const tool = harness.tools.get("create_plan");
+
+  assert.equal(Object.hasOwn(tool.definition.inputSchema.shape, "tasks"), false);
+  assert.doesNotMatch(tool.definition.description, /tasks?/i);
 });
 
 test("create-only 산출물 도구는 id를 update 입력으로 전달하지 않는다", async (t) => {

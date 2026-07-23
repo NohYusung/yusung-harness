@@ -197,8 +197,7 @@ export async function getProjectDashboard(
     context: {
       id: project.id,
       title: project.title,
-      repoPath: project.repoPath,
-      repoType: project.repoType,
+      repoPaths: project.repoPaths,
       description: project.description,
       plans,
       tasks,

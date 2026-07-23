@@ -17,14 +17,17 @@ import type {
 } from "@/types/dashboard";
 
 const repoTypeSchema = z.enum(["LOCAL", "REMOTE"]);
+const projectRepositorySchema = z.object({
+  path: z.string().min(1),
+  repoType: repoTypeSchema,
+});
 const taskStatusSchema = z.enum(["PENDING", "COMPLETED"]);
 const dateTimeSchema = z.iso.datetime();
 
 const projectBaseSchema = z.object({
   id: z.number().int().positive(),
   title: z.string(),
-  repoPath: z.string(),
-  repoType: repoTypeSchema,
+  repoPaths: z.array(projectRepositorySchema).min(1),
   description: z.string(),
 });
 
@@ -65,27 +68,17 @@ const htmlArtifactSchema = artifactRecordSchema.extend({
   html: htmlDocumentSchema,
 });
 
-const wireframeSchema: z.ZodType<Wireframe> = htmlArtifactSchema.extend({
-  planId: z.number().int().positive(),
-  taskId: z.number().int().positive(),
-});
-const assetSchema: z.ZodType<Asset> = htmlArtifactSchema.extend({
-  planId: z.number().int().positive(),
-  taskId: z.number().int().positive(),
-});
+const wireframeSchema: z.ZodType<Wireframe> = htmlArtifactSchema;
+const assetSchema: z.ZodType<Asset> = htmlArtifactSchema;
 
 const designSchema: z.ZodType<Design> = htmlArtifactSchema.extend({
-  planId: z.number().int().positive(),
-  taskId: z.number().int().positive(),
   wireframeId: z.number().int().positive(),
   assetId: z.number().int().positive(),
   wireframe: wireframeSchema,
   asset: assetSchema,
 });
 
-const reviewSchema = artifactDocumentSchema.extend({
-  planId: z.number().int().positive(),
-});
+const reviewSchema: z.ZodType<Review> = artifactDocumentSchema;
 
 const taskSchema: z.ZodType<Task> = z.object({
   id: z.number().int().positive(),
@@ -96,18 +89,11 @@ const taskSchema: z.ZodType<Task> = z.object({
   status: taskStatusSchema,
   title: z.string(),
   content: z.string().nullable(),
-  assets: z.array(assetSchema),
-  wireframes: z.array(wireframeSchema),
-  designs: z.array(designSchema),
 });
 
 const planSchema: z.ZodType<Plan> = artifactDocumentSchema.extend({
   version: z.number().int().positive(),
   tasks: z.array(taskSchema),
-  assets: z.array(assetSchema),
-  wireframes: z.array(wireframeSchema),
-  designs: z.array(designSchema),
-  reviews: z.array(reviewSchema),
 });
 
 /** Plan 목록 API의 `{ data }` 응답을 검증한다. */

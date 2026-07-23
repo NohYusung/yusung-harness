@@ -12,7 +12,7 @@ const source = (relativePath) => {
   return readFileSync(path, "utf8");
 };
 
-test("Domain은 별도 schema와 서버 쓰기 경로 없이 분석 문서 조회만 제공한다", () => {
+test("Domain service는 raw 분석 문서를 생성·수정하며 프로젝트 경계를 검증한다", () => {
   assert.equal(existsSync(sourcePath("services/domains/domain-erd.ts")), false);
   assert.equal(
     existsSync(sourcePath("services/architectures/architecture-erd.ts")),
@@ -26,9 +26,26 @@ test("Domain은 별도 schema와 서버 쓰기 경로 없이 분석 문서 조�
     /\bAGENT\b|domainErdSchema|parseDomainErd|diagram:\s*unknown|async\s+save\s*\(/,
   );
   assert.match(service, /this\.prisma\.domain\.findMany\s*\(/);
-  assert.doesNotMatch(
+  assert.match(
     service,
-    /BadRequestException|NotFoundException|this\.prisma\.domain\.(?:findUnique|create|update)/,
+    /import\s*\{[\s\S]*?BadRequestException[\s\S]*?NotFoundException[\s\S]*?\}\s*from\s*["']@nestjs\/common["']/,
+  );
+  assert.match(
+    service,
+    /async\s+create\s*\([\s\S]*?projectId:\s*number[\s\S]*?title:\s*string[\s\S]*?content:\s*string[\s\S]*?ensureProject\(projectId\)[\s\S]*?this\.prisma\.domain\.create\s*\(\{[\s\S]*?data:\s*\{\s*projectId,\s*title,\s*content\s*\}/,
+  );
+  assert.match(
+    service,
+    /async\s+update\s*\([\s\S]*?domainId:\s*number[\s\S]*?ensureProject\(projectId\)[\s\S]*?this\.prisma\.domain\.findUnique\s*\(\{\s*where:\s*\{\s*id:\s*domainId\s*\}/,
+  );
+  assert.match(service, /throw\s+new\s+NotFoundException\s*\(/);
+  assert.match(
+    service,
+    /\w+\.projectId\s*!==\s*projectId[\s\S]*?throw\s+new\s+BadRequestException\s*\(/,
+  );
+  assert.match(
+    service,
+    /this\.prisma\.domain\.update\s*\(\{[\s\S]*?where:\s*\{\s*id:\s*domainId\s*\}[\s\S]*?data:\s*\{\s*title,\s*content\s*\}/,
   );
 });
 
@@ -43,11 +60,21 @@ test("Domain 목록 API는 분석 문서라는 책임과 읽기 전용 HTTP 경�
   assert.doesNotMatch(controller, /@(Post|Put|Patch|Delete)\s*\(/);
 });
 
-test("MCP는 Domain 목록만 조립하고 문서 해석·저장 책임을 소유하지 않는다", () => {
+test("MCP는 Domain 조회·생성·수정을 service로 위임하고 문서를 해석하지 않는다", () => {
   const mcp = source("mcp/mcp.service.ts");
 
   assert.match(mcp, /private readonly domainsService:\s*DomainsService/);
   assert.match(mcp, /this\.domainsService\.list\s*\(/);
-  assert.doesNotMatch(mcp, /domainErdSchema|domainsService\.save\s*\(/);
-  assert.doesNotMatch(mcp, /["']DOMAIN["']|save_document|create_domain/);
+  assert.match(
+    mcp,
+    /registerTool\(\s*["']create_domain["'][\s\S]*?this\.domainsService\.create\s*\(\s*input\s*\)/,
+  );
+  assert.match(
+    mcp,
+    /registerTool\(\s*["']update_domain["'][\s\S]*?this\.domainsService\.update\s*\(\s*input\s*\)/,
+  );
+  assert.doesNotMatch(
+    mcp,
+    /domainErdSchema|domainsService\.save\s*\(|["']DOMAIN["']|save_document/,
+  );
 });

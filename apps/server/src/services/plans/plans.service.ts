@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "../../generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
 
@@ -27,37 +27,20 @@ export class PlansService {
       include: {
         tasks: {
           orderBy: { createdAt: "asc" },
-          include: {
-            assets: { orderBy: { updatedAt: "desc" } },
-            wireframes: { orderBy: { updatedAt: "desc" } },
-            designs: {
-              orderBy: { updatedAt: "desc" },
-              include: { wireframe: true, asset: true },
-            },
-          },
         },
-        assets: { orderBy: { updatedAt: "desc" } },
-        wireframes: { orderBy: { updatedAt: "desc" } },
-        designs: {
-          orderBy: { updatedAt: "desc" },
-          include: { wireframe: true, asset: true },
-        },
-        reviews: { orderBy: { updatedAt: "desc" } },
       },
     });
   }
 
-  /** 다음 plan version과 초기 task들을 하나의 transaction으로 생성한다. */
-  async createVersion({
+  /** 다음 version의 plan만 transaction으로 생성한다. */
+  async create({
     projectId,
     title,
     content,
-    tasks,
   }: {
     projectId: number;
     title: string;
     content: string;
-    tasks: Array<{ title: string; content?: string }>;
   }) {
     await this.projectsService.ensureProject(projectId);
 
@@ -76,15 +59,7 @@ export class PlansService {
               title,
               content,
               version: (latestPlan?.version ?? 0) + 1,
-              tasks: {
-                create: tasks.map((task) => ({
-                  projectId,
-                  title: task.title,
-                  content: task.content,
-                })),
-              },
             },
-            include: { tasks: true },
           });
         });
       } catch (error: unknown) {

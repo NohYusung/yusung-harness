@@ -30,7 +30,7 @@ const loadPlansService = () => {
   loadedModule.filename = servicePath;
   loadedModule.paths = Module._nodeModulePaths(dirname(servicePath));
   loadedModule.require = (request) => {
-    if (request === "../../generated/prisma/client") {
+    if (request === "@prisma/client") {
       return {
         Prisma: {
           PrismaClientKnownRequestError: class PrismaClientKnownRequestError
@@ -83,20 +83,18 @@ test("PlansService.list는 caller의 top-level 정렬 옵션을 Prisma에 전달
   const findManyArgs = calls[1][1];
   assert.deepEqual(findManyArgs.where, { projectId: 7 });
   assert.deepEqual(findManyArgs.orderBy, options.orderBy);
-  assert.deepEqual(findManyArgs.include.tasks.orderBy, { createdAt: "asc" });
+  assert.deepEqual(findManyArgs.include, {
+    tasks: { orderBy: { createdAt: "asc" } },
+  });
   for (const relation of ["assets", "wireframes", "designs", "reviews"]) {
-    assert.deepEqual(findManyArgs.include[relation].orderBy, {
-      updatedAt: "desc",
-    });
+    assert.equal(Object.hasOwn(findManyArgs.include, relation), false);
   }
   for (const relation of ["assets", "wireframes", "designs"]) {
-    assert.deepEqual(findManyArgs.include.tasks.include[relation].orderBy, {
-      updatedAt: "desc",
-    });
+    assert.equal(Object.hasOwn(findManyArgs.include.tasks, relation), false);
   }
 });
 
-test("PlansService.createVersion은 최신 version을 desc로 조회해 다음 version을 만든다", async () => {
+test("PlansService.create는 task 중첩 없이 다음 version의 Plan만 만든다", async () => {
   const calls = [];
   const createdPlan = { id: 12, projectId: 7, version: 5 };
   const transaction = {
@@ -122,11 +120,10 @@ test("PlansService.createVersion은 최신 version을 desc로 조회해 다음 v
   const PlansService = loadPlansService();
   const service = new PlansService(prisma, projectsService);
 
-  const result = await service.createVersion({
+  const result = await service.create({
     projectId: 7,
     title: "Version 5",
     content: "Plan content",
-    tasks: [{ title: "Task", content: "Task content" }],
   });
 
   assert.deepEqual(result, createdPlan);
@@ -138,5 +135,17 @@ test("PlansService.createVersion은 최신 version을 desc로 조회해 다음 v
       select: { version: true },
     },
   ]);
-  assert.equal(calls[2][1].data.version, 5);
+  assert.deepEqual(calls[2], [
+    "plan.create",
+    {
+      data: {
+        projectId: 7,
+        title: "Version 5",
+        content: "Plan content",
+        version: 5,
+      },
+    },
+  ]);
+  assert.equal(Object.hasOwn(calls[2][1].data, "tasks"), false);
+  assert.equal(Object.hasOwn(calls[2][1], "include"), false);
 });

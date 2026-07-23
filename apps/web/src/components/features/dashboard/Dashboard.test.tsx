@@ -38,8 +38,12 @@ describe("Dashboard", () => {
     const anotherContext = createProjectContext({
       id: 2,
       title: "Remote Agent Commerce",
-      repoPath: "/workspace/remote-agent-commerce",
-      repoType: "REMOTE",
+      repoPaths: [
+        {
+          path: "https://github.com/yusung/remote-agent-commerce",
+          repoType: "REMOTE",
+        },
+      ],
     });
 
     const projects = [
@@ -59,6 +63,14 @@ describe("Dashboard", () => {
     expect(
       screen.getByRole("heading", { name: "Yusung Harness" }),
     ).toBeInTheDocument();
+    const repositoryLabels = screen.getAllByTitle(
+      /workspace\/yusung-harness-backend/,
+    );
+    expect(repositoryLabels.length).toBeGreaterThan(0);
+    expect(repositoryLabels[0]).toHaveAttribute(
+      "title",
+      "/workspace/yusung-harness-backend\n/workspace/yusung-harness-web",
+    );
     expect(
       screen.queryByRole("heading", { name: /Recent Artifacts/i }),
     ).not.toBeInTheDocument();

@@ -18,11 +18,15 @@ export interface ArtifactCounts {
   reviews: number;
 }
 
+export interface ProjectRepository {
+  path: string;
+  repoType: RepoType;
+}
+
 export interface ProjectSummary {
   id: number;
   title: string;
-  repoPath: string;
-  repoType: RepoType;
+  repoPaths: ProjectRepository[];
   description: string;
   _count: ArtifactCounts;
 }
@@ -43,19 +47,10 @@ export interface HtmlArtifactDocument extends ArtifactRecord {
   html: string;
 }
 
-export interface TaskLinkedHtmlArtifact extends HtmlArtifactDocument {
-  planId: number;
-  taskId: number;
-}
+export type Wireframe = HtmlArtifactDocument;
+export type Asset = HtmlArtifactDocument;
 
-export interface PlanLinkedDocument extends ArtifactDocument {
-  planId: number;
-}
-
-export type Wireframe = TaskLinkedHtmlArtifact;
-export type Asset = TaskLinkedHtmlArtifact;
-
-export interface Design extends TaskLinkedHtmlArtifact {
+export interface Design extends HtmlArtifactDocument {
   wireframeId: number;
   assetId: number;
   wireframe: Wireframe;
@@ -71,18 +66,11 @@ export interface Task {
   status: TaskStatus;
   title: string;
   content: string | null;
-  assets: Asset[];
-  wireframes: Wireframe[];
-  designs: Design[];
 }
 
 export interface Plan extends ArtifactDocument {
   version: number;
   tasks: Task[];
-  assets: Asset[];
-  wireframes: Wireframe[];
-  designs: Design[];
-  reviews: Review[];
 }
 
 export type Draft = ArtifactDocument;
@@ -90,13 +78,12 @@ export type Draft = ArtifactDocument;
 export type Domain = ArtifactDocument;
 /** 프로젝트 배포 구조 snapshot 또는 legacy text record. */
 export type Architecture = ArtifactDocument;
-export type Review = PlanLinkedDocument;
+export type Review = ArtifactDocument;
 
 export interface ProjectContext {
   id: number;
   title: string;
-  repoPath: string;
-  repoType: RepoType;
+  repoPaths: ProjectRepository[];
   description: string;
   plans: Plan[];
   tasks: Task[];

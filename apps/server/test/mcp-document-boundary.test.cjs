@@ -7,14 +7,24 @@ const serverRoot = join(__dirname, "..");
 const sourcePath = (relativePath) => join(serverRoot, "src", relativePath);
 const source = (relativePath) => readFileSync(sourcePath(relativePath), "utf8");
 
+const registeredToolBlock = (serviceSource, toolName) => {
+  const start = serviceSource.indexOf(`"${toolName}"`);
+  const nextTool = serviceSource.indexOf("server.registerTool", start + toolName.length);
+
+  assert.notEqual(start, -1, `${toolName} 등록을 찾을 수 있어야 한다`);
+  return serviceSource.slice(start, nextTool === -1 ? undefined : nextTool);
+};
+
 const domains = [
-  ["plans", "PlansService", "createVersion"],
-  ["assets", "AssetsService", "save"],
-  ["drafts", "DraftsService", "save"],
-  ["architectures", "ArchitecturesService", "save"],
-  ["wireframes", "WireframesService", "save"],
-  ["reviews", "ReviewsService", "save"],
-  ["designs", "DesignsService", "save"],
+  ["plans", "PlansService", "create"],
+  ["assets", "AssetsService", "create"],
+  ["drafts", "DraftsService", "create"],
+  ["domains", "DomainsService", "create"],
+  ["domains", "DomainsService", "update"],
+  ["architectures", "ArchitecturesService", "create"],
+  ["wireframes", "WireframesService", "create"],
+  ["reviews", "ReviewsService", "create"],
+  ["designs", "DesignsService", "create"],
 ];
 
 const collectControllerFiles = (directory, relativeDirectory = "") => {
@@ -124,10 +134,16 @@ test("MCP POST transport는 원격 HTTP client를 host와 origin으로 차단하
   assert.doesNotMatch(controller, /this\.sendError\(\s*response\s*,\s*403\b/);
 });
 
-test("MCP는 get_project 조회만 노출하고 revision long-poll 상태를 소유하지 않는다", () => {
+test("MCP는 schema context와 project 조회를 노출하고 revision 상태를 소유하지 않는다", () => {
   const mcpService = source("mcp/mcp.service.ts");
 
   assert.match(mcpService, /export class McpService\s*\{/);
+  assert.match(
+    mcpService,
+    /"get_context"[\s\S]*?readOnlyHint:\s*true[\s\S]*?this\.getSchemaContext\(\)/,
+  );
+  assert.match(mcpService, /private readonly prismaService:\s*PrismaService/);
+  assert.match(mcpService, /this\.prismaService\.\$queryRaw/);
   assert.match(
     mcpService,
     /"get_project"[\s\S]*?projectId:\s*projectIdSchema\.optional\(\)[\s\S]*?readOnlyHint:\s*true/,
@@ -156,24 +172,26 @@ test("MCP는 get_project 조회만 노출하고 revision long-poll 상태를 소
   );
 });
 
-test("MCP의 7개 create tool은 공통 execute 경계로 결과를 직렬화한다", () => {
+test("MCP의 9개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
-  const createTools = [
+  const mutationTools = [
     "create_project",
     "create_plan",
     "create_draft",
+    "create_domain",
+    "update_domain",
     "create_task",
     "create_design",
     "create_wireframe",
     "create_asset",
   ];
 
-  for (const [index, toolName] of createTools.entries()) {
+  for (const [index, toolName] of mutationTools.entries()) {
     const start = mcpService.indexOf(`"${toolName}"`);
     const end =
-      index === createTools.length - 1
+      index === mutationTools.length - 1
         ? mcpService.indexOf("private async execute", start)
-        : mcpService.indexOf(`"${createTools[index + 1]}"`, start);
+        : mcpService.indexOf(`"${mutationTools[index + 1]}"`, start);
     const registration = mcpService.slice(start, end);
 
     assert.ok(start >= 0, `${toolName} 도구가 등록되어야 한다`);
@@ -184,7 +202,7 @@ test("MCP의 7개 create tool은 공통 execute 경계로 결과를 직렬화한
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 8);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 11);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
 });
 
@@ -231,46 +249,55 @@ test("산출물 저장 로직은 각 도메인 service가 소유한다", () => {
 test("McpService는 도구 요청을 각 도메인 service로 위임한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const exposedServices = [
-    ["ProjectsService", "projectsService", "(?:list|create)"],
-    ["PlansService", "plansService", "(?:list|createVersion)"],
-    ["DraftsService", "draftsService", "(?:list|save)"],
-    ["TasksService", "tasksService", "(?:list|create)"],
-    ["DomainsService", "domainsService", "list"],
-    ["ArchitecturesService", "architecturesService", "list"],
-    ["DesignsService", "designsService", "(?:list|save)"],
-    ["WireframesService", "wireframesService", "(?:list|save)"],
-    ["AssetsService", "assetsService", "(?:list|save)"],
-    ["ReviewsService", "reviewsService", "list"],
+    ["ProjectsService", "projectsService", ["list", "create"]],
+    ["PlansService", "plansService", ["list", "create"]],
+    ["DraftsService", "draftsService", ["list", "create"]],
+    ["TasksService", "tasksService", ["list", "create"]],
+    ["DomainsService", "domainsService", ["list", "create", "update"]],
+    ["ArchitecturesService", "architecturesService", ["list"]],
+    ["DesignsService", "designsService", ["list", "create"]],
+    ["WireframesService", "wireframesService", ["list", "create"]],
+    ["AssetsService", "assetsService", ["list", "create"]],
+    ["ReviewsService", "reviewsService", ["list"]],
   ];
 
-  for (const [serviceName, field, method] of exposedServices) {
+  for (const [serviceName, field, methods] of exposedServices) {
     assert.match(
       mcpService,
       new RegExp(`private readonly ${field}: ${serviceName}`),
       `${serviceName}를 주입받아야 한다`,
     );
-    assert.match(
-      mcpService,
-      new RegExp(`this\\.${field}\\.${method}\\s*\\(`),
-      `${field}.${method}로 위임해야 한다`,
-    );
+    for (const method of methods) {
+      assert.match(
+        mcpService,
+        new RegExp(`this\\.${field}\\.${method}\\s*\\(`),
+        `${field}.${method}로 위임해야 한다`,
+      );
+    }
   }
+
+  assert.doesNotMatch(
+    mcpService,
+    /plansService\.createVersion\s*\(|(?:drafts|designs|wireframes|assets)Service\.save\s*\(/,
+  );
 });
 
-test("Task 산출물 저장 도구와 domain service는 taskId를 전달하고 검증한다", () => {
+test("Project 산출물 생성 도구와 domain service는 taskId 없이 project에 직접 저장한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
 
   for (const toolName of ["create_wireframe", "create_asset", "create_design"]) {
-    assert.match(
-      mcpService,
-      new RegExp(`"${toolName}"[\\s\\S]*?taskId:\\s*taskIdSchema`),
-    );
+    const toolBlock = registeredToolBlock(mcpService, toolName);
+
+    assert.match(toolBlock, /projectId:\s*projectIdSchema/);
+    assert.doesNotMatch(toolBlock, /\btaskId\b|\bplanId\b/);
   }
 
   for (const domain of ["assets", "wireframes", "designs"]) {
     const service = source(`services/${domain}/${domain}.service.ts`);
-    assert.match(service, /taskId:\s*number/);
-    assert.match(service, /ensureTask\s*\(\s*projectId\s*,\s*taskId\s*\)/);
+
+    assert.match(service, /projectId:\s*number/);
+    assert.match(service, /ensureProject\s*\(\s*projectId\s*\)/);
+    assert.doesNotMatch(service, /\btaskId\b|\bplanId\b|TasksService|ensureTask/);
   }
 });
 
@@ -298,21 +325,29 @@ test("Asset, Wireframe, Design MCP 입력은 완전한 HTML이고 service는 공
   }
 });
 
-test("Task 산출물은 Task의 Plan에 저장되고 Review service는 planId를 검증한다", () => {
+test("Asset, Wireframe, Design, Review는 Plan과 Task 없이 Project가 직접 소유한다", () => {
   for (const domain of ["assets", "wireframes", "designs"]) {
     const service = source(`services/${domain}/${domain}.service.ts`);
-    assert.match(service, /const task = await this\.tasksService\.ensureTask/);
-    assert.match(service, /planId:\s*task\.planId/);
+
+    assert.match(service, /data:\s*\{[\s\S]*?projectId/);
+    assert.doesNotMatch(service, /TasksService|PlansService|ensureTask|ensurePlan/);
+    assert.doesNotMatch(service, /\btaskId\b|\bplanId\b/);
   }
 
   const reviewsService = source("services/reviews/reviews.service.ts");
-  assert.match(reviewsService, /planId:\s*number/);
-  assert.match(reviewsService, /ensurePlan\s*\(\s*projectId\s*,\s*planId\s*\)/);
+  assert.match(reviewsService, /ensureProject\s*\(\s*projectId\s*\)/);
+  assert.match(reviewsService, /data:\s*\{\s*projectId\s*,\s*title\s*,\s*content\s*\}/);
+  assert.doesNotMatch(reviewsService, /PlansService|ensurePlan|\bplanId\b/);
+
+  const designsService = source("services/designs/designs.service.ts");
+  assert.match(designsService, /assertRelatedProject\s*\(\s*wireframe\s*,\s*projectId/);
+  assert.match(designsService, /assertRelatedProject\s*\(\s*asset\s*,\s*projectId/);
 });
 
 test("McpModule은 각 도메인 모듈을 조립하고 McpService만 제공한다", () => {
   const moduleSource = source("mcp/mcp.module.ts");
   const moduleNames = [
+    "PrismaModule",
     "ProjectsModule",
     "TasksModule",
     "PlansModule",

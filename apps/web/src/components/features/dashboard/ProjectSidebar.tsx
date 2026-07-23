@@ -84,6 +84,15 @@ export function ProjectSidebar({
   projects,
 }: ProjectSidebarProps) {
   const inventory = getProjectInventory(context);
+  const primaryRepository = context.repoPaths[0];
+  const repositoryTitle = context.repoPaths.map(({ path }) => path).join("\n");
+  const repositorySummary = primaryRepository
+    ? `${primaryRepository.path}${
+        context.repoPaths.length > 1
+          ? ` +${context.repoPaths.length - 1}`
+          : ""
+      }`
+    : "No repository";
   const recordCount = inventory.reduce(
     (total, item) => total + item.count,
     0,
@@ -111,7 +120,8 @@ export function ProjectSidebar({
               Artifact Workbench
             </span>
             <span className="block truncate text-micro text-subtle">
-              {context.title} · {context.repoType}
+              {context.title} · {context.repoPaths.length} repo
+              {context.repoPaths.length === 1 ? "" : "s"}
             </span>
           </span>
         </Link>
@@ -214,9 +224,9 @@ export function ProjectSidebar({
       <div className="shrink-0 border-t px-4 py-3">
         <p
           className="truncate font-mono text-micro text-subtle"
-          title={context.repoPath}
+          title={repositoryTitle}
         >
-          {context.repoPath}
+          {repositorySummary}
         </p>
       </div>
     </aside>

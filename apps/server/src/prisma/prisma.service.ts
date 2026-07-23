@@ -1,10 +1,14 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaClient } from "@prisma/client";
 import { resolve } from "node:path";
-import { PrismaClient } from "../generated/prisma/client";
 
 function resolveDatabaseUrl(): string {
-  const configuredUrl = process.env.DATABASE_URL ?? "file:./harness-board.db";
+  const configuredUrl = process.env.DATABASE_URL?.trim();
+
+  if (!configuredUrl) {
+    throw new Error("DATABASE_URL is required to start the server");
+  }
 
   if (!configuredUrl.startsWith("file:./")) {
     return configuredUrl;

@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { RepoType } from "../../generated/prisma/enums";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { RepoType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 export interface CreateProjectInput {
   title: string;
-  repoPath: string;
-  repoType: RepoType;
+  repoPaths: Array<{
+    path: string;
+    repoType: RepoType;
+  }>;
   description: string;
 }
 
@@ -18,9 +24,11 @@ export class ProjectsService {
       select: {
         id: true,
         title: true,
-        repoPath: true,
-        repoType: true,
         description: true,
+        repoPaths: {
+          select: { path: true, repoType: true },
+          orderBy: [{ path: "asc" }, { id: "asc" }],
+        },
         _count: {
           select: {
             plans: true,
@@ -39,10 +47,26 @@ export class ProjectsService {
     });
   }
 
-  /** repository 경로와 유형을 포함한 프로젝트를 생성한다. */
-  async create({ title, repoPath, repoType, description }: CreateProjectInput) {
+  /** 하나 이상의 repository 경로를 포함한 프로젝트를 생성한다. */
+  async create({ title, repoPaths, description }: CreateProjectInput) {
+    if (repoPaths.length === 0) {
+      throw new BadRequestException(
+        "Project requires at least one repository",
+      );
+    }
+
     return this.prisma.project.create({
-      data: { title, repoPath, repoType, description },
+      data: {
+        title,
+        description,
+        repoPaths: { create: repoPaths },
+      },
+      include: {
+        repoPaths: {
+          select: { path: true, repoType: true },
+          orderBy: [{ path: "asc" }, { id: "asc" }],
+        },
+      },
     });
   }
 

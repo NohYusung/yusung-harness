@@ -7,7 +7,6 @@ import {
   createDesign,
   createPlan,
   createProjectContext,
-  createReview,
   createTask,
   createWireframe,
 } from "@/test/fixtures/dashboard";
@@ -345,31 +344,14 @@ describe("ArtifactBrowser", () => {
   });
 
   it("Plan detail에서 Task를 선택하면 Task details URL로 이동한다", () => {
-    const asset = createAsset({ id: 4, title: "Icon Asset" });
-    const wireframe = createWireframe({ id: 5, title: "Dashboard Wireframe" });
-    const design = createDesign({
-      id: 6,
-      title: "Dashboard Design",
-      asset,
-      assetId: asset.id,
-      wireframe,
-      wireframeId: wireframe.id,
-    });
     const task = createTask({
       id: 2,
-      assets: [asset],
-      designs: [design],
       title: "Build dashboard",
-      wireframes: [wireframe],
     });
 
     const plan = createPlan({
       id: 3,
-      assets: [asset],
-      designs: [design],
-      reviews: [createReview({ id: 7, planId: 3, title: "QA Review" })],
       tasks: [task],
-      wireframes: [wireframe],
     });
 
     render(
@@ -382,119 +364,12 @@ describe("ArtifactBrowser", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Plan hierarchy" })).toBeInTheDocument();
-    expect(screen.getByText("QA Review")).toBeInTheDocument();
+    expect(screen.getByText("Pending")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Build dashboard/ }));
     expect(routerReplace).toHaveBeenCalledWith(
       "/projects/1?type=plans&id=3&taskId=2",
       { scroll: false },
     );
-  });
-
-  it("Task 산출물을 클릭하면 크기 조절 가능한 우측 side page에서 표시한다", () => {
-    const asset = createAsset({
-      id: 4,
-      title: "Icon Asset",
-      html: "<!doctype html><html><head><style>:root{--brand:#3559c7}</style></head><body><section>Logo and palette</section></body></html>",
-    });
-    const wireframe = createWireframe({
-      id: 5,
-      title: "Dashboard Wireframe",
-      html: "<!doctype html><html><head><title>Journey</title></head><body><a href='#done'>Continue</a><section id='done'>Done</section></body></html>",
-    });
-    const design = createDesign({
-      id: 6,
-      title: "Dashboard Design",
-      asset,
-      assetId: asset.id,
-      html: "<!doctype html><html><head><style>body{color:#111}</style></head><body><main>Production design</main></body></html>",
-      wireframe,
-      wireframeId: wireframe.id,
-    });
-    const task = createTask({
-      id: 2,
-      assets: [asset],
-      content: "Implement the dashboard hierarchy.",
-      designs: [design],
-      title: "Build dashboard",
-      wireframes: [wireframe],
-    });
-    const plan = createPlan({ id: 3, tasks: [task] });
-
-    render(
-      <ArtifactBrowser
-        activeRelation="plans"
-        context={createProjectContext({ plans: [plan], tasks: [task] })}
-        selectedArtifactId={plan.id}
-        selectedTaskId={task.id}
-      />,
-    );
-
-    expect(screen.getByRole("heading", { name: "Task details" })).toBeInTheDocument();
-    expect(screen.getByText("Implement the dashboard hierarchy.")).toBeInTheDocument();
-    expect(screen.getByText("Icon Asset")).toBeInTheDocument();
-    expect(screen.getByText("Dashboard Wireframe")).toBeInTheDocument();
-    expect(screen.getByText("Dashboard Design")).toBeInTheDocument();
-    expect(screen.queryByTitle("Icon Asset HTML preview")).not.toBeInTheDocument();
-
-    const assetTrigger = screen.getByRole("button", { name: /Icon Asset/ });
-    fireEvent.click(assetTrigger);
-
-    expect(
-      screen.getByRole("complementary", { name: "Asset preview: Icon Asset" }),
-    ).toBeInTheDocument();
-    const assetPreview = screen.getByTitle("Icon Asset HTML preview");
-    expect(assetPreview).toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining("Content-Security-Policy"),
-    );
-    expect(assetPreview).toHaveAttribute("sandbox", "allow-scripts");
-    expect(assetPreview).toHaveAttribute("referrerpolicy", "no-referrer");
-    for (const directive of [
-      "base-uri 'none'",
-      "connect-src 'none'",
-      "form-action 'none'",
-      "object-src 'none'",
-      "Logo and palette",
-    ]) {
-      expect(assetPreview.getAttribute("srcdoc")).toContain(directive);
-    }
-    const resizeHandle = screen.getByRole("separator", {
-      name: "Resize HTML preview",
-    });
-    fireEvent.keyDown(resizeHandle, { key: "Home" });
-    const minimumWidth = Number(resizeHandle.getAttribute("aria-valuenow"));
-
-    fireEvent.keyDown(resizeHandle, { key: "ArrowLeft" });
-    expect(Number(resizeHandle.getAttribute("aria-valuenow"))).toBeGreaterThan(
-      minimumWidth,
-    );
-
-    const keyboardWidth = Number(resizeHandle.getAttribute("aria-valuenow"));
-    fireEvent.pointerDown(resizeHandle, { clientX: 700, pointerId: 1 });
-    fireEvent.pointerMove(resizeHandle, { clientX: 620, pointerId: 1 });
-    expect(Number(resizeHandle.getAttribute("aria-valuenow"))).toBeGreaterThan(
-      keyboardWidth,
-    );
-    fireEvent.pointerUp(resizeHandle, { pointerId: 1 });
-
-    fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
-    expect(
-      screen.queryByRole("complementary", { name: "Asset preview: Icon Asset" }),
-    ).not.toBeInTheDocument();
-    expect(assetTrigger).toHaveFocus();
-
-    const designTrigger = screen.getByRole("button", {
-      name: /Dashboard Design/,
-    });
-    fireEvent.click(designTrigger);
-    expect(screen.getByTitle("Dashboard Design HTML preview")).toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining("Production design"),
-    );
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByTitle("Dashboard Design HTML preview")).not.toBeInTheDocument();
-    expect(designTrigger).toHaveFocus();
-    expect(routerReplace).not.toHaveBeenCalled();
   });
 
   it("Workbench 검색과 상태 필터로 현재 record 목록을 좁힌다", () => {

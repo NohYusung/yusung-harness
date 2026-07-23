@@ -3,6 +3,23 @@ import { projectContextSchema } from "@/lib/validations/dashboard";
 import { createArtifact, createAsset, createProjectContext } from "@/test/fixtures/dashboard";
 
 describe("projectContextSchema HTML artifacts", () => {
+  it("프로젝트는 하나 이상의 typed repository 경로를 요구한다", () => {
+    const context = createProjectContext();
+
+    expect(projectContextSchema.safeParse(context).success).toBe(true);
+    expect(
+      projectContextSchema.safeParse({ ...context, repoPaths: [] }).success,
+    ).toBe(false);
+    expect(
+      projectContextSchema.safeParse({
+        ...context,
+        repoPaths: undefined,
+        repoPath: "/workspace/legacy",
+        repoType: "LOCAL",
+      }).success,
+    ).toBe(false);
+  });
+
   it("완전한 HTML을 사용하는 Asset 응답을 허용한다", () => {
     const asset = createAsset();
 

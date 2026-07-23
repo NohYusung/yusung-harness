@@ -234,9 +234,7 @@ function getHtmlArtifactKind(
 function getHtmlArtifactSelection(
   context: ProjectContext,
   key: HtmlArtifactKey | null,
-  plan: Plan | null,
   selectionKey: string | null,
-  task: Task | null,
 ): HtmlArtifactSelection | null {
   if (!key || key.selectionKey !== selectionKey) {
     return null;
@@ -244,16 +242,10 @@ function getHtmlArtifactSelection(
 
   const record =
     key.kind === "Asset"
-      ? (task?.assets ?? plan?.assets ?? context.assets).find(
-          (asset) => asset.id === key.id,
-        )
+      ? context.assets.find((asset) => asset.id === key.id)
       : key.kind === "Wireframe"
-        ? (task?.wireframes ?? plan?.wireframes ?? context.wireframes).find(
-            (wireframe) => wireframe.id === key.id,
-          )
-        : (task?.designs ?? plan?.designs ?? context.designs).find(
-            (design) => design.id === key.id,
-          );
+        ? context.wireframes.find((wireframe) => wireframe.id === key.id)
+        : context.designs.find((design) => design.id === key.id);
 
   return record ? { kind: key.kind, record } : null;
 }
@@ -307,104 +299,10 @@ function RecordContent({ content }: { content: string | null }) {
   );
 }
 
-function RecordGroup({
-  label,
-  records,
-}: {
-  label: string;
-  records: ArtifactDocument[];
-}) {
-  return (
-    <section aria-label={`${label} records`}>
-      <div className="flex items-center justify-between gap-3">
-        <h5 className="font-mono text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
-          {label}
-        </h5>
-        <span className="font-mono text-micro text-subtle">{records.length}</span>
-      </div>
-      {records.length > 0 ? (
-        <ul className="mt-2 space-y-2">
-          {records.map((record) => (
-            <li key={record.id} className="rounded-control bg-surface-muted px-3 py-2.5">
-              <p className="truncate text-xs font-semibold text-ink">
-                {record.title}
-              </p>
-              <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted">
-                {record.content || "No additional description."}
-              </p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs text-muted">None</p>
-      )}
-    </section>
-  );
-}
-
-function HtmlRecordGroup({
-  kind,
-  onSelect,
-  records,
-}: {
-  kind: HtmlArtifactKind;
-  onSelect: (
-    kind: HtmlArtifactKind,
-    record: HtmlArtifactDocument,
-    trigger: HTMLButtonElement,
-  ) => void;
-  records: HtmlArtifactDocument[];
-}) {
-  return (
-    <section aria-label={`${kind} HTML records`}>
-      <div className="flex items-center justify-between gap-3">
-        <h5 className="font-mono text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
-          {kind}
-        </h5>
-        <span className="font-mono text-micro text-subtle">{records.length}</span>
-      </div>
-      {records.length > 0 ? (
-        <ul className="mt-2 space-y-2">
-          {records.map((record) => (
-            <li key={record.id} className="rounded-control bg-surface-muted">
-              <button
-                aria-label={`${kind} preview: ${record.title}`}
-                className="flex min-h-14 w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none motion-reduce:transition-none"
-                onClick={(event) => onSelect(kind, record, event.currentTarget)}
-                type="button"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-semibold text-ink">
-                    {record.title}
-                  </span>
-                  <span className="mt-1 block text-xs text-muted">
-                    Open side preview
-                  </span>
-                </span>
-                <span aria-hidden="true" className="text-subtle">
-                  ↗
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs text-muted">None</p>
-      )}
-    </section>
-  );
-}
-
 function PlanHierarchy({
-  onSelectHtmlArtifact,
   onSelectTask,
   plan,
 }: {
-  onSelectHtmlArtifact: (
-    kind: HtmlArtifactKind,
-    record: HtmlArtifactDocument,
-    trigger: HTMLButtonElement,
-  ) => void;
   onSelectTask: (task: Task) => void;
   plan: Plan;
 }) {
@@ -427,8 +325,6 @@ function PlanHierarchy({
       {plan.tasks.length > 0 ? (
         <ol className="mt-4 space-y-2 border-l pl-4">
           {plan.tasks.map((task, index) => {
-            const outputCount =
-              task.assets.length + task.wireframes.length + task.designs.length;
             const status = task.status === "COMPLETED" ? "Completed" : "Pending";
 
             return (
@@ -450,7 +346,7 @@ function PlanHierarchy({
                       {task.title}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted">
-                      {status} · {outputCount} outputs
+                      {status}
                     </span>
                   </span>
                   <span aria-hidden="true" className="text-subtle">
@@ -467,43 +363,16 @@ function PlanHierarchy({
         </p>
       )}
 
-      <div className="mt-8 border-t pt-6">
-        <h5 className="text-sm font-semibold text-ink">Plan records</h5>
-        <div className="mt-4 grid gap-5 sm:grid-cols-2">
-          <HtmlRecordGroup
-            kind="Asset"
-            onSelect={onSelectHtmlArtifact}
-            records={plan.assets}
-          />
-          <HtmlRecordGroup
-            kind="Wireframe"
-            onSelect={onSelectHtmlArtifact}
-            records={plan.wireframes}
-          />
-          <HtmlRecordGroup
-            kind="Design"
-            onSelect={onSelectHtmlArtifact}
-            records={plan.designs}
-          />
-          <RecordGroup label="Review" records={plan.reviews} />
-        </div>
-      </div>
     </section>
   );
 }
 
 function PlanDetails({
   headingRef,
-  onSelectHtmlArtifact,
   onSelectTask,
   plan,
 }: {
   headingRef: RefObject<HTMLHeadingElement | null>;
-  onSelectHtmlArtifact: (
-    kind: HtmlArtifactKind,
-    record: HtmlArtifactDocument,
-    trigger: HTMLButtonElement,
-  ) => void;
   onSelectTask: (task: Task) => void;
   plan: Plan;
 }) {
@@ -521,7 +390,6 @@ function PlanDetails({
       <RecordMetadata record={plan} />
       <RecordContent content={plan.content} />
       <PlanHierarchy
-        onSelectHtmlArtifact={onSelectHtmlArtifact}
         onSelectTask={onSelectTask}
         plan={plan}
       />
@@ -532,17 +400,11 @@ function PlanDetails({
 function TaskDetails({
   headingRef,
   onBack,
-  onSelectHtmlArtifact,
   plan,
   task,
 }: {
   headingRef: RefObject<HTMLHeadingElement | null>;
   onBack: () => void;
-  onSelectHtmlArtifact: (
-    kind: HtmlArtifactKind,
-    record: HtmlArtifactDocument,
-    trigger: HTMLButtonElement,
-  ) => void;
   plan: Plan;
   task: Task;
 }) {
@@ -578,34 +440,6 @@ function TaskDetails({
         <span className="font-mono text-subtle">Plan #{task.planId}</span>
       </div>
       <RecordContent content={task.content} />
-
-      <section aria-labelledby="task-outputs-heading" className="mt-8 border-t pt-6">
-        <div className="flex items-center justify-between gap-3">
-          <h5 id="task-outputs-heading" className="text-sm font-semibold text-ink">
-            Task outputs
-          </h5>
-          <span className="font-mono text-micro text-subtle">
-            {task.assets.length + task.wireframes.length + task.designs.length}
-          </span>
-        </div>
-        <div className="mt-4 grid gap-5 sm:grid-cols-3">
-          <HtmlRecordGroup
-            kind="Asset"
-            onSelect={onSelectHtmlArtifact}
-            records={task.assets}
-          />
-          <HtmlRecordGroup
-            kind="Wireframe"
-            onSelect={onSelectHtmlArtifact}
-            records={task.wireframes}
-          />
-          <HtmlRecordGroup
-            kind="Design"
-            onSelect={onSelectHtmlArtifact}
-            records={task.designs}
-          />
-        </div>
-      </section>
     </article>
   );
 }
@@ -703,22 +537,10 @@ function RecordRelations({
 }) {
   if (entry.relation === "plans") {
     const plan = entry.artifact as Plan;
-    const relations = [
-      ...plan.tasks.map((task) => ({ label: "Task", value: task.title })),
-      ...plan.assets.map((asset) => ({ label: "Asset", value: asset.title })),
-      ...plan.wireframes.map((wireframe) => ({
-        label: "Wireframe",
-        value: wireframe.title,
-      })),
-      ...plan.designs.map((design) => ({
-        label: "Design",
-        value: design.title,
-      })),
-      ...plan.reviews.map((review) => ({
-        label: "Review",
-        value: review.title,
-      })),
-    ];
+    const relations = plan.tasks.map((task) => ({
+      label: "Task",
+      value: task.title,
+    }));
 
     return relations.length > 0 ? (
       <ul className="space-y-2">
@@ -741,18 +563,6 @@ function RecordRelations({
       <ul className="space-y-2">
         <RelationRow label="Asset" value={design.asset.title} />
         <RelationRow label="Wireframe" value={design.wireframe.title} />
-        <RelationRow label="Plan" value={`Plan #${design.planId}`} />
-        <RelationRow label="Task" value={`Task #${design.taskId}`} />
-      </ul>
-    );
-  }
-
-  if (entry.relation === "assets" || entry.relation === "wireframes") {
-    const artifact = entry.artifact as ProjectContext["assets"][number];
-    return (
-      <ul className="space-y-2">
-        <RelationRow label="Plan" value={`Plan #${artifact.planId}`} />
-        <RelationRow label="Task" value={`Task #${artifact.taskId}`} />
       </ul>
     );
   }
@@ -894,9 +704,7 @@ export function ArtifactBrowser({
   const htmlArtifactSelection = getHtmlArtifactSelection(
     context,
     scopedHtmlArtifact,
-    selectedPlan,
     selectionKey,
-    selectedTask,
   );
 
   const closeHtmlPreview = useCallback(() => {
@@ -1188,14 +996,12 @@ export function ArtifactBrowser({
                         <TaskDetails
                           headingRef={detailHeadingRef}
                           onBack={() => navigateBackToPlan(selectedPlan)}
-                          onSelectHtmlArtifact={selectHtmlArtifact}
                           plan={selectedPlan}
                           task={selectedTask}
                         />
                       ) : (
                         <PlanDetails
                           headingRef={detailHeadingRef}
-                          onSelectHtmlArtifact={selectHtmlArtifact}
                           onSelectTask={(task) => navigateToTask(selectedPlan, task)}
                           plan={selectedPlan}
                         />

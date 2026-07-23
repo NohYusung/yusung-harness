@@ -54,9 +54,6 @@ export function createTask(overrides: Partial<Task> = {}): Task {
     status: "PENDING",
     title: "Task",
     content: null,
-    assets: [],
-    wireframes: [],
-    designs: [],
     ...overrides,
   };
 }
@@ -64,8 +61,6 @@ export function createTask(overrides: Partial<Task> = {}): Task {
 export function createAsset(overrides: Partial<Asset> = {}): Asset {
   return {
     ...createArtifactRecord({ title: "Asset" }),
-    planId: 1,
-    taskId: 1,
     html: "<!doctype html><html><head><style>:root{--brand:#3559c7}</style></head><body><main>Logo and color palette</main></body></html>",
     ...overrides,
   };
@@ -76,8 +71,6 @@ export function createWireframe(
 ): Wireframe {
   return {
     ...createArtifactRecord({ title: "Wireframe" }),
-    planId: 1,
-    taskId: 1,
     html: "<!doctype html><html><head><title>User journey</title></head><body><a href='#next'>Next</a><section id='next'>Next step</section></body></html>",
     ...overrides,
   };
@@ -89,8 +82,6 @@ export function createDesign(overrides: Partial<Design> = {}): Design {
 
   return {
     ...createArtifactRecord({ title: "Design" }),
-    planId: 1,
-    taskId: 1,
     assetId: asset.id,
     wireframeId: wireframe.id,
     asset,
@@ -103,7 +94,6 @@ export function createDesign(overrides: Partial<Design> = {}): Design {
 export function createReview(overrides: Partial<Review> = {}): Review {
   return {
     ...createArtifact({ title: "Review" }),
-    planId: 1,
     ...overrides,
   };
 }
@@ -113,10 +103,6 @@ export function createPlan(overrides: Partial<Plan> = {}): Plan {
     ...createArtifact({ title: "Plan" }),
     version: 1,
     tasks: [],
-    assets: [],
-    wireframes: [],
-    designs: [],
-    reviews: [],
     ...overrides,
   };
 }
@@ -127,8 +113,10 @@ export function createProjectContext(
   return {
     id: 1,
     title: "Yusung Harness",
-    repoPath: "/workspace/yusung-harness",
-    repoType: "LOCAL",
+    repoPaths: [
+      { path: "/workspace/yusung-harness-backend", repoType: "LOCAL" },
+      { path: "/workspace/yusung-harness-web", repoType: "LOCAL" },
+    ],
     description: "Harness agent Project records",
     plans: [],
     tasks: [],
@@ -149,8 +137,7 @@ export function createProjectSummary(
   return {
     id: context.id,
     title: context.title,
-    repoPath: context.repoPath,
-    repoType: context.repoType,
+    repoPaths: context.repoPaths,
     description: context.description,
     _count: {
       plans: context.plans.length,

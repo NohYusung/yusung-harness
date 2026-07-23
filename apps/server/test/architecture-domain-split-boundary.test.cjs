@@ -11,7 +11,7 @@ const source = (relativePath) => {
   return readFileSync(path, "utf8");
 };
 
-test("Domain 조회와 Architecture diagram 저장은 서로 다른 책임을 소유한다", () => {
+test("Domain 조회·raw 문서 저장과 Architecture diagram 저장은 서로 다른 책임을 소유한다", () => {
   const deploymentSchema = source("services/architectures/deployment-architecture.ts");
   const domainService = source("services/domains/domains.service.ts");
   const architectureService = source("services/architectures/architectures.service.ts");
@@ -26,13 +26,17 @@ test("Domain 조회와 Architecture diagram 저장은 서로 다른 책임을 �
     /domainErdSchema|parseDomainErd|diagram:\s*unknown|async\s+save\s*\(/,
   );
   assert.match(domainService, /this\.prisma\.domain\.findMany\s*\(/);
-  assert.doesNotMatch(
-    domainService,
-    /this\.prisma\.domain\.(?:findUnique|create|update)/,
-  );
+  assert.match(domainService, /async\s+create\s*\(/);
+  assert.match(domainService, /async\s+update\s*\(/);
+  assert.match(domainService, /this\.prisma\.domain\.findUnique\s*\(/);
+  assert.match(domainService, /this\.prisma\.domain\.create\s*\(/);
+  assert.match(domainService, /this\.prisma\.domain\.update\s*\(/);
   assert.doesNotMatch(domainService, /deploymentArchitectureSchema|this\.prisma\.architecture\b/);
   assert.match(architectureService, /deploymentArchitectureSchema/);
   assert.match(architectureService, /this\.prisma\.architecture\b/);
+  assert.match(architectureService, /async\s+create\s*\(/);
+  assert.doesNotMatch(architectureService, /async\s+save\s*\(/);
+  assert.doesNotMatch(architectureService, /this\.prisma\.architecture\.update\s*\(/);
   assert.doesNotMatch(architectureService, /domainErdSchema|this\.prisma\.domain\b/);
   for (const resource of ["domains", "architectures"]) {
     assert.equal(
@@ -86,7 +90,7 @@ test("deployment architecture schema는 배포 graph shape·상한·교차 참�
   assert.match(schema, /self|itself|자기|자신/i);
 });
 
-test("MCP는 Domain과 Architecture list service를 주입하되 저장 도구는 노출하지 않는다", () => {
+test("MCP는 Domain 저장 도구를 노출하되 Architecture 저장 도구는 노출하지 않는다", () => {
   const service = source("mcp/mcp.service.ts");
   const moduleSource = source("mcp/mcp.module.ts");
 
@@ -96,7 +100,11 @@ test("MCP는 Domain과 Architecture list service를 주입하되 저장 도구�
   assert.match(service, /private readonly architecturesService:\s*ArchitecturesService/);
   assert.match(service, /this\.domainsService\.list\s*\(/);
   assert.match(service, /this\.architecturesService\.list\s*\(/);
-  assert.doesNotMatch(service, /registerTool\(\s*["']create_(?:domain|architecture)["']/);
+  assert.match(service, /registerTool\(\s*["']create_domain["']/);
+  assert.match(service, /registerTool\(\s*["']update_domain["']/);
+  assert.match(service, /this\.domainsService\.create\s*\(/);
+  assert.match(service, /this\.domainsService\.update\s*\(/);
+  assert.doesNotMatch(service, /registerTool\(\s*["']create_architecture["']/);
 });
 
 test("Prisma Project는 Domain과 Architecture를 별도 relation으로 제공한다", () => {

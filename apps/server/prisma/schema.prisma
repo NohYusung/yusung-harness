@@ -2,7 +2,7 @@
 // Domain source: docs/architecture/ARCHITECTURE.md
 
 generator client {
-  provider     = "prisma-client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -20,11 +20,10 @@ enum TaskStatus {
 }
 
 model Project {
-  id            Int            @id @default(autoincrement())
+  id            Int                 @id @default(autoincrement())
   title         String
-  repoPath      String
-  repoType      RepoType
   description   String
+  repoPaths     ProjectRepository[]
   plans         Plan[]
   tasks         Task[]
   domains       Domain[]
@@ -34,24 +33,29 @@ model Project {
   assets        Asset[]
   designs       Design[]
   reviews       Review[]
+}
 
-  @@unique([repoPath, repoType])
+model ProjectRepository {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  path      String
+  repoType  RepoType
+
+  @@unique([path, repoType])
+  @@index([projectId])
 }
 
 model Plan {
-  id         Int         @id @default(autoincrement())
-  projectId  Int
-  project    Project     @relation(fields: [projectId], references: [id])
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  version    Int         @default(1)
-  content    String
-  title      String
-  tasks      Task[]
-  assets     Asset[]
-  wireframes Wireframe[]
-  designs    Design[]
-  reviews    Review[]
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  version   Int      @default(1)
+  content   String
+  title     String
+  tasks     Task[]
 
   @@unique([projectId, version])
   @@index([projectId])
@@ -61,10 +65,6 @@ model Asset {
   id        Int      @id @default(autoincrement())
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])
-  planId    Int
-  plan      Plan     @relation(fields: [planId], references: [id])
-  taskId    Int
-  task      Task     @relation(fields: [taskId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   designs   Design[]
@@ -72,18 +72,12 @@ model Asset {
   title     String
 
   @@index([projectId])
-  @@index([planId])
-  @@index([taskId])
 }
 
 model Design {
   id          Int       @id @default(autoincrement())
   projectId   Int
   project     Project   @relation(fields: [projectId], references: [id])
-  planId      Int
-  plan        Plan      @relation(fields: [planId], references: [id])
-  taskId      Int
-  task        Task      @relation(fields: [taskId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   wireframeId Int
@@ -94,8 +88,6 @@ model Design {
   title       String
 
   @@index([projectId])
-  @@index([planId])
-  @@index([taskId])
   @@index([assetId])
   @@index([wireframeId])
 }
@@ -112,6 +104,7 @@ model Architecture {
   @@index([projectId])
 }
 
+//해당 프로젝트의 도메인 구조
 model Domain {
   id        Int      @id @default(autoincrement())
   projectId Int
@@ -125,19 +118,16 @@ model Domain {
 }
 
 model Task {
-  id         Int         @id @default(autoincrement())
-  projectId  Int
-  project    Project     @relation(fields: [projectId], references: [id])
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  planId     Int
-  plan       Plan        @relation(fields: [planId], references: [id])
-  status     TaskStatus  @default(PENDING)
-  title      String
-  content    String?
-  assets     Asset[]
-  wireframes Wireframe[]
-  designs    Design[]
+  id        Int        @id @default(autoincrement())
+  projectId Int
+  project   Project    @relation(fields: [projectId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  planId    Int
+  plan      Plan       @relation(fields: [planId], references: [id])
+  status    TaskStatus @default(PENDING)
+  title     String
+  content   String?
 
   @@index([projectId])
   @@index([planId])
@@ -159,10 +149,6 @@ model Wireframe {
   id        Int      @id @default(autoincrement())
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])
-  planId    Int
-  plan      Plan     @relation(fields: [planId], references: [id])
-  taskId    Int
-  task      Task     @relation(fields: [taskId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   designs   Design[]
@@ -170,21 +156,16 @@ model Wireframe {
   html      String
 
   @@index([projectId])
-  @@index([planId])
-  @@index([taskId])
 }
 
 model Review {
   id        Int      @id @default(autoincrement())
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])
-  planId    Int
-  plan      Plan     @relation(fields: [planId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   title     String
   content   String
 
   @@index([projectId])
-  @@index([planId])
 }

@@ -46,20 +46,22 @@ test("ProjectsService.list는 9종 산출물 count를 한 번에 조회한다", 
   }
 });
 
-test("Plan은 여러 Task를 가지며 Task는 Asset, Wireframe, Design을 소유한다", () => {
+test("Plan은 Task를 소유하되 Task는 산출물 역방향 relation을 소유하지 않는다", () => {
   const schema = prismaSource("schema.prisma");
+  const task = schema.match(/model Task\s*\{([\s\S]*?)\n\}/)?.[1];
 
   assert.match(schema, /model Plan\s*\{[\s\S]*?tasks\s+Task\[\]/);
-  assert.match(schema, /model Task\s*\{[\s\S]*?assets\s+Asset\[\]/);
-  assert.match(schema, /model Task\s*\{[\s\S]*?wireframes\s+Wireframe\[\]/);
-  assert.match(schema, /model Task\s*\{[\s\S]*?designs\s+Design\[\]/);
+  assert.ok(task, "Task 모델이 존재해야 한다");
+  assert.doesNotMatch(task, /^\s*(?:assets|wireframes|designs)\s+/m);
 
   for (const model of ["Asset", "Wireframe", "Design"]) {
-    assert.match(
-      schema,
-      new RegExp(`model ${model}\\s*\\{[\\s\\S]*?taskId\\s+Int\\b[\\s\\S]*?task\\s+Task\\s+@relation`),
-      `${model}은 필수 Task 관계를 가져야 한다`,
-    );
+    const modelBlock = schema.match(
+      new RegExp(`model ${model}\\s*\\{([\\s\\S]*?)\\n\\}`),
+    )?.[1];
+
+    assert.ok(modelBlock, `${model} 모델이 존재해야 한다`);
+    assert.doesNotMatch(modelBlock, /^\s*taskId\s+/m);
+    assert.doesNotMatch(modelBlock, /^\s*task\s+Task\b/m);
   }
 });
 
@@ -135,28 +137,22 @@ test("dashboard mock 산출물은 ASCII 설명이 아닌 실제 UI HTML 화면�
   );
 });
 
-test("Plan은 Task와 Asset, Wireframe, Design, Review를 직접 소유한다", () => {
+test("Plan은 Task 관계만 유지하고 산출물과 Review 역방향 relation을 제거한다", () => {
   const schema = prismaSource("schema.prisma");
+  const plan = schema.match(/model Plan\s*\{([\s\S]*?)\n\}/)?.[1];
 
-  for (const relation of ["tasks", "assets", "wireframes", "designs", "reviews"]) {
-    const model = relation === "reviews"
-      ? "Review"
-      : relation === "wireframes"
-        ? "Wireframe"
-        : `${relation.charAt(0).toUpperCase()}${relation.slice(1, -1)}`;
-    assert.match(
-      schema,
-      new RegExp(`model Plan\\s*\\{[\\s\\S]*?${relation}\\s+${model}\\[\\]`),
-      `Plan.${relation} 관계가 있어야 한다`,
-    );
-  }
+  assert.ok(plan, "Plan 모델이 존재해야 한다");
+  assert.match(plan, /^\s*tasks\s+Task\[\]/m);
+  assert.doesNotMatch(plan, /^\s*(?:assets|wireframes|designs|reviews)\s+/m);
 
   for (const model of ["Asset", "Wireframe", "Design", "Review"]) {
-    assert.match(
-      schema,
-      new RegExp(`model ${model}\\s*\\{[\\s\\S]*?planId\\s+Int\\b[\\s\\S]*?plan\\s+Plan\\s+@relation`),
-      `${model}은 필수 Plan 관계를 가져야 한다`,
-    );
+    const modelBlock = schema.match(
+      new RegExp(`model ${model}\\s*\\{([\\s\\S]*?)\\n\\}`),
+    )?.[1];
+
+    assert.ok(modelBlock, `${model} 모델이 존재해야 한다`);
+    assert.doesNotMatch(modelBlock, /^\s*planId\s+/m);
+    assert.doesNotMatch(modelBlock, /^\s*plan\s+Plan\b/m);
   }
 });
 

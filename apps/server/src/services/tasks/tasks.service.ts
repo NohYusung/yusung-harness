@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { TaskStatus } from "../../generated/prisma/enums";
+import { TaskStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
 
@@ -28,14 +28,6 @@ export class TasksService {
     return this.prisma.task.findMany({
       where: { projectId },
       orderBy: { updatedAt: "desc" },
-      include: {
-        assets: { orderBy: { updatedAt: "desc" } },
-        wireframes: { orderBy: { updatedAt: "desc" } },
-        designs: {
-          orderBy: { updatedAt: "desc" },
-          include: { wireframe: true, asset: true },
-        },
-      },
     });
   }
 

@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
 import { deploymentArchitectureSchema } from "./deployment-architecture";
@@ -24,41 +20,18 @@ export class ArchitecturesService {
     });
   }
 
-  /** 구조화된 배포 Architecture를 생성하거나 기존 record를 갱신한다. */
-  async save({
+  /** 구조화된 배포 Architecture를 생성한다. */
+  async create({
     projectId,
-    id,
     title,
     diagram,
   }: {
     projectId: number;
-    id?: number;
     title: string;
     diagram: unknown;
   }) {
     await this.projectsService.ensureProject(projectId);
     const content = JSON.stringify(deploymentArchitectureSchema.parse(diagram));
-
-    if (id) {
-      const existingArchitecture = await this.prisma.architecture.findUnique({
-        where: { id },
-      });
-
-      if (!existingArchitecture) {
-        throw new NotFoundException(`Architecture ${id} not found`);
-      }
-
-      if (existingArchitecture.projectId !== projectId) {
-        throw new BadRequestException(
-          `Architecture ${id} does not belong to project ${projectId}`,
-        );
-      }
-
-      return this.prisma.architecture.update({
-        where: { id },
-        data: { title, content },
-      });
-    }
 
     return this.prisma.architecture.create({
       data: { projectId, title, content },
