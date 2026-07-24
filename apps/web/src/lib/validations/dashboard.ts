@@ -68,7 +68,14 @@ const htmlArtifactSchema = artifactRecordSchema.extend({
   html: htmlDocumentSchema,
 });
 
-const wireframeSchema: z.ZodType<Wireframe> = htmlArtifactSchema;
+const wireframeSchema: z.ZodType<Wireframe> = htmlArtifactSchema.extend({
+  parentId: z.number().int().positive().nullable(),
+  index: z
+    .string()
+    .trim()
+    .max(255)
+    .regex(/^[1-9]\d*(?:\.[1-9]\d*)*$/),
+});
 const assetSchema: z.ZodType<Asset> = htmlArtifactSchema;
 
 const designSchema: z.ZodType<Design> = htmlArtifactSchema.extend({

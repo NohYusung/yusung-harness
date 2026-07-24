@@ -172,7 +172,7 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
   );
 });
 
-test("MCP의 9개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
+test("MCP의 12개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const mutationTools = [
     "create_project",
@@ -182,8 +182,11 @@ test("MCP의 9개 mutation tool은 공통 execute 경계로 결과를 직렬화�
     "update_domain",
     "create_task",
     "create_design",
+    "update_design",
     "create_wireframe",
+    "update_wireframe",
     "create_asset",
+    "update_asset",
   ];
 
   for (const [index, toolName] of mutationTools.entries()) {
@@ -202,7 +205,7 @@ test("MCP의 9개 mutation tool은 공통 execute 경계로 결과를 직렬화�
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 11);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 14);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
 });
 
@@ -255,9 +258,9 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
     ["TasksService", "tasksService", ["list", "create"]],
     ["DomainsService", "domainsService", ["list", "create", "update"]],
     ["ArchitecturesService", "architecturesService", ["list"]],
-    ["DesignsService", "designsService", ["list", "create"]],
-    ["WireframesService", "wireframesService", ["list", "create"]],
-    ["AssetsService", "assetsService", ["list", "create"]],
+    ["DesignsService", "designsService", ["list", "create", "update"]],
+    ["WireframesService", "wireframesService", ["list", "create", "update"]],
+    ["AssetsService", "assetsService", ["list", "create", "update"]],
     ["ReviewsService", "reviewsService", ["list"]],
   ];
 

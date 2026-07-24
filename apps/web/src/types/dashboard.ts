@@ -47,7 +47,11 @@ export interface HtmlArtifactDocument extends ArtifactRecord {
   html: string;
 }
 
-export type Wireframe = HtmlArtifactDocument;
+export interface Wireframe extends HtmlArtifactDocument {
+  parentId: number | null;
+  index: string;
+}
+
 export type Asset = HtmlArtifactDocument;
 
 export interface Design extends HtmlArtifactDocument {

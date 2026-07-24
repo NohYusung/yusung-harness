@@ -23,8 +23,11 @@ const expectedToolNames = [
   "update_domain",
   "create_task",
   "create_design",
+  "update_design",
   "create_wireframe",
+  "update_wireframe",
   "create_asset",
+  "update_asset",
 ];
 
 const removedToolNames = [
@@ -152,6 +155,10 @@ const createHarness = () => {
         calls.push(["designsService", "create", input]);
         return result("designsService", "create", input);
       },
+      update: async (input) => {
+        calls.push(["designsService", "update", input]);
+        return result("designsService", "update", input);
+      },
     },
     wireframesService: {
       list: listService("wireframesService", "wireframes"),
@@ -159,12 +166,20 @@ const createHarness = () => {
         calls.push(["wireframesService", "create", input]);
         return result("wireframesService", "create", input);
       },
+      update: async (input) => {
+        calls.push(["wireframesService", "update", input]);
+        return result("wireframesService", "update", input);
+      },
     },
     assetsService: {
       list: listService("assetsService", "assets"),
       create: async (input) => {
         calls.push(["assetsService", "create", input]);
         return result("assetsService", "create", input);
+      },
+      update: async (input) => {
+        calls.push(["assetsService", "update", input]);
+        return result("assetsService", "update", input);
       },
     },
     domainsService: {
@@ -250,7 +265,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 11개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 14개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -258,7 +273,7 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 11개 도구와 �
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 11);
+  assert.equal(tools.size, 14);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
@@ -440,6 +455,8 @@ const createToolCases = [
     method: "create",
     input: {
       projectId: 1,
+      parentId: null,
+      index: "2",
       title: "Wireframe",
       html: "<!doctype html><html><head></head><body>Wireframe</body></html>",
     },
@@ -487,7 +504,7 @@ test("project 산출물 MCP 입력 schema는 제거된 taskId와 planId를 노�
   const { tools } = createHarness();
   const expectedFields = {
     create_asset: ["projectId", "title", "html"],
-    create_wireframe: ["projectId", "title", "html"],
+    create_wireframe: ["projectId", "parentId", "index", "title", "html"],
     create_design: [
       "projectId",
       "wireframeId",
@@ -504,6 +521,71 @@ test("project 산출물 MCP 입력 schema는 제거된 taskId와 planId를 노�
     assert.equal(Object.hasOwn(shape, "taskId"), false);
     assert.equal(Object.hasOwn(shape, "planId"), false);
   }
+});
+
+test("Wireframe 생성 도구는 nullable parentId와 계층 index path만 위임한다", async () => {
+  const harness = createHarness();
+  const createInput = createToolCases.find(
+    ({ name }) => name === "create_wireframe",
+  ).input;
+  const createTool = harness.tools.get("create_wireframe");
+
+  for (const invalidIndex of [
+    1,
+    0,
+    "",
+    "0",
+    "01",
+    "1.0",
+    "1.01",
+    ".1",
+    "1.",
+    "1..1",
+    "1.-1",
+    "a",
+    "1".repeat(256),
+  ]) {
+    assert.equal(
+      createTool.definition.inputSchema.safeParse({
+        ...createInput,
+        index: invalidIndex,
+      }).success,
+      false,
+    );
+  }
+
+  const { index: _index, ...missingIndexInput } = createInput;
+  assert.equal(
+    createTool.definition.inputSchema.safeParse(missingIndexInput).success,
+    false,
+  );
+  const { parentId: _parentId, ...missingParentInput } = createInput;
+  assert.equal(
+    createTool.definition.inputSchema.safeParse(missingParentInput).success,
+    false,
+  );
+  for (const invalidParentId of [0, -1, 1.5, "1"]) {
+    assert.equal(
+      createTool.definition.inputSchema.safeParse({
+        ...createInput,
+        parentId: invalidParentId,
+      }).success,
+      false,
+    );
+  }
+  assert.equal(
+    createTool.definition.inputSchema.parse({
+      ...createInput,
+      index: "  1.10  ",
+    }).index,
+    "1.10",
+  );
+
+  const created = await harness.invoke("create_wireframe", createInput);
+  assert.deepEqual(harness.calls, [
+    ["wireframesService", "create", createInput],
+  ]);
+  assert.deepEqual(created.input, createInput);
 });
 
 test("Domain 생성·수정 도구는 입력, annotations, service 위임 계약을 지킨다", async () => {
@@ -616,7 +698,331 @@ test("Domain 생성·수정 도구는 입력, annotations, service 위임 계약
   });
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 11개 공개 계약을 따른다", async (t) => {
+test("Wireframe 수정 도구는 입력, annotations, service 위임 계약을 지킨다", async () => {
+  const harness = createHarness();
+  const updateInput = {
+    projectId: 17,
+    wireframeId: 31,
+    parentId: 21,
+    index: "1.1",
+    title: "Updated portfolio wireframe",
+    html: "<!doctype html><html><head></head><body>Updated</body></html>",
+  };
+
+  const updated = await harness.invoke("update_wireframe", updateInput);
+
+  assert.deepEqual(harness.calls, [
+    ["wireframesService", "update", updateInput],
+  ]);
+  assert.deepEqual(updated, {
+    service: "wireframesService",
+    method: "update",
+    input: updateInput,
+  });
+
+  const updateTool = harness.tools.get("update_wireframe");
+
+  assert.deepEqual(Object.keys(updateTool.definition.inputSchema.shape), [
+    "projectId",
+    "wireframeId",
+    "parentId",
+    "index",
+    "title",
+    "html",
+  ]);
+  for (const invalidId of [0, -1, 1.5]) {
+    assert.equal(
+      updateTool.definition.inputSchema.safeParse({
+        ...updateInput,
+        projectId: invalidId,
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateTool.definition.inputSchema.safeParse({
+        ...updateInput,
+        wireframeId: invalidId,
+      }).success,
+      false,
+    );
+  }
+  for (const invalidIndex of [
+    1,
+    0,
+    "",
+    "0",
+    "01",
+    "1.0",
+    "1.01",
+    ".1",
+    "1.",
+    "1..1",
+    "1.-1",
+    "a",
+    "1".repeat(256),
+  ]) {
+    assert.equal(
+      updateTool.definition.inputSchema.safeParse({
+        ...updateInput,
+        index: invalidIndex,
+      }).success,
+      false,
+    );
+  }
+  const { index: _index, ...missingIndexInput } = updateInput;
+  assert.equal(
+    updateTool.definition.inputSchema.safeParse(missingIndexInput).success,
+    false,
+  );
+  const { parentId: _parentId, ...missingParentInput } = updateInput;
+  assert.equal(
+    updateTool.definition.inputSchema.safeParse(missingParentInput).success,
+    false,
+  );
+  for (const invalidParentId of [0, -1, 1.5, "1"]) {
+    assert.equal(
+      updateTool.definition.inputSchema.safeParse({
+        ...updateInput,
+        parentId: invalidParentId,
+      }).success,
+      false,
+    );
+  }
+  assert.equal(
+    updateTool.definition.inputSchema.safeParse({
+      projectId: 17,
+      parentId: updateInput.parentId,
+      index: updateInput.index,
+      title: "Missing wireframe id",
+      html: updateInput.html,
+    }).success,
+    false,
+  );
+  assert.equal(
+    updateTool.definition.inputSchema.safeParse({
+      ...updateInput,
+      title: "   ",
+    }).success,
+    false,
+  );
+  assert.equal(
+    updateTool.definition.inputSchema.safeParse({
+      ...updateInput,
+      html: "",
+    }).success,
+    false,
+  );
+  assert.equal(
+    updateTool.definition.inputSchema.parse({
+      ...updateInput,
+      index: "  1.10  ",
+    }).index,
+    "1.10",
+  );
+  assert.equal(
+    updateTool.definition.inputSchema.parse({
+      ...updateInput,
+      title: "  Updated wireframe  ",
+    }).title,
+    "Updated wireframe",
+  );
+  assert.deepEqual(updateTool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
+  });
+});
+
+const htmlUpdateToolCases = [
+  {
+    name: "update_asset",
+    service: "assetsService",
+    idField: "assetId",
+    input: {
+      projectId: 17,
+      assetId: 41,
+      title: "Updated portfolio asset",
+      html: "<!doctype html><html><head></head><body>Updated asset</body></html>",
+    },
+  },
+  {
+    name: "update_design",
+    service: "designsService",
+    idField: "designId",
+    input: {
+      projectId: 17,
+      designId: 51,
+      title: "Updated portfolio design",
+      html: "<!doctype html><html><head></head><body>Updated design</body></html>",
+    },
+  },
+];
+
+test("Asset과 Design 수정 도구는 입력, annotations, service 위임 계약을 지킨다", async (t) => {
+  for (const toolCase of htmlUpdateToolCases) {
+    await t.test(toolCase.name, async () => {
+      const harness = createHarness();
+      const updated = await harness.invoke(toolCase.name, toolCase.input);
+      const updateTool = harness.tools.get(toolCase.name);
+
+      assert.deepEqual(harness.calls, [
+        [toolCase.service, "update", toolCase.input],
+      ]);
+      assert.deepEqual(updated, {
+        service: toolCase.service,
+        method: "update",
+        input: toolCase.input,
+      });
+      assert.deepEqual(Object.keys(updateTool.definition.inputSchema.shape), [
+        "projectId",
+        toolCase.idField,
+        "title",
+        "html",
+      ]);
+
+      for (const invalidId of [0, -1, 1.5]) {
+        assert.equal(
+          updateTool.definition.inputSchema.safeParse({
+            ...toolCase.input,
+            projectId: invalidId,
+          }).success,
+          false,
+        );
+        assert.equal(
+          updateTool.definition.inputSchema.safeParse({
+            ...toolCase.input,
+            [toolCase.idField]: invalidId,
+          }).success,
+          false,
+        );
+      }
+
+      const { [toolCase.idField]: _id, ...missingIdInput } = toolCase.input;
+      assert.equal(
+        updateTool.definition.inputSchema.safeParse(missingIdInput).success,
+        false,
+      );
+      assert.equal(
+        updateTool.definition.inputSchema.safeParse({
+          ...toolCase.input,
+          title: "   ",
+        }).success,
+        false,
+      );
+      assert.equal(
+        updateTool.definition.inputSchema.safeParse({
+          ...toolCase.input,
+          html: "",
+        }).success,
+        false,
+      );
+      assert.equal(
+        updateTool.definition.inputSchema.parse({
+          ...toolCase.input,
+          title: "  Updated artifact  ",
+        }).title,
+        "Updated artifact",
+      );
+      assert.deepEqual(updateTool.definition.annotations, {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      });
+    });
+  }
+});
+
+test("실제 MCP update_wireframe은 성공과 service 오류 응답을 직렬화한다", async (t) => {
+  const harness = await createSdkHarness();
+  t.after(() => harness.close());
+  const updateInput = {
+    projectId: 17,
+    wireframeId: 31,
+    parentId: 21,
+    index: "1.1",
+    title: "Updated portfolio wireframe",
+    html: "<!doctype html><html><head></head><body>Updated</body></html>",
+  };
+
+  const updated = parseSdkToolResult(
+    await harness.client.callTool({
+      name: "update_wireframe",
+      arguments: updateInput,
+    }),
+  );
+
+  assert.deepEqual(updated, {
+    service: "wireframesService",
+    method: "update",
+    input: updateInput,
+  });
+  assert.deepEqual(harness.calls, [
+    ["wireframesService", "update", updateInput],
+  ]);
+
+  harness.services.wireframesService.update = async () => {
+    throw new NotFoundException("Wireframe 404 not found");
+  };
+  const failure = await harness.client.callTool({
+    name: "update_wireframe",
+    arguments: { ...updateInput, wireframeId: 404 },
+  });
+
+  assert.equal(failure.isError, true);
+  assert.deepEqual(JSON.parse(failure.content[0].text), {
+    error: {
+      code: "NotFoundException",
+      status: 404,
+      message: "Wireframe 404 not found",
+    },
+  });
+});
+
+test("실제 MCP update_asset과 update_design은 성공과 service 오류 응답을 직렬화한다", async (t) => {
+  for (const toolCase of htmlUpdateToolCases) {
+    await t.test(toolCase.name, async (subtest) => {
+      const harness = await createSdkHarness();
+      subtest.after(() => harness.close());
+
+      const updated = parseSdkToolResult(
+        await harness.client.callTool({
+          name: toolCase.name,
+          arguments: toolCase.input,
+        }),
+      );
+
+      assert.deepEqual(updated, {
+        service: toolCase.service,
+        method: "update",
+        input: toolCase.input,
+      });
+      assert.deepEqual(harness.calls, [
+        [toolCase.service, "update", toolCase.input],
+      ]);
+
+      harness.services[toolCase.service].update = async () => {
+        throw new NotFoundException(`${toolCase.idField} 404 not found`);
+      };
+      const failure = await harness.client.callTool({
+        name: toolCase.name,
+        arguments: { ...toolCase.input, [toolCase.idField]: 404 },
+      });
+
+      assert.equal(failure.isError, true);
+      assert.deepEqual(JSON.parse(failure.content[0].text), {
+        error: {
+          code: "NotFoundException",
+          status: 404,
+          message: `${toolCase.idField} 404 not found`,
+        },
+      });
+    });
+  }
+});
+
+test("실제 MCP tools/list와 제거된 도구 호출도 14개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 

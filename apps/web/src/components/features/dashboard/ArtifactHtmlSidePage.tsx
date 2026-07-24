@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
+  type RefObject,
 } from "react";
 import type { HtmlArtifactDocument } from "@/types/dashboard";
 
@@ -18,14 +19,34 @@ export interface HtmlArtifactSelection {
   record: HtmlArtifactDocument;
 }
 
+/** sandbox preview가 부모 UI에 요청하는 Wireframe record 전환 식별자. */
+export interface HtmlPreviewWireframeNavigation {
+  wireframeId?: string;
+  wireframeIndex?: string;
+}
+
 interface ArtifactHtmlSidePageProps {
   onClose: () => void;
   selection: HtmlArtifactSelection | null;
 }
 
+/** 공용 sandbox iframe에 전달할 HTML artifact와 선택적 DOM 연결 정보. */
+interface ArtifactHtmlPreviewFrameProps {
+  frameRef?: RefObject<HTMLIFrameElement | null>;
+  id?: string;
+  onNavigateWireframe?: (target: HtmlPreviewWireframeNavigation) => void;
+  record: HtmlArtifactDocument;
+}
+
 interface WidthBounds {
   max: number;
   min: number;
+}
+
+/** 원본 HTML에서 찾은 실제 시작 태그의 문자열 범위. */
+interface HtmlTagRange {
+  end: number;
+  start: number;
 }
 
 const defaultPanelWidth = 760;
@@ -35,6 +56,7 @@ const resizeStep = 32;
 const largeResizeStep = 80;
 const defaultWidthRatio = 0.64;
 const previewEscapeMessage = "YUSUNG_HARNESS_HTML_PREVIEW_ESCAPE";
+const previewNavigationMessage = "YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE";
 
 const previewContentSecurityPolicy = [
   "default-src 'none'",
@@ -50,14 +72,138 @@ const previewContentSecurityPolicy = [
   "script-src 'unsafe-inline'",
 ].join("; ");
 
+/** 주석 안의 fake document tag를 검색 대상에서 제외하면서 원본 index를 보존한다. */
+function maskHtmlComments(html: string): string {
+  return html.replace(/<!--[\s\S]*?(?:-->|$)/g, (comment) =>
+    " ".repeat(comment.length),
+  );
+}
+
+/** 주석이 아닌 영역에서 지정한 실제 HTML 시작 태그를 찾는다. */
+function findOpeningTag(
+  html: string,
+  tagName: "body" | "head" | "html",
+): HtmlTagRange | null {
+  const searchableHtml = maskHtmlComments(html);
+  const match = new RegExp(`<${tagName}\\b[^>]*>`, "i").exec(searchableHtml);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    end: match.index + match[0].length,
+    start: match.index,
+  };
+}
+
+/** 완성형 문서는 기존 head를 사용하고 fragment는 독립 실행 가능한 문서로 감싼다. */
+function mergeProtectedHead(html: string, protectedHead: string): string {
+  const content = html.replace(/^\s*<!doctype[^>]*>\s*/i, "");
+  const htmlTag = findOpeningTag(content, "html");
+
+  if (!htmlTag) {
+    return `<!doctype html><html><head>${protectedHead}</head><body>${content}</body></html>`;
+  }
+
+  const headTag = findOpeningTag(content, "head");
+  const bodyTag = findOpeningTag(content, "body");
+
+  if (
+    headTag &&
+    headTag.start > htmlTag.start &&
+    (!bodyTag || headTag.start < bodyTag.start)
+  ) {
+    return `<!doctype html>${content.slice(0, headTag.end)}${protectedHead}${content.slice(headTag.end)}`;
+  }
+
+  return `<!doctype html>${content.slice(0, htmlTag.end)}<head>${protectedHead}</head>${content.slice(htmlTag.end)}`;
+}
+
+/** hash route는 iframe 안에서 처리하고 상대 HTML 링크는 부모의 record 전환 요청으로 바꾼다. */
+function buildNavigationBridge(): string {
+  return `<script>(function(){["replaceState","pushState"].forEach(function(methodName){var nativeMethod=history[methodName];history[methodName]=function(data,unused,url){if(typeof url!=="string"||!url.startsWith("#/")){return nativeMethod.apply(history,arguments)}var args=Array.prototype.slice.call(arguments);args[2]="about:srcdoc"+url;try{return nativeMethod.apply(history,args)}catch(error){if(!error||error.name!=="SecurityError"){throw error}window.location.hash=url.slice(1)}}});window.addEventListener("click",function(event){var target=event.target instanceof Element?event.target.closest("a[href]"):null;if(!target){return}var href=target.getAttribute("href");if(!href){return}if(target.matches('a.route-link[href^="#/"]')){event.preventDefault();window.location.hash=href.slice(1);return}var path=href.split("#",1)[0].split("?",1)[0];var hasAbsolutePrefix=href.startsWith("/")||href.startsWith("#")||/^[a-z][a-z0-9+.-]*:/i.test(href);var isRelativeHtml=!hasAbsolutePrefix&&path.toLowerCase().endsWith(".html");if(!isRelativeHtml){return}event.preventDefault();var wireframeId=target.getAttribute("data-wireframe-id");var wireframeIndex=target.getAttribute("data-wireframe-index");if(!wireframeId&&!wireframeIndex){return}window.parent.postMessage({type:"${previewNavigationMessage}",wireframeId:wireframeId||undefined,wireframeIndex:wireframeIndex||undefined},"*")},true)})()</script>`;
+}
+
+/** CSP와 iframe 전용 상호작용 bridge를 원본 문서의 실제 head에 주입한다. */
 function buildSandboxedPreviewHtml(html: string): string {
   const policy = `<meta http-equiv="Content-Security-Policy" content="${previewContentSecurityPolicy}">`;
   const escapeBridge = `<script>window.addEventListener("keydown",function(event){if(event.key==="Escape"){window.parent.postMessage({type:"${previewEscapeMessage}"},"*")}})</script>`;
-  const protectedHead = `${policy}${escapeBridge}`;
-  const content = html.replace(/^\s*<!doctype[^>]*>\s*/i, "");
+  const navigationBridge = buildNavigationBridge();
+  const protectedHead = `${policy}${escapeBridge}${navigationBridge}`;
 
-  /** 원본의 fake tag를 탐색하지 않고 보호된 실제 head 뒤에 콘텐츠를 병합한다. */
-  return `<!doctype html><html><head>${protectedHead}</head>${content}</html>`;
+  return mergeProtectedHead(html, protectedHead);
+}
+
+/** HTML artifact를 동일한 CSP와 iframe sandbox 경계 안에서 렌더링한다. */
+export function ArtifactHtmlPreviewFrame({
+  frameRef,
+  id,
+  onNavigateWireframe,
+  record,
+}: ArtifactHtmlPreviewFrameProps) {
+  const internalFrameRef = useRef<HTMLIFrameElement>(null);
+  const resolvedFrameRef = frameRef ?? internalFrameRef;
+
+  /** 현재 iframe이 보낸 검증된 navigation 메시지만 typed callback으로 전달한다. */
+  useEffect(() => {
+    const navigateWireframe = onNavigateWireframe;
+
+    if (!navigateWireframe) {
+      return;
+    }
+
+    /** 다른 window나 형식이 다른 postMessage를 preview navigation으로 오인하지 않는다. */
+    function navigateFromPreview(event: MessageEvent<unknown>) {
+      if (event.source !== resolvedFrameRef.current?.contentWindow) {
+        return;
+      }
+
+      if (
+        typeof event.data !== "object" ||
+        event.data === null ||
+        !("type" in event.data) ||
+        event.data.type !== previewNavigationMessage
+      ) {
+        return;
+      }
+
+      const wireframeId =
+        "wireframeId" in event.data &&
+        typeof event.data.wireframeId === "string" &&
+        event.data.wireframeId.trim()
+          ? event.data.wireframeId.trim()
+          : undefined;
+      const wireframeIndex =
+        "wireframeIndex" in event.data &&
+        typeof event.data.wireframeIndex === "string" &&
+        event.data.wireframeIndex.trim()
+          ? event.data.wireframeIndex.trim()
+          : undefined;
+
+      /** 식별자가 하나도 없는 요청은 native 이동이 차단된 현재 preview에 고정한다. */
+      if (!wireframeId && !wireframeIndex) {
+        return;
+      }
+
+      navigateWireframe?.({ wireframeId, wireframeIndex });
+    }
+
+    window.addEventListener("message", navigateFromPreview);
+    return () => window.removeEventListener("message", navigateFromPreview);
+  }, [onNavigateWireframe, resolvedFrameRef]);
+
+  return (
+    <iframe
+      ref={resolvedFrameRef}
+      id={id}
+      className="h-full w-full rounded-control border bg-white"
+      referrerPolicy="no-referrer"
+      sandbox="allow-scripts"
+      srcDoc={buildSandboxedPreviewHtml(record.html)}
+      title={`${record.title} HTML preview`}
+    />
+  );
 }
 
 function getWidthBounds(viewportWidth: number): WidthBounds {
@@ -290,14 +436,10 @@ export function ArtifactHtmlSidePage({
             className="absolute inset-0 z-20 cursor-col-resize select-none"
           />
         ) : null}
-        <iframe
-          ref={previewFrameRef}
+        <ArtifactHtmlPreviewFrame
+          frameRef={previewFrameRef}
           id={previewId}
-          className="h-full w-full rounded-control border bg-white"
-          referrerPolicy="no-referrer"
-          sandbox="allow-scripts"
-          srcDoc={buildSandboxedPreviewHtml(selection.record.html)}
-          title={`${selection.record.title} HTML preview`}
+          record={selection.record}
         />
       </div>
     </aside>

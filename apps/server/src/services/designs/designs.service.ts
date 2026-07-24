@@ -87,6 +87,40 @@ export class DesignsService {
     throw new Error("Failed to allocate the next design version");
   }
 
+  /** 같은 프로젝트가 소유한 design의 제목과 HTML을 갱신한다. */
+  async update({
+    projectId,
+    designId,
+    title,
+    html,
+  }: {
+    projectId: number;
+    designId: number;
+    title: string;
+    html: string;
+  }) {
+    await this.projectsService.ensureProject(projectId);
+    const existingDesign = await this.prisma.design.findUnique({
+      where: { id: designId },
+    });
+
+    if (!existingDesign) {
+      throw new NotFoundException(`Design ${designId} not found`);
+    }
+
+    if (existingDesign.projectId !== projectId) {
+      throw new BadRequestException(
+        `Design ${designId} does not belong to project ${projectId}`,
+      );
+    }
+
+    return this.prisma.design.update({
+      where: { id: designId },
+      data: { title, html },
+    });
+  }
+
+  /** 관련 산출물이 요청한 프로젝트에 속하는지 검증한다. */
   private assertRelatedProject(
     record: { projectId: number } | null,
     projectId: number,

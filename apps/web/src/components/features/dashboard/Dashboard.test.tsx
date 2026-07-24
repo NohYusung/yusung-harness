@@ -59,7 +59,11 @@ describe("Dashboard", () => {
       />,
     );
 
-    expect(screen.getByText("Artifact Workbench")).toBeInTheDocument();
+    const topbar = screen.getByRole("banner");
+    expect(within(topbar).getByText("Yusung Harness")).toBeInTheDocument();
+    expect(
+      within(topbar).queryByText("Artifact Workbench"),
+    ).not.toBeInTheDocument();
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
     expect(projectSelect).toHaveValue("1");
     expect(
@@ -116,7 +120,7 @@ describe("Dashboard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("HTML record의 Preview tab에서 sandboxed side preview를 열고 닫는다", () => {
+  it("HTML record 상세 영역에서 sandboxed iframe을 즉시 렌더한다", () => {
     const asset = createAsset({ id: 51, title: "Preview asset" });
     const wireframe = createWireframe({ id: 52, title: "Preview wireframe" });
     const design = createDesign({
@@ -144,23 +148,46 @@ describe("Dashboard", () => {
       />,
     );
 
-    const tabs = screen.getByRole("tablist", { name: "Record details" });
-    fireEvent.click(within(tabs).getByRole("tab", { name: "Preview" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open Design preview" }),
-    );
-
+    const detailPane = screen.getByRole("complementary", {
+      name: "Preview design",
+    });
     expect(
-      screen.getByRole("complementary", {
-        name: "Design preview: Preview design",
-      }),
+      within(detailPane).queryByRole("tablist", { name: "Record details" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(detailPane).queryByRole("tab"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(detailPane).queryByRole("tabpanel"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(detailPane).getByText("Record metadata"),
     ).toBeInTheDocument();
-    expect(screen.getByTitle("Preview design HTML preview")).toHaveAttribute(
+    expect(detailPane.querySelector("dl")).not.toBeNull();
+    expect(
+      within(detailPane).getByText("Design", { selector: "dd" }),
+    ).toBeInTheDocument();
+    expect(document.querySelector("#preview-panel")).toBeNull();
+    expect(document.querySelector("#relations-panel")).toBeNull();
+
+    const preview = within(detailPane).getByTitle(
+      "Preview design HTML preview",
+    );
+    expect(preview).toHaveAttribute(
       "srcdoc",
       expect.stringContaining("Workbench preview state"),
     );
+    expect(preview).toHaveAttribute(
+      "srcdoc",
+      expect.stringContaining("Content-Security-Policy"),
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
+    expect(
+      screen.queryByRole("button", { name: "Open Design preview" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open isolated preview" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("complementary", {
         name: "Design preview: Preview design",

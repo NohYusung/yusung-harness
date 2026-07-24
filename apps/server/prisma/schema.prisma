@@ -148,18 +148,24 @@ model Draft {
 }
 
 model Wireframe {
-  id        Int      @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   projectId Int
-  project   Project  @relation(fields: [projectId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  project   Project     @relation(fields: [projectId], references: [id])
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
   designs   Design[]
   title     String
   html      String
-  page      String   @default(cuid())
+  page      String      @default(cuid())
+  index     String
+  parentId  Int?
+  parent    Wireframe?  @relation("WireframeHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  children  Wireframe[] @relation("WireframeHierarchy")
+  version   Int         @default(1)
 
-  @@unique([projectId, page])
-  @@index([projectId])
+  @@unique([projectId, page, version])
+  @@index([projectId, index])
+  @@index([parentId])
 }
 
 model Review {

@@ -71,6 +71,8 @@ export function createWireframe(
 ): Wireframe {
   return {
     ...createArtifactRecord({ title: "Wireframe" }),
+    parentId: null,
+    index: "1",
     html: "<!doctype html><html><head><title>User journey</title></head><body><a href='#next'>Next</a><section id='next'>Next step</section></body></html>",
     ...overrides,
   };

@@ -12,6 +12,36 @@ const servicePath = (resource) =>
 
 const serviceSource = (resource) => readFileSync(servicePath(resource), "utf8");
 
+const serviceMethodSource = (source, methodName) => {
+  const sourceFile = ts.createSourceFile(
+    "service.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  let matchedMethod;
+
+  const visit = (node) => {
+    if (
+      ts.isMethodDeclaration(node) &&
+      node.name.getText(sourceFile) === methodName
+    ) {
+      matchedMethod = node;
+      return;
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+  assert.ok(matchedMethod, `${methodName} 메서드가 존재해야 한다`);
+  return source.slice(
+    matchedMethod.getStart(sourceFile),
+    matchedMethod.getEnd(),
+  );
+};
+
 const loadService = (resource, exportName) => {
   const filename = servicePath(resource);
   const output = ts.transpileModule(readFileSync(filename, "utf8"), {
@@ -53,7 +83,7 @@ const loadService = (resource, exportName) => {
   return loadedModule.exports[exportName];
 };
 
-const createOnlyContracts = [
+const createContracts = [
   {
     resource: "plans",
     model: "plan",
@@ -99,14 +129,15 @@ const createOnlyContracts = [
   {
     resource: "wireframes",
     model: "wireframe",
-    fields: ["projectId", "title", "html"],
+    fields: ["projectId", "parentId", "index", "title", "html"],
     forbiddenFields: ["id", "taskId", "planId", "page"],
   },
 ];
 
-test("7개 AGENT 대상 service는 create-only 입력과 Prisma 쓰기 경계를 제공한다", () => {
-  for (const contract of createOnlyContracts) {
+test("7개 AGENT 대상 service는 create 입력과 허용된 Prisma 쓰기 경계를 제공한다", () => {
+  for (const contract of createContracts) {
     const source = serviceSource(contract.resource);
+    const createSource = serviceMethodSource(source, "create");
     const signature = source.match(
       /async\s+create\s*\(\s*\{([\s\S]*?)\}\s*:\s*\{([\s\S]*?)\}\s*\)\s*\{/,
     );
@@ -128,11 +159,11 @@ test("7개 AGENT 대상 service는 create-only 입력과 Prisma 쓰기 경계를
 
     assert.doesNotMatch(source, /async\s+(?:save|createVersion)\s*\(/);
     assert.doesNotMatch(
-      source,
+      createSource,
       new RegExp(
         `(?:this\\.prisma|transaction)\\.${contract.model}\\.update\\s*\\(`,
       ),
-      `${contract.resource}는 ${contract.model}.update를 호출하면 안 된다`,
+      `${contract.resource}.create는 ${contract.model}.update를 호출하면 안 된다`,
     );
   }
 });
@@ -190,6 +221,8 @@ const directCreateCases = [
     model: "wireframe",
     input: {
       projectId: 7,
+      parentId: null,
+      index: "1",
       title: "Wireframe",
       html: "<!doctype html><html><body>Wireframe</body></html>",
     },
@@ -208,7 +241,7 @@ const directCreateCases = [
   },
 ];
 
-test("create-only service는 project를 검증한 뒤 create만 호출한다", async (t) => {
+test("직접 생성 service는 project를 검증한 뒤 create만 호출한다", async (t) => {
   for (const serviceCase of directCreateCases) {
     await t.test(serviceCase.exportName, async () => {
       const calls = [];
@@ -225,6 +258,7 @@ test("create-only service는 project를 검증한 뒤 create만 호출한다", a
           },
         },
       };
+      prisma.$transaction = async (operation) => operation(prisma);
       const projectsService = {
         ensureProject: async (projectId) => {
           calls.push(["projects.ensureProject", projectId]);

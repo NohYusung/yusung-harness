@@ -22,6 +22,15 @@ import { WireframesService } from "../services/wireframes/wireframes.service";
 
 const projectIdSchema = z.number().int().positive().describe("Project ID");
 const domainIdSchema = z.number().int().positive().describe("Domain ID");
+const wireframeIdSchema = z.number().int().positive().describe("Wireframe ID");
+const assetIdSchema = z.number().int().positive().describe("Asset ID");
+const designIdSchema = z.number().int().positive().describe("Design ID");
+const wireframeIndexSchema = z
+  .string()
+  .trim()
+  .max(255)
+  .regex(/^[1-9]\d*(?:\.[1-9]\d*)*$/)
+  .describe("Hierarchical Wireframe index path");
 const htmlSchema = z
   .string()
   .min(1)
@@ -101,7 +110,7 @@ export class McpService {
     private readonly reviewsService: ReviewsService,
   ) {}
 
-  /** 11개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 14개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -129,7 +138,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 11개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 14개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -333,6 +342,29 @@ export class McpService {
       (input) => this.execute(() => this.designsService.create(input)),
     );
 
+    /** 같은 프로젝트가 소유한 HTML design의 제목과 내용을 교체한다. */
+    server.registerTool(
+      "update_design",
+      {
+        title: "Update Design",
+        description:
+          "Replaces the title and HTML of a Design in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          designId: designIdSchema,
+          title: z.string().trim().min(1),
+          html: htmlSchema,
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.designsService.update(input)),
+    );
+
     /** 프로젝트에 속한 HTML wireframe을 생성한다. */
     server.registerTool(
       "create_wireframe",
@@ -341,6 +373,8 @@ export class McpService {
         description: "Creates an HTML Wireframe for a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
+          parentId: wireframeIdSchema.nullable(),
+          index: wireframeIndexSchema,
           title: z.string().trim().min(1),
           html: htmlSchema,
         }),
@@ -352,6 +386,31 @@ export class McpService {
         },
       },
       (input) => this.execute(() => this.wireframesService.create(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 HTML wireframe의 제목과 내용을 교체한다. */
+    server.registerTool(
+      "update_wireframe",
+      {
+        title: "Update Wireframe",
+        description:
+          "Replaces the title and HTML of a Wireframe in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          wireframeId: wireframeIdSchema,
+          parentId: wireframeIdSchema.nullable(),
+          index: wireframeIndexSchema,
+          title: z.string().trim().min(1),
+          html: htmlSchema,
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.wireframesService.update(input)),
     );
 
     /** 프로젝트에 속한 HTML asset을 생성한다. */
@@ -373,6 +432,29 @@ export class McpService {
         },
       },
       (input) => this.execute(() => this.assetsService.create(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 HTML asset의 제목과 내용을 교체한다. */
+    server.registerTool(
+      "update_asset",
+      {
+        title: "Update Asset",
+        description:
+          "Replaces the title and HTML of an Asset in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          assetId: assetIdSchema,
+          title: z.string().trim().min(1),
+          html: htmlSchema,
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.assetsService.update(input)),
     );
   }
 

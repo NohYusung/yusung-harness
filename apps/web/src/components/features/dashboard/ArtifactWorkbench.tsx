@@ -12,10 +12,12 @@ import {
   type RefObject,
 } from "react";
 import {
-  ArtifactHtmlSidePage,
+  ArtifactHtmlPreviewFrame,
   type HtmlArtifactKind,
   type HtmlArtifactSelection,
+  type HtmlPreviewWireframeNavigation,
 } from "@/components/features/dashboard/ArtifactHtmlSidePage";
+import { MarkdownContent } from "@/components/features/dashboard/MarkdownContent";
 import { formatDashboardDate } from "@/lib/date";
 import type {
   ArtifactDocument,
@@ -26,6 +28,7 @@ import type {
   ProjectSummary,
   Review,
   Task,
+  Wireframe,
 } from "@/types/dashboard";
 import type { WorkspaceRelation } from "./ArtifactBrowser";
 
@@ -51,17 +54,8 @@ interface ArtifactWorkbenchProps {
   selectedTaskId: number | null;
 }
 
-type DetailTab = "metadata" | "relations" | "preview";
 type MobilePane = "tree" | "records" | "detail";
-type RecordStatus =
-  | "Completed"
-  | "Current"
-  | "Document"
-  | "Draft"
-  | "HTML"
-  | "Pending"
-  | "Previous"
-  | "Snapshot";
+type RecordStatus = "Completed" | "Current" | "Pending" | "Previous";
 type StatusFilter = "All" | "Completed" | "Pending";
 
 interface RelationConfig {
@@ -140,12 +134,6 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
   },
 };
 
-const detailTabs: ReadonlyArray<{ id: DetailTab; label: string }> = [
-  { id: "metadata", label: "Metadata" },
-  { id: "relations", label: "Relations" },
-  { id: "preview", label: "Preview" },
-];
-
 /** Desktop detail pane이 viewport에서 차지하는 초기 비율과 조절 범위. */
 const defaultDetailPaneRatio = 30;
 const minimumDetailPaneRatio = 15;
@@ -183,10 +171,11 @@ function getEntries(context: ProjectContext): WorkbenchEntry[] {
   );
 }
 
+/** 실제 Task lifecycle 또는 Plan version에서 파생 가능한 상태만 반환한다. */
 function getStatus(
   entry: WorkbenchEntry,
   context: ProjectContext,
-): RecordStatus {
+): RecordStatus | null {
   if (entry.relation === "plans") {
     const latestVersion = Math.max(
       ...context.plans.map((plan) => plan.version),
@@ -204,21 +193,7 @@ function getStatus(
       : "Pending";
   }
 
-  if (
-    entry.relation === "wireframes" ||
-    entry.relation === "assets" ||
-    entry.relation === "designs"
-  ) {
-    return "HTML";
-  }
-
-  if (entry.relation === "drafts") return "Draft";
-  if (entry.relation === "domains" || entry.relation === "architectures") {
-    return "Snapshot";
-  }
-  if (entry.relation === "reviews") return "Completed";
-
-  return "Document";
+  return null;
 }
 
 function getEntryMeta(entry: WorkbenchEntry, context: ProjectContext): string {
@@ -250,14 +225,6 @@ function getContent(entry: WorkbenchEntry): string {
     return (
       (entry.record as Task).content ?? "No task notes have been saved yet."
     );
-  }
-
-  if (
-    entry.relation === "wireframes" ||
-    entry.relation === "assets" ||
-    entry.relation === "designs"
-  ) {
-    return "Open the isolated HTML preview to inspect this generated interface artifact.";
   }
 
   return (entry.record as ArtifactDocument).content;
@@ -317,14 +284,33 @@ function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
   return kind ? { kind, record: entry.record as HtmlArtifactDocument } : null;
 }
 
+/** HTML artifact의 Metadata에 sandbox preview와 Wireframe 전환 callback을 연결한다. */
+function WorkbenchHtmlPreview({
+  onNavigateWireframe,
+  record,
+}: {
+  onNavigateWireframe: (target: HtmlPreviewWireframeNavigation) => void;
+  record: HtmlArtifactDocument;
+}) {
+  return (
+    <div className="h-[clamp(24rem,65vh,56rem)] overflow-hidden rounded-card">
+      <ArtifactHtmlPreviewFrame
+        onNavigateWireframe={onNavigateWireframe}
+        record={record}
+      />
+    </div>
+  );
+}
+
+/** lifecycle 상태 badge의 의미에 맞는 색상만 선택한다. */
 function getStatusClassName(status: RecordStatus): string {
   if (status === "Completed") {
-    return "border-[#3e5a39] bg-success-soft text-success";
+    return "inline-flex w-max rounded-full border border-[#3e5a39] bg-success-soft px-[7px] py-[3px] font-mono text-[10px] text-success";
   }
   if (status === "Pending") {
-    return "border-[#594727] bg-warning-soft text-warning";
+    return "inline-flex w-max rounded-full border border-[#594727] bg-warning-soft px-[7px] py-[3px] font-mono text-[10px] text-warning";
   }
-  return "border-line text-muted";
+  return "inline-flex w-max rounded-full border border-line px-[7px] py-[3px] font-mono text-[10px] text-muted";
 }
 
 function getRelationHref(entry: WorkbenchEntry, projectId: number): string {
@@ -350,38 +336,6 @@ function useSearchShortcut(searchRef: RefObject<HTMLInputElement | null>) {
     return () => document.removeEventListener("keydown", focusSearch);
   }, [searchRef]);
 }
-
-function PreviewMock() {
-  return (
-    <div className="min-h-[310px] overflow-hidden rounded-card border border-line bg-[#f4f6f8] text-[#171a1f]">
-      <div className="flex h-[34px] items-center gap-[5px] border-b border-[#c9d0d8] bg-[#e7ebef] px-[10px]">
-        {[0, 1, 2].map((dot) => (
-          <span
-            key={dot}
-            aria-hidden="true"
-            className="size-[7px] rounded-full bg-[#aeb8c4]"
-          />
-        ))}
-      </div>
-      <div className="p-[22px]">
-        <div className="mb-[18px] h-[18px] rounded bg-[#dbe2ea]" />
-        <div className="h-[88px] rounded-control bg-gradient-to-br from-[#d9e8ff] to-[#e8defe] p-[18px] text-sm font-bold">
-          Artifact Workbench
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {[0, 1, 2].map((card) => (
-            <span
-              key={card}
-              aria-hidden="true"
-              className="h-[54px] rounded-[5px] border border-[#d1d8df] bg-white"
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ArtifactWorkbench({
   activeRelation,
   context,
@@ -425,14 +379,10 @@ export function ArtifactWorkbench({
   const [selectedKey, setSelectedKey] = useState<string | null>(
     initialEntry ? getEntryKey(initialEntry) : null,
   );
-  const [detailTab, setDetailTab] = useState<DetailTab>("metadata");
   const [mobilePane, setMobilePane] = useState<MobilePane>("records");
   const [detailPaneRatio, setDetailPaneRatio] = useState(
     defaultDetailPaneRatio,
   );
-  const [previewSelection, setPreviewSelection] =
-    useState<HtmlArtifactSelection | null>(null);
-  const [copied, setCopied] = useState(false);
 
   useSearchShortcut(searchRef);
 
@@ -440,6 +390,17 @@ export function ArtifactWorkbench({
     allEntries.find((entry) => getEntryKey(entry) === selectedKey) ??
     allEntries[0] ??
     null;
+  const selectedStatus = selectedEntry
+    ? getStatus(selectedEntry, context)
+    : null;
+  const selectedHtmlArtifact = selectedEntry
+    ? getHtmlSelection(selectedEntry)
+    : null;
+  /** Wireframe 전용 metadata만 노출하도록 relation을 확인한 뒤 record를 좁힌다. */
+  const selectedWireframe =
+    selectedEntry?.relation === "wireframes"
+      ? (selectedEntry.record as Wireframe)
+      : null;
   const selectedPlan =
     activeRelation === "plans" && selectedArtifactId
       ? (context.plans.find((plan) => plan.id === selectedArtifactId) ?? null)
@@ -462,29 +423,39 @@ export function ArtifactWorkbench({
 
     return matchesType && matchesStatus && matchesQuery;
   });
-  const relations = selectedEntry ? getRelations(selectedEntry, context) : [];
   const currentProject =
     projects.find((project) => project.id === context.id) ?? projects[0];
   const currentRepository = context.repoPaths[0];
   const repositoryPath = currentRepository?.path ?? "No repository connected";
-  const repositoryType = currentRepository?.repoType ?? "LOCAL";
 
   function selectEntry(entry: WorkbenchEntry) {
     setSelectedKey(getEntryKey(entry));
     setMobilePane("detail");
-    setDetailTab("metadata");
     router.replace(getRelationHref(entry, context.id), { scroll: false });
   }
 
-  async function copyDeepLink() {
-    if (!selectedEntry) return;
+  /** 명시된 id를 먼저, index를 다음으로 해석해 기존 record 선택 흐름을 재사용한다. */
+  function navigateToWireframe(target: HtmlPreviewWireframeNavigation) {
+    const numericId = target.wireframeId
+      ? Number(target.wireframeId)
+      : Number.NaN;
+    const wireframeById = Number.isSafeInteger(numericId)
+      ? context.wireframes.find((wireframe) => wireframe.id === numericId)
+      : undefined;
+    const wireframe =
+      wireframeById ??
+      (target.wireframeIndex
+        ? context.wireframes.find(
+            (candidate) => candidate.index === target.wireframeIndex,
+          )
+        : undefined);
 
-    const path = getRelationHref(selectedEntry, context.id);
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+    /** 해석할 형제 record가 없으면 현재 선택과 URL을 그대로 유지한다. */
+    if (!wireframe) {
+      return;
     }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 900);
+
+    selectEntry({ record: wireframe, relation: "wireframes" });
   }
 
   /** Detail pane의 viewport 점유 비율을 15~70% 범위에서 갱신한다. */
@@ -560,22 +531,9 @@ export function ArtifactWorkbench({
       data-mobile-pane={mobilePane}
     >
       <header className="flex items-center gap-4 border-b border-line bg-sidebar px-4">
-        <div className="flex min-w-0 items-center gap-[10px] md:min-w-[250px]">
-          <span
-            aria-hidden="true"
-            className="grid size-[30px] shrink-0 place-items-center rounded-[7px] border border-line-strong bg-surface-muted font-mono text-[10px] font-bold tracking-[0.08em]"
-          >
-            YH
-          </span>
-          <span className="min-w-0">
-            <strong className="block truncate text-sm leading-tight tracking-[-0.01em]">
-              Artifact Workbench
-            </strong>
-            <small className="mt-0.5 hidden truncate font-mono text-[10px] text-subtle md:block">
-              {context.title} · {repositoryType}
-            </small>
-          </span>
-        </div>
+        <strong className="block min-w-0 truncate text-sm leading-tight tracking-[-0.01em] md:min-w-[250px]">
+          Yusung Harness
+        </strong>
 
         <label className="relative min-w-0 max-w-[680px] flex-1">
           <span className="sr-only">Search records</span>
@@ -824,9 +782,13 @@ export function ArtifactWorkbench({
                     </small>
                   </span>
                   <span
-                    className={`inline-flex w-max rounded-full border px-[7px] py-[3px] font-mono text-[10px] ${getStatusClassName(status)}`}
+                    className={
+                      status
+                        ? getStatusClassName(status)
+                        : "inline-flex w-max px-[7px] py-[3px] font-mono text-[10px] text-subtle"
+                    }
                   >
-                    {status}
+                    {status ?? "—"}
                   </span>
                   <span className="font-mono text-[11px] text-subtle max-lg:hidden">
                     {entryRelations.length}
@@ -893,43 +855,11 @@ export function ArtifactWorkbench({
                   : "Choose a record to inspect"}
               </p>
             </div>
-            <button
-              /*
-            AGENT
-            - 화살표 모양의 복사 버튼 필요없는 버튼임. 삭제
-            */
-              aria-label="Copy deep link"
-              className="h-9 min-w-9 rounded-control border border-line bg-surface text-muted focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
-              onClick={() => void copyDeepLink()}
-              type="button"
-            >
-              {copied ? "✓" : "↗"}
-            </button>
-          </div>
-
-          <div
-            aria-label="Record details"
-            className="grid grid-cols-3 border-b border-line"
-            role="tablist"
-          >
-            {detailTabs.map((tab) => (
-              <button
-                key={tab.id}
-                aria-controls={`${tab.id}-panel`}
-                aria-selected={detailTab === tab.id}
-                className="h-[42px] border-0 border-b-2 border-transparent bg-transparent text-[11px] text-muted aria-selected:border-primary aria-selected:bg-surface aria-selected:text-ink focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none"
-                onClick={() => setDetailTab(tab.id)}
-                role="tab"
-                type="button"
-              >
-                {tab.label}
-              </button>
-            ))}
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto p-[18px]">
-            {selectedEntry && detailTab === "metadata" ? (
-              <section id="metadata-panel" role="tabpanel">
+            {selectedEntry ? (
+              <section aria-label="Record details">
                 <p className="mt-0 mb-[9px] font-mono text-[10px] tracking-[0.1em] text-subtle uppercase">
                   Record metadata
                 </p>
@@ -938,10 +868,20 @@ export function ArtifactWorkbench({
                   <dd className="m-0 text-ink">
                     {relationConfig[selectedEntry.relation].label}
                   </dd>
-                  <dt className="text-subtle">Status</dt>
-                  <dd className="m-0 text-ink">
-                    {getStatus(selectedEntry, context)}
-                  </dd>
+                  {selectedWireframe ? (
+                    <>
+                      <dt className="text-subtle">Index</dt>
+                      <dd className="m-0 font-mono text-ink">
+                        {selectedWireframe.index}
+                      </dd>
+                    </>
+                  ) : null}
+                  {selectedStatus ? (
+                    <>
+                      <dt className="text-subtle">Status</dt>
+                      <dd className="m-0 text-ink">{selectedStatus}</dd>
+                    </>
+                  ) : null}
                   <dt className="text-subtle">Project</dt>
                   <dd className="m-0 text-ink">{context.title}</dd>
                   <dt className="text-subtle">Updated</dt>
@@ -953,67 +893,19 @@ export function ArtifactWorkbench({
                     {getSource(selectedEntry)}
                   </dd>
                 </dl>
-                <div className="mt-[18px] border-t border-line pt-4 text-[13px] leading-[1.7] text-[#c4cfdd]">
-                  <p className="mt-0 mb-[9px] text-sm font-semibold text-ink">
-                    {selectedEntry.record.title}
-                  </p>
-                  <p className="whitespace-pre-wrap">
-                    {getContent(selectedEntry)}
-                  </p>
-                </div>
-              </section>
-            ) : null}
-
-            {selectedEntry && detailTab === "relations" ? (
-              <section id="relations-panel" role="tabpanel">
-                <p className="mt-0 mb-[9px] font-mono text-[10px] tracking-[0.1em] text-subtle uppercase">
-                  Connected records
-                </p>
-                {relations.length > 0 ? (
-                  <ul className="m-0 list-none p-0">
-                    {relations.map((relation) => (
-                      <li
-                        key={getEntryKey(relation)}
-                        className="flex gap-2.5 border-b border-line py-[11px] text-xs"
-                      >
-                        <span className="font-mono text-primary">→</span>
-                        <span>
-                          {relation.record.title}
-                          <small className="mt-[3px] block text-subtle">
-                            Connected through project context
-                          </small>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                {selectedHtmlArtifact ? (
+                  <div className="mt-[18px]">
+                    <WorkbenchHtmlPreview
+                      onNavigateWireframe={navigateToWireframe}
+                      record={selectedHtmlArtifact.record}
+                    />
+                  </div>
                 ) : (
-                  <p className="text-xs text-muted">
-                    No connected records are available.
-                  </p>
-                )}
-              </section>
-            ) : null}
-
-            {selectedEntry && detailTab === "preview" ? (
-              <section id="preview-panel" role="tabpanel">
-                {getHtmlSelection(selectedEntry) ? (
-                  <>
-                    <button
-                      aria-label={`Open ${relationConfig[selectedEntry.relation].label} preview`}
-                      className="mb-2.5 h-[30px] rounded-[5px] border border-primary bg-surface px-3 text-[11px] text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
-                      onClick={() =>
-                        setPreviewSelection(getHtmlSelection(selectedEntry))
-                      }
-                      type="button"
-                    >
-                      Open isolated preview
-                    </button>
-                    <PreviewMock />
-                  </>
-                ) : (
-                  <div className="rounded-card border border-line bg-surface p-4 text-xs leading-6 text-muted">
-                    This record is a text artifact. Its content is available in
-                    the Metadata tab.
+                  <div className="mt-[18px] border-t border-line pt-4">
+                    <p className="mt-0 mb-[9px] text-sm font-semibold text-ink">
+                      {selectedEntry.record.title}
+                    </p>
+                    <MarkdownContent content={getContent(selectedEntry)} />
                   </div>
                 )}
               </section>
@@ -1021,11 +913,6 @@ export function ArtifactWorkbench({
           </div>
         </aside>
       </main>
-
-      <ArtifactHtmlSidePage
-        onClose={() => setPreviewSelection(null)}
-        selection={previewSelection}
-      />
     </div>
   );
 }

@@ -85,7 +85,13 @@ test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응�
   assert.match(validation, /tasks:\s*z\.array\s*\(\s*taskSchema\s*\)/);
   assert.match(types, /interface\s+HtmlArtifactDocument\b[\s\S]*?html:\s*string/);
   assert.match(types, /type\s+Asset\s*=\s*HtmlArtifactDocument/);
-  assert.match(types, /type\s+Wireframe\s*=\s*HtmlArtifactDocument/);
+  const wireframeType = types.match(
+    /interface\s+Wireframe\s+extends\s+HtmlArtifactDocument\s*\{([\s\S]*?)\n\}/,
+  )?.[1];
+  assert.ok(wireframeType);
+  assert.match(wireframeType, /\bindex:\s*string/);
+  assert.match(wireframeType, /\bparentId:\s*number\s*\|\s*null/);
+  assert.doesNotMatch(wireframeType, /\bindex:\s*number/);
   assert.match(types, /interface\s+Design\s+extends\s+HtmlArtifactDocument/);
   assert.match(types, /type\s+Review\s*=\s*ArtifactDocument/);
   assert.doesNotMatch(types, /TaskLinkedHtmlArtifact|PlanLinkedDocument/);
@@ -206,8 +212,17 @@ test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한�
   assert.match(workbench, /aria-label=["']Artifact types["']/);
   assert.match(workbench, /aria-label=["']Artifact records["']/);
   assert.match(workbench, /aria-label=["']Record details["']/);
-  assert.match(workbench, /<ArtifactHtmlSidePage\b/);
+  assert.match(workbench, /<ArtifactHtmlPreviewFrame\b/);
+  assert.doesNotMatch(workbench, /<ArtifactHtmlSidePage\b/);
   assert.doesNotMatch(workbench, /<details\b|<iframe\b/);
+  assert.match(
+    htmlSidePage,
+    /export function ArtifactHtmlPreviewFrame\b/,
+  );
+  assert.match(
+    htmlSidePage,
+    /srcDoc=\{buildSandboxedPreviewHtml\(record\.html\)\}/,
+  );
   assert.match(htmlSidePage, /role=["']separator["']/);
   assert.match(htmlSidePage, /onPointerDown/);
   assert.match(htmlSidePage, /sandbox=["']allow-scripts["']/);

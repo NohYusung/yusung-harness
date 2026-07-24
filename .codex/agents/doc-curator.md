@@ -66,3 +66,6 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | tool목록 | 목적 |
 > |-------|-------|
 > | update_domain | 도메인 문서 업데이트 |
+> | update_asset | 디자인 에셋 문서 업데이트 |
+> | update_design | 디자인 문서 업데이트 |
+> | update_wireframe | 와이어프레임 문서 업데이트 |
