@@ -25,6 +25,11 @@ const domains = [
   ["wireframes", "WireframesService", "create"],
   ["reviews", "ReviewsService", "create"],
   ["designs", "DesignsService", "create"],
+  ["requests", "RequestsService", "create"],
+  ["requests", "RequestsService", "update"],
+  ["worklogs", "WorklogsService", "create"],
+  ["architecture-plans", "ArchitecturePlansService", "create"],
+  ["architecture-plans", "ArchitecturePlansService", "update"],
 ];
 
 const collectControllerFiles = (directory, relativeDirectory = "") => {
@@ -79,6 +84,7 @@ test("Nest HTTP controller는 MCP transport와 읽기 전용 목록 API만 노�
     collectControllerFiles(sourcePath(".")).sort(),
     [
       join("mcp", "mcp.controller.ts"),
+      join("services", "architecture-plans", "architecture-plans.controller.ts"),
       join("services", "architectures", "architectures.controller.ts"),
       join("services", "assets", "assets.controller.ts"),
       join("services", "designs", "designs.controller.ts"),
@@ -86,9 +92,11 @@ test("Nest HTTP controller는 MCP transport와 읽기 전용 목록 API만 노�
       join("services", "drafts", "drafts.controller.ts"),
       join("services", "plans", "plans.controller.ts"),
       join("services", "projects", "project.controller.ts"),
+      join("services", "requests", "requests.controller.ts"),
       join("services", "reviews", "reviews.controller.ts"),
       join("services", "tasks", "tasks.controller.ts"),
       join("services", "wireframes", "wireframes.controller.ts"),
+      join("services", "worklogs", "worklogs.controller.ts"),
     ].sort(),
   );
 });
@@ -172,7 +180,7 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
   );
 });
 
-test("MCP의 12개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
+test("MCP의 17개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const mutationTools = [
     "create_project",
@@ -187,6 +195,11 @@ test("MCP의 12개 mutation tool은 공통 execute 경계로 결과를 직렬화
     "update_wireframe",
     "create_asset",
     "update_asset",
+    "create_workLog",
+    "create_request",
+    "create_architecturePlan",
+    "update_architecturePlan",
+    "update_request",
   ];
 
   for (const [index, toolName] of mutationTools.entries()) {
@@ -205,8 +218,32 @@ test("MCP의 12개 mutation tool은 공통 execute 경계로 결과를 직렬화
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 14);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 19);
+  assert.doesNotMatch(mcpService, /\bAGENT\b/);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
+});
+
+test("MCP workflow 생성 도구는 domain service에 저장을 위임한다", () => {
+  const mcpService = source("mcp/mcp.service.ts");
+
+  for (const [toolName, service] of [
+    ["create_workLog", "worklogsService"],
+    ["create_request", "requestsService"],
+    ["create_architecturePlan", "architecturePlansService"],
+  ]) {
+    const tool = registeredToolBlock(mcpService, toolName);
+
+    assert.match(tool, new RegExp(`this\\.${service}\\.create\\s*\\(input\\)`));
+  }
+
+  assert.doesNotMatch(
+    mcpService,
+    /private\s+async\s+(?:createWorkLog|createRequest|createArchitecturePlan)\s*\(/,
+  );
+  assert.doesNotMatch(
+    mcpService,
+    /prismaService\.(?:workLog|request|architecturePlan)\.create\s*\(/,
+  );
 });
 
 test("MCP tool 실패는 JSON text error envelope로 직렬화한다", () => {
@@ -262,6 +299,9 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
     ["WireframesService", "wireframesService", ["list", "create", "update"]],
     ["AssetsService", "assetsService", ["list", "create", "update"]],
     ["ReviewsService", "reviewsService", ["list"]],
+    ["RequestsService", "requestsService", ["create", "update"]],
+    ["WorklogsService", "worklogsService", ["create"]],
+    ["ArchitecturePlansService", "architecturePlansService", ["create", "update"]],
   ];
 
   for (const [serviceName, field, methods] of exposedServices) {
@@ -361,6 +401,9 @@ test("McpModule은 각 도메인 모듈을 조립하고 McpService만 제공한�
     "WireframesModule",
     "DesignsModule",
     "ReviewsModule",
+    "RequestsModule",
+    "WorklogsModule",
+    "ArchitecturePlansModule",
   ];
 
   for (const moduleName of moduleNames) {

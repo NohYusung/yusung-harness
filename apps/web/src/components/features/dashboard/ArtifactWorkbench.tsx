@@ -242,7 +242,11 @@ function getStatus(
   return null;
 }
 
-function getEntryMeta(entry: WorkbenchEntry, context: ProjectContext): string {
+/** NO와 UPDATED 칼럼으로 이동하지 않는 Plan/Task 관계 정보만 제목 아래에 남긴다. */
+function getEntrySecondaryMeta(
+  entry: WorkbenchEntry,
+  context: ProjectContext,
+): string | null {
   if (entry.relation === "plans") {
     const plan = entry.record as Plan;
     const completed = plan.tasks.filter(
@@ -256,10 +260,10 @@ function getEntryMeta(entry: WorkbenchEntry, context: ProjectContext): string {
     const plan = context.plans.find(
       (candidate) => candidate.id === task.planId,
     );
-    return `#${task.id}${plan ? ` · Plan v${plan.version}` : ""}`;
+    return plan ? `Plan v${plan.version}` : null;
   }
 
-  return `#${entry.record.id} · ${formatDashboardDate(entry.record.updatedAt)}`;
+  return null;
 }
 
 function getSource(entry: WorkbenchEntry): string {
@@ -456,6 +460,11 @@ export function ArtifactWorkbench({
     selectedEntry?.relation === "wireframes"
       ? (selectedEntry.record as Wireframe)
       : null;
+  /** Design 전용 관계 ID metadata만 노출하도록 relation을 확인한 뒤 record를 좁힌다. */
+  const selectedDesign =
+    selectedEntry?.relation === "designs"
+      ? (selectedEntry.record as Design)
+      : null;
   const selectedPlan =
     activeRelation === "plans" && selectedArtifactId
       ? (context.plans.find((plan) => plan.id === selectedArtifactId) ?? null)
@@ -523,6 +532,23 @@ export function ArtifactWorkbench({
 
     /** 해석할 형제 record가 없으면 현재 선택과 URL을 그대로 유지한다. */
     if (!wireframe) {
+      return;
+    }
+
+    /** Design preview에서는 같은 Asset을 사용한 대상 Wireframe의 형제 Design을 선택한다. */
+    if (selectedDesign) {
+      const siblingDesign = context.designs.find(
+        (candidate) =>
+          candidate.assetId === selectedDesign.assetId &&
+          candidate.wireframeId === wireframe.id,
+      );
+
+      /** 형제 Design이 없으면 현재 Design 선택과 deep link를 그대로 유지한다. */
+      if (!siblingDesign) {
+        return;
+      }
+
+      selectEntry({ record: siblingDesign, relation: "designs" });
       return;
     }
 
@@ -812,103 +838,118 @@ export function ArtifactWorkbench({
               </select>
             </label>
           </div>
-          <div
-            aria-hidden="true"
-            className="grid h-[34px] grid-cols-[88px_minmax(180px,1fr)_104px_72px] items-center gap-3 border-b border-line px-4 font-mono text-[10px] tracking-[0.06em] text-subtle uppercase max-lg:grid-cols-[76px_minmax(160px,1fr)_90px]"
-          >
-            <span>Type</span>
-            <span>Title</span>
-            <span>Status</span>
-            <span className="max-lg:hidden">Links</span>
-          </div>
-          <div
-            aria-label="Artifact records"
-            className="min-h-0 flex-1 overflow-auto"
-            role="listbox"
-          >
-            {visibleEntries.map((entry) => {
-              const config = relationConfig[entry.relation];
-              const status = getStatus(entry, context);
-              const entryRelations = getRelations(entry, context);
-              const isSelected = getEntryKey(entry) === selectedKey;
-              const wireframeHierarchy = getWireframeHierarchy(
-                entry,
-                wireframesById,
-              );
+          <div className="min-h-0 flex-1 overflow-auto">
+            <div
+              aria-hidden="true"
+              className="sticky top-0 z-10 grid h-[34px] min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px] items-center gap-3 border-b border-line bg-surface-muted px-4 font-mono text-[10px] tracking-[0.06em] text-subtle uppercase"
+            >
+              <span>Type</span>
+              <span>No</span>
+              <span>Title</span>
+              <span>Status</span>
+              <span>Links</span>
+              <span>Updated</span>
+            </div>
+            <div aria-label="Artifact records" role="listbox">
+              {visibleEntries.map((entry) => {
+                const config = relationConfig[entry.relation];
+                const status = getStatus(entry, context);
+                const entryRelations = getRelations(entry, context);
+                const secondaryMeta = getEntrySecondaryMeta(entry, context);
+                const isSelected = getEntryKey(entry) === selectedKey;
+                const updatedAt = formatDashboardDate(entry.record.updatedAt);
+                /** 시각적 header가 숨겨져도 각 option에서 전체 칼럼 의미를 전달한다. */
+                const accessibleName = [
+                  `Type ${config.label}`,
+                  `No ${entry.record.id}`,
+                  `Title ${entry.record.title}`,
+                  `Status ${status ?? "None"}`,
+                  `Links ${entryRelations.length}`,
+                  `Updated ${updatedAt}`,
+                ].join(", ");
+                const wireframeHierarchy = getWireframeHierarchy(
+                  entry,
+                  wireframesById,
+                );
 
-              return (
-                <button
-                  key={getEntryKey(entry)}
-                  aria-describedby={
-                    wireframeHierarchy?.parent
-                      ? `wireframe-parent-${entry.record.id}`
-                      : undefined
-                  }
-                  aria-label={
-                    wireframeHierarchy?.parent
-                      ? entry.record.title
-                      : undefined
-                  }
-                  aria-selected={isSelected}
-                  className="grid min-h-14 w-full grid-cols-[88px_minmax(180px,1fr)_104px_72px] items-center gap-3 border-0 border-b border-line bg-transparent px-4 text-left text-ink hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_2px_0_var(--color-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none max-lg:grid-cols-[76px_minmax(160px,1fr)_90px]"
-                  onClick={() => selectEntry(entry)}
-                  role="option"
-                  type="button"
-                >
-                  <span className="inline-flex items-center gap-[7px] font-mono text-[10px] text-muted">
+                return (
+                  <button
+                    key={getEntryKey(entry)}
+                    aria-describedby={
+                      wireframeHierarchy?.parent
+                        ? `wireframe-parent-${entry.record.id}`
+                        : undefined
+                    }
+                    aria-label={accessibleName}
+                    aria-selected={isSelected}
+                    className="grid min-h-14 w-full min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px] items-center gap-3 border-0 border-b border-line bg-transparent px-4 text-left text-ink hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_2px_0_var(--color-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none"
+                    onClick={() => selectEntry(entry)}
+                    role="option"
+                    type="button"
+                  >
+                    <span className="inline-flex items-center gap-[7px] font-mono text-[10px] text-muted">
+                      <span
+                        aria-hidden="true"
+                        className={`size-[7px] rounded-[2px] ${config.dotClassName}`}
+                      />
+                      {config.label}
+                    </span>
+                    <span className="font-mono text-[11px] text-subtle">
+                      {entry.record.id}
+                    </span>
                     <span
-                      aria-hidden="true"
-                      className={`size-[7px] rounded-[2px] ${config.dotClassName}`}
-                    />
-                    {config.label}
-                  </span>
-                  <span
-                    className={
-                      wireframeHierarchy?.depth === 1
-                        ? "relative min-w-0 pl-4"
-                        : "min-w-0"
-                    }
-                    data-wireframe-depth={wireframeHierarchy?.depth}
-                  >
-                    {wireframeHierarchy?.parent ? (
-                      <>
-                        <span
-                          aria-hidden="true"
-                          className="absolute top-0 left-0 text-subtle"
-                          data-wireframe-branch
-                        >
-                          └
-                        </span>
-                        <span
-                          id={`wireframe-parent-${entry.record.id}`}
-                          className="sr-only"
-                        >
-                          Parent wireframe: {wireframeHierarchy.parent.title}
-                        </span>
-                      </>
-                    ) : null}
-                    <strong className="block truncate text-[13px]">
-                      {entry.record.title}
-                    </strong>
-                    <small className="mt-1 block truncate font-mono text-[10px] text-subtle">
-                      {getEntryMeta(entry, context)}
-                    </small>
-                  </span>
-                  <span
-                    className={
-                      status
-                        ? getStatusClassName(status)
-                        : "inline-flex w-max px-[7px] py-[3px] font-mono text-[10px] text-subtle"
-                    }
-                  >
-                    {status ?? "—"}
-                  </span>
-                  <span className="font-mono text-[11px] text-subtle max-lg:hidden">
-                    {entryRelations.length}
-                  </span>
-                </button>
-              );
-            })}
+                      className={
+                        wireframeHierarchy?.depth === 1
+                          ? "relative min-w-0 pl-4"
+                          : "min-w-0"
+                      }
+                      data-wireframe-depth={wireframeHierarchy?.depth}
+                    >
+                      {wireframeHierarchy?.parent ? (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="absolute top-0 left-0 text-subtle"
+                            data-wireframe-branch
+                          >
+                            └
+                          </span>
+                          <span
+                            id={`wireframe-parent-${entry.record.id}`}
+                            className="sr-only"
+                          >
+                            Parent wireframe: {wireframeHierarchy.parent.title}
+                          </span>
+                        </>
+                      ) : null}
+                      <strong className="block truncate text-[13px]">
+                        {entry.record.title}
+                      </strong>
+                      {secondaryMeta ? (
+                        <small className="mt-1 block truncate font-mono text-[10px] text-subtle">
+                          {secondaryMeta}
+                        </small>
+                      ) : null}
+                    </span>
+                    <span
+                      className={
+                        status
+                          ? getStatusClassName(status)
+                          : "inline-flex w-max px-[7px] py-[3px] font-mono text-[10px] text-subtle"
+                      }
+                    >
+                      {status ?? "—"}
+                    </span>
+                    <span className="font-mono text-[11px] text-subtle">
+                      {entryRelations.length}
+                    </span>
+                    <span className="truncate font-mono text-[10px] text-subtle">
+                      {updatedAt}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {visibleEntries.length === 0 ? (
             <div className="px-6 py-14 text-center text-muted">
@@ -989,6 +1030,18 @@ export function ArtifactWorkbench({
                   <dd className="m-0 text-ink">
                     {relationConfig[selectedEntry.relation].label}
                   </dd>
+                  {selectedDesign ? (
+                    <>
+                      <dt className="text-subtle">Asset ID</dt>
+                      <dd className="m-0 font-mono text-ink">
+                        {selectedDesign.assetId}
+                      </dd>
+                      <dt className="text-subtle">Wireframe ID</dt>
+                      <dd className="m-0 font-mono text-ink">
+                        {selectedDesign.wireframeId}
+                      </dd>
+                    </>
+                  ) : null}
                   {selectedWireframe ? (
                     <>
                       <dt className="text-subtle">Index</dt>

@@ -11,24 +11,28 @@ description: 문서 DB를 관리, 생성, 수정 검색 등 문서에 관한 모
 
 - Body 예시1
 
-```
-"jsonrpc": "2.0",
-"id": 1,
-"method" : "tools/list",
-"params" : {}
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}
 ```
 
 - Body 예시2
 
-```
-"jsonrpc": "2.0",
-"id": 2,
-"method": "tools/call",
-"params" : {
-    "name" : "get_project",
-    "arguments" : {
-        "projectId" : 1
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "get_project",
+    "arguments": {
+      "projectId": 1
     }
+  }
 }
 ```
 
@@ -59,6 +63,9 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | create_wireframe | 와이어 문서 프레임 |
 > | create_asset | 디자인 에셋 문서 생성 |
 > | create_domain | 도메인 문서 생성 |
+> | create_architecturePlan | 아키텍처 계획 문서 생성 |
+> | create_workLog | 작업 로그 문서 생성 |
+> | create_request | 요구사항 문서 생성 |
 
 **_업데이트용 tool 목록_**
 

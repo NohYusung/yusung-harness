@@ -9,6 +9,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
 import { PrismaService } from "../prisma/prisma.service";
+import { ArchitecturePlansService } from "../services/architecture-plans/architecture-plans.service";
 import { ArchitecturesService } from "../services/architectures/architectures.service";
 import { AssetsService } from "../services/assets/assets.service";
 import { DesignsService } from "../services/designs/designs.service";
@@ -16,12 +17,20 @@ import { DomainsService } from "../services/domains/domains.service";
 import { DraftsService } from "../services/drafts/drafts.service";
 import { PlansService } from "../services/plans/plans.service";
 import { ProjectsService } from "../services/projects/projects.service";
+import { RequestsService } from "../services/requests/requests.service";
 import { ReviewsService } from "../services/reviews/reviews.service";
 import { TasksService } from "../services/tasks/tasks.service";
 import { WireframesService } from "../services/wireframes/wireframes.service";
+import { WorklogsService } from "../services/worklogs/worklogs.service";
 
 const projectIdSchema = z.number().int().positive().describe("Project ID");
 const domainIdSchema = z.number().int().positive().describe("Domain ID");
+const architecturePlanIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("Architecture Plan ID");
+const requestIdSchema = z.number().int().positive().describe("Request ID");
 const wireframeIdSchema = z.number().int().positive().describe("Wireframe ID");
 const assetIdSchema = z.number().int().positive().describe("Asset ID");
 const designIdSchema = z.number().int().positive().describe("Design ID");
@@ -104,13 +113,16 @@ export class McpService {
     private readonly draftsService: DraftsService,
     private readonly domainsService: DomainsService,
     private readonly architecturesService: ArchitecturesService,
+    private readonly architecturePlansService: ArchitecturePlansService,
     private readonly wireframesService: WireframesService,
     private readonly assetsService: AssetsService,
     private readonly designsService: DesignsService,
     private readonly reviewsService: ReviewsService,
+    private readonly requestsService: RequestsService,
+    private readonly worklogsService: WorklogsService,
   ) {}
 
-  /** 14개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 19개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -138,7 +150,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 14개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 19개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -455,6 +467,118 @@ export class McpService {
         },
       },
       (input) => this.execute(() => this.assetsService.update(input)),
+    );
+
+    /** 프로젝트에 text 작업 내역을 생성한다. */
+    server.registerTool(
+      "create_workLog",
+      {
+        title: "Create Work Log",
+        description: "Creates a text Work Log for a Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          title: z.string().trim().min(1),
+          content: z.string().min(1),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.worklogsService.create(input)),
+    );
+
+    /** 프로젝트에 PENDING 상태의 text 작업 요청을 생성한다. */
+    server.registerTool(
+      "create_request",
+      {
+        title: "Create Request",
+        description: "Creates a pending text Request for a Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          title: z.string().trim().min(1),
+          content: z.string().min(1),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.requestsService.create(input)),
+    );
+
+    /** 프로젝트에 HTML 아키텍처 설계 계획을 생성한다. */
+    server.registerTool(
+      "create_architecturePlan",
+      {
+        title: "Create Architecture Plan",
+        description: "Creates an HTML Architecture Plan for a Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          title: z.string().trim().min(1),
+          content: htmlSchema,
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) =>
+        this.execute(() => this.architecturePlansService.create(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 HTML 아키텍처 설계 계획을 교체한다. */
+    server.registerTool(
+      "update_architecturePlan",
+      {
+        title: "Update Architecture Plan",
+        description:
+          "Replaces the title and HTML content of an Architecture Plan in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          architecturePlanId: architecturePlanIdSchema,
+          title: z.string().trim().min(1),
+          content: htmlSchema,
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) =>
+        this.execute(() => this.architecturePlansService.update(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 작업 요청의 내용과 진행 상태를 교체한다. */
+    server.registerTool(
+      "update_request",
+      {
+        title: "Update Request",
+        description:
+          "Replaces the title, content, and status of a Request in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          requestId: requestIdSchema,
+          title: z.string().trim().min(1),
+          content: z.string().min(1),
+          status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.requestsService.update(input)),
     );
   }
 

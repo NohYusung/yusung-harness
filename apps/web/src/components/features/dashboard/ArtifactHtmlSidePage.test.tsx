@@ -152,6 +152,63 @@ describe("ArtifactHtmlSidePage", () => {
     previewFrame.remove();
   });
 
+  it("일반 section hash link도 native navigation을 막고 iframe hash만 갱신한다", () => {
+    const design = createDesign({
+      html: '<!doctype html><html><head><title>Section preview</title></head><body><a href="#result">Result</a><section id="result">Outcome</section></body></html>',
+      title: "Section hash bridge document",
+    });
+
+    render(
+      <ArtifactHtmlSidePage
+        onClose={vi.fn()}
+        selection={{ kind: "Design", record: design }}
+      />,
+    );
+
+    const srcdoc =
+      screen
+        .getByTitle("Section hash bridge document HTML preview")
+        .getAttribute("srcdoc") ?? "";
+    const srcdocDocument = new DOMParser().parseFromString(srcdoc, "text/html");
+    const navigationBridge = Array.from(srcdocDocument.scripts).find((script) =>
+      script.textContent.includes('a.route-link[href^="#/"]'),
+    )?.textContent;
+    expect(navigationBridge).toBeTruthy();
+
+    const previewFrame = document.createElement("iframe");
+    document.body.append(previewFrame);
+    const previewWindow = previewFrame.contentWindow as
+      | (Window & typeof globalThis)
+      | null;
+
+    if (!previewWindow || !navigationBridge) {
+      throw new Error("JSDOM iframe preview runtime was not initialized");
+    }
+
+    previewWindow.location.hash = "#intro";
+    previewWindow.document.body.innerHTML =
+      '<a href="#result">Result</a><section id="result">Outcome</section>';
+    previewWindow.eval(navigationBridge);
+
+    const parentUrlBeforeClick = window.location.href;
+    const topUrlBeforeClick = previewWindow.top?.location.href;
+    const sectionLink = previewWindow.document.querySelector("a");
+    const navigationAllowed = sectionLink?.dispatchEvent(
+      new previewWindow.MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+
+    expect(navigationAllowed).toBe(false);
+    expect(previewWindow.location.hash).toBe("#result");
+    expect(window.location.href).toBe(parentUrlBeforeClick);
+    expect(previewWindow.parent.location.href).toBe(parentUrlBeforeClick);
+    expect(previewWindow.top?.location.href).toBe(topUrlBeforeClick);
+
+    previewFrame.remove();
+  });
+
   it("wireframe index가 있는 상대 HTML 링크는 iframe 이동을 막고 부모에 navigation을 요청한다", () => {
     const design = createDesign({
       html: '<!doctype html><html><head><title>Wireframe navigation</title></head><body><a data-wireframe-index="1.2" href="./projects.html">Projects</a></body></html>',

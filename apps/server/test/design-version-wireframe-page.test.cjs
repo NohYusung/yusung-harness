@@ -53,7 +53,10 @@ test("Design version과 Wireframe page 식별자는 schema의 복합 unique 계�
   const wireframe = modelBody(schema, "Wireframe");
 
   assert.match(design, /^\s*version\s+Int\s+@default\(1\)\s*$/m);
-  assert.match(design, /@@unique\(\[projectId,\s*assetId,\s*version\]\)/);
+  assert.match(
+    design,
+    /@@unique\(\[wireframeId,\s*assetId,\s*version\]\)/,
+  );
   assert.match(wireframe, /^\s*page\s+String\s+@default\(cuid\(\)\)\s*$/m);
   assert.match(wireframe, /@@unique\(\[projectId,\s*page,\s*version\]\)/);
   assert.doesNotMatch(schema, /\bAGENT\b/);

@@ -39,6 +39,12 @@ const domains = [
     orderField: "updatedAt",
   },
   {
+    resource: "architecture-plans",
+    model: "architecturePlan",
+    className: "ArchitecturePlans",
+    orderField: "updatedAt",
+  },
+  {
     resource: "tasks",
     model: "task",
     className: "Tasks",
@@ -68,6 +74,18 @@ const domains = [
     className: "Reviews",
     orderField: "updatedAt",
   },
+  {
+    resource: "requests",
+    model: "request",
+    className: "Requests",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "worklogs",
+    model: "workLog",
+    className: "Worklogs",
+    orderField: "updatedAt",
+  },
 ];
 
 const controllers = [
@@ -79,6 +97,9 @@ const controllers = [
   },
   ...domains.map(({ resource, className }) => ({
     resource,
+    serviceProperty: resource.replace(/-([a-z])/g, (_, letter) =>
+      letter.toUpperCase(),
+    ),
     controllerFile: `${resource}.controller.ts`,
     controllerClass: `${className}Controller`,
     route:
@@ -190,6 +211,7 @@ test("프로젝트와 산출물 HTTP controller는 읽기 전용 목록 API를 �
     controllerFile,
     controllerClass,
     route,
+    serviceProperty,
   } of controllers) {
     const controller = source(`services/${resource}/${controllerFile}`);
 
@@ -227,7 +249,7 @@ test("프로젝트와 산출물 HTTP controller는 읽기 전용 목록 API를 �
       } else if (resource !== "plans") {
         assert.match(
           controller,
-          new RegExp(`this\\.${resource}Service\\.list\\(\\s*\\{\\s*projectId\\s*\\}\\s*\\)`),
+          new RegExp(`this\\.${serviceProperty}Service\\.list\\(\\s*\\{\\s*projectId\\s*\\}\\s*\\)`),
         );
       }
     }
@@ -261,12 +283,38 @@ test("resource module과 AppModule은 목록 controller를 등록한다", () => 
     "TasksModule",
     "DomainsModule",
     "ArchitecturesModule",
+    "ArchitecturePlansModule",
     "WireframesModule",
     "AssetsModule",
     "DesignsModule",
     "ReviewsModule",
+    "RequestsModule",
+    "WorklogsModule",
   ]) {
     assert.match(appModule, new RegExp(`\\b${moduleName}\\b`));
+  }
+});
+
+test("Requests와 Worklogs module은 목록 controller와 service 의존성을 공개한다", () => {
+  for (const { resource, className } of domains.filter(({ resource }) =>
+    ["requests", "worklogs"].includes(resource),
+  )) {
+    const moduleSource = source(`services/${resource}/${resource}.module.ts`);
+
+    assert.doesNotMatch(moduleSource, /\bAGENT\b/);
+    assert.match(moduleSource, /imports:\s*\[\s*PrismaModule\s*,\s*ProjectsModule\s*\]/);
+    assert.match(
+      moduleSource,
+      new RegExp(`controllers:\\s*\\[\\s*${className}Controller\\s*\\]`),
+    );
+    assert.match(
+      moduleSource,
+      new RegExp(`providers:\\s*\\[\\s*${className}Service\\s*\\]`),
+    );
+    assert.match(
+      moduleSource,
+      new RegExp(`exports:\\s*\\[\\s*${className}Service\\s*\\]`),
+    );
   }
 });
 
@@ -348,6 +396,7 @@ test("일반 목록 service는 project 소유권을 검증하고 각 table을 �
       new RegExp(`this\\.prisma\\.${model}\\.findMany\\s*\\(`),
     );
 
+    assert.doesNotMatch(service, /\bAGENT\b/);
     assert.match(
       service,
       /async\s+list\s*\(\s*\{\s*projectId\s*\}\s*:\s*\{\s*projectId:\s*number\s*\}\s*\)/,

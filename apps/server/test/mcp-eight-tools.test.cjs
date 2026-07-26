@@ -28,6 +28,11 @@ const expectedToolNames = [
   "update_wireframe",
   "create_asset",
   "update_asset",
+  "create_workLog",
+  "create_request",
+  "create_architecturePlan",
+  "update_architecturePlan",
+  "update_request",
 ];
 
 const removedToolNames = [
@@ -199,6 +204,32 @@ const createHarness = () => {
     reviewsService: {
       list: listService("reviewsService", "reviews"),
     },
+    worklogsService: {
+      create: async (input) => {
+        calls.push(["worklogsService", "create", input]);
+        return result("worklogsService", "create", input);
+      },
+    },
+    requestsService: {
+      create: async (input) => {
+        calls.push(["requestsService", "create", input]);
+        return result("requestsService", "create", input);
+      },
+      update: async (input) => {
+        calls.push(["requestsService", "update", input]);
+        return result("requestsService", "update", input);
+      },
+    },
+    architecturePlansService: {
+      create: async (input) => {
+        calls.push(["architecturePlansService", "create", input]);
+        return result("architecturePlansService", "create", input);
+      },
+      update: async (input) => {
+        calls.push(["architecturePlansService", "update", input]);
+        return result("architecturePlansService", "update", input);
+      },
+    },
   };
   const McpService = loadMcpService();
   const service = Object.assign(new McpService(), services);
@@ -265,7 +296,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 14개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 19개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -273,10 +304,226 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 14개 도구와 �
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 14);
+  assert.equal(tools.size, 19);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
+  }
+});
+
+const workflowUpdateToolCases = [
+  {
+    name: "update_architecturePlan",
+    service: "architecturePlansService",
+    idField: "architecturePlanId",
+    input: {
+      projectId: 17,
+      architecturePlanId: 31,
+      title: "Updated MCP architecture plan",
+      content:
+        "<!doctype html><html><head></head><body>Updated architecture plan</body></html>",
+    },
+  },
+  {
+    name: "update_request",
+    service: "requestsService",
+    idField: "requestId",
+    input: {
+      projectId: 17,
+      requestId: 41,
+      title: "Updated dashboard request",
+      content: "Filter project artifacts by type and status.",
+      status: "IN_PROGRESS",
+    },
+  },
+];
+
+test("workflow 수정 도구는 schema와 annotations를 지키고 domain service 결과를 직렬화한다", async (t) => {
+  for (const toolCase of workflowUpdateToolCases) {
+    await t.test(toolCase.name, async () => {
+      const harness = createHarness();
+      const response = await harness.invoke(toolCase.name, toolCase.input);
+      const tool = harness.tools.get(toolCase.name);
+      const expectedFields =
+        toolCase.name === "update_request"
+          ? ["projectId", "requestId", "title", "content", "status"]
+          : ["projectId", "architecturePlanId", "title", "content"];
+
+      assert.deepEqual(harness.calls, [
+        [toolCase.service, "update", toolCase.input],
+      ]);
+      assert.deepEqual(response, {
+        service: toolCase.service,
+        method: "update",
+        input: toolCase.input,
+      });
+      assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), expectedFields);
+      assert.deepEqual(tool.definition.annotations, {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      });
+
+      for (const invalidId of [0, -1, 1.5, "17"]) {
+        assert.equal(
+          tool.definition.inputSchema.safeParse({
+            ...toolCase.input,
+            projectId: invalidId,
+          }).success,
+          false,
+        );
+        assert.equal(
+          tool.definition.inputSchema.safeParse({
+            ...toolCase.input,
+            [toolCase.idField]: invalidId,
+          }).success,
+          false,
+        );
+      }
+      const { [toolCase.idField]: _id, ...missingIdInput } = toolCase.input;
+      assert.equal(tool.definition.inputSchema.safeParse(missingIdInput).success, false);
+      assert.equal(
+        tool.definition.inputSchema.safeParse({
+          ...toolCase.input,
+          title: "   ",
+        }).success,
+        false,
+      );
+      assert.equal(
+        tool.definition.inputSchema.safeParse({
+          ...toolCase.input,
+          content: "",
+        }).success,
+        false,
+      );
+      assert.equal(
+        tool.definition.inputSchema.parse({
+          ...toolCase.input,
+          title: "  Updated workflow artifact  ",
+        }).title,
+        "Updated workflow artifact",
+      );
+
+      if (toolCase.name === "update_request") {
+        for (const status of ["PENDING", "IN_PROGRESS", "COMPLETED"]) {
+          assert.equal(
+            tool.definition.inputSchema.safeParse({
+              ...toolCase.input,
+              status,
+            }).success,
+            true,
+          );
+        }
+        assert.equal(
+          tool.definition.inputSchema.safeParse({
+            ...toolCase.input,
+            status: "CANCELLED",
+          }).success,
+          false,
+        );
+      } else {
+        assert.match(
+          tool.definition.inputSchema.shape.content.description,
+          /Complete HTML document/,
+        );
+      }
+    });
+  }
+});
+
+const workflowCreateToolCases = [
+  {
+    name: "create_workLog",
+    service: "worklogsService",
+    input: {
+      projectId: 17,
+      title: "Implementation completed",
+      content: "Added the requested MCP tools.",
+    },
+  },
+  {
+    name: "create_request",
+    service: "requestsService",
+    input: {
+      projectId: 17,
+      title: "Add dashboard filter",
+      content: "Filter project artifacts by type.",
+    },
+  },
+  {
+    name: "create_architecturePlan",
+    service: "architecturePlansService",
+    input: {
+      projectId: 17,
+      title: "MCP architecture plan",
+      content:
+        "<!doctype html><html><head></head><body>Architecture plan</body></html>",
+    },
+  },
+];
+
+test("workflow 생성 도구는 domain service create 결과를 직렬화한다", async (t) => {
+  for (const toolCase of workflowCreateToolCases) {
+    await t.test(toolCase.name, async () => {
+      const harness = createHarness();
+      const response = await harness.invoke(toolCase.name, toolCase.input);
+      const tool = harness.tools.get(toolCase.name);
+      assert.deepEqual(harness.calls, [
+        [toolCase.service, "create", toolCase.input],
+      ]);
+      assert.deepEqual(response, {
+        service: toolCase.service,
+        method: "create",
+        input: toolCase.input,
+      });
+      assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), [
+        "projectId",
+        "title",
+        "content",
+      ]);
+      assert.deepEqual(tool.definition.annotations, {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      });
+      assert.equal(
+        Object.hasOwn(tool.definition.inputSchema.shape, "status"),
+        false,
+        "Request status는 DB의 PENDING 기본값을 사용해야 한다",
+      );
+    });
+  }
+});
+
+test("workflow 생성 도구의 입력 schema는 ID와 비어 있지 않은 문자열을 검증한다", () => {
+  const { tools } = createHarness();
+
+  for (const toolCase of workflowCreateToolCases) {
+    const schema = tools.get(toolCase.name).definition.inputSchema;
+
+    for (const invalidProjectId of [0, -1, 1.5, "17"]) {
+      assert.equal(
+        schema.safeParse({
+          ...toolCase.input,
+          projectId: invalidProjectId,
+        }).success,
+        false,
+      );
+    }
+    assert.equal(
+      schema.safeParse({ ...toolCase.input, title: "   " }).success,
+      false,
+    );
+    assert.equal(
+      schema.safeParse({ ...toolCase.input, content: "" }).success,
+      false,
+    );
+    assert.equal(
+      schema.parse({ ...toolCase.input, title: "  Trimmed title  " }).title,
+      "Trimmed title",
+    );
   }
 });
 
@@ -1022,7 +1269,49 @@ test("실제 MCP update_asset과 update_design은 성공과 service 오류 응�
   }
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 14개 공개 계약을 따른다", async (t) => {
+test("실제 MCP workflow update는 성공과 service 오류 응답을 직렬화한다", async (t) => {
+  for (const toolCase of workflowUpdateToolCases) {
+    await t.test(toolCase.name, async (subtest) => {
+      const harness = await createSdkHarness();
+      subtest.after(() => harness.close());
+
+      const updated = parseSdkToolResult(
+        await harness.client.callTool({
+          name: toolCase.name,
+          arguments: toolCase.input,
+        }),
+      );
+
+      assert.deepEqual(updated, {
+        service: toolCase.service,
+        method: "update",
+        input: toolCase.input,
+      });
+      assert.deepEqual(harness.calls, [
+        [toolCase.service, "update", toolCase.input],
+      ]);
+
+      harness.services[toolCase.service].update = async () => {
+        throw new NotFoundException(`${toolCase.idField} 404 not found`);
+      };
+      const failure = await harness.client.callTool({
+        name: toolCase.name,
+        arguments: { ...toolCase.input, [toolCase.idField]: 404 },
+      });
+
+      assert.equal(failure.isError, true);
+      assert.deepEqual(JSON.parse(failure.content[0].text), {
+        error: {
+          code: "NotFoundException",
+          status: 404,
+          message: `${toolCase.idField} 404 not found`,
+        },
+      });
+    });
+  }
+});
+
+test("실제 MCP tools/list와 제거된 도구 호출도 19개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 

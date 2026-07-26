@@ -130,6 +130,71 @@ function renderWorkbench() {
   return { ...rendered, context, projects };
 }
 
+function renderPreviewNavigationWorkbench({
+  includeTargetDesign = true,
+  initialRelation = "designs",
+}: {
+  includeTargetDesign?: boolean;
+  initialRelation?: "designs" | "wireframes";
+} = {}) {
+  const sourceWireframe = createWireframe({
+    html: '<!doctype html><html><body><a data-wireframe-index="1.2" href="./target.html">Target</a></body></html>',
+    id: 160,
+    index: "1.1",
+    title: "Source wireframe",
+  });
+  const targetWireframe = createWireframe({
+    id: 161,
+    index: "1.2",
+    title: "Target wireframe",
+  });
+  const asset = createAsset({ id: 170, title: "Shared design asset" });
+  const sourceDesign = createDesign({
+    asset,
+    assetId: asset.id,
+    html: '<!doctype html><html><body><a data-wireframe-index="1.2" href="./target.html">Target</a></body></html>',
+    id: 180,
+    title: "Source design",
+    wireframe: sourceWireframe,
+    wireframeId: sourceWireframe.id,
+  });
+  const targetDesign = createDesign({
+    asset,
+    assetId: asset.id,
+    id: 181,
+    title: "Target sibling design",
+    wireframe: targetWireframe,
+    wireframeId: targetWireframe.id,
+  });
+  const context = createProjectContext({
+    assets: [asset],
+    designs: includeTargetDesign
+      ? [sourceDesign, targetDesign]
+      : [sourceDesign],
+    wireframes: [sourceWireframe, targetWireframe],
+  });
+  const projects = [createProjectSummary(context)];
+  const selectedArtifactId =
+    initialRelation === "designs" ? sourceDesign.id : sourceWireframe.id;
+  const rendered = render(
+    <Dashboard
+      activeRelation={initialRelation}
+      context={context}
+      projects={projects}
+      selectedArtifactId={selectedArtifactId}
+      selectedTaskId={null}
+    />,
+  );
+
+  return {
+    ...rendered,
+    sourceDesign,
+    sourceWireframe,
+    targetDesign,
+    targetWireframe,
+  };
+}
+
 function getMetadataContent(detailPane: HTMLElement): HTMLElement {
   const metadataLabel = within(detailPane).getByText("Record metadata");
   const metadataContent = metadataLabel.parentElement;
@@ -199,9 +264,61 @@ describe("Dashboard artifact workbench visual contract", () => {
       within(topbar).getByRole("navigation", { name: "Mobile panes" }),
     ).toBeInTheDocument();
 
-    for (const column of ["Type", "Title", "Status", "Links"]) {
-      expect(screen.getAllByText(column).length).toBeGreaterThan(0);
+    const recordsHeader = recordsPane.previousElementSibling;
+    if (!(recordsHeader instanceof HTMLElement)) {
+      throw new Error("Artifact records column header is missing");
     }
+
+    const headerColumns = Array.from(recordsHeader.children);
+    expect(headerColumns.map((column) => column.textContent)).toEqual([
+      "Type",
+      "No",
+      "Title",
+      "Status",
+      "Links",
+      "Updated",
+    ]);
+    for (const column of headerColumns) {
+      expect(column).not.toHaveClass("max-lg:hidden");
+    }
+    expect(recordsHeader.parentElement).toHaveClass("overflow-auto");
+    expect(recordsHeader).toHaveClass("min-w-[740px]");
+
+    const currentPlanRow = within(recordsPane).getByRole("option", {
+      name: /MCP-only document pipeline/,
+    });
+    expect(currentPlanRow).toHaveAccessibleName(
+      "Type Plan, No 10, Title MCP-only document pipeline, Status Current, Links 2, Updated 2026년 7월 18일 오전 11:00",
+    );
+    const rowColumns = Array.from(currentPlanRow.children);
+    expect(rowColumns).toHaveLength(6);
+    expect(currentPlanRow).toHaveClass("min-w-[740px]");
+    expect(rowColumns[0]).toHaveTextContent(/^Plan$/);
+    expect(rowColumns[1]).toHaveTextContent(/^10$/);
+    expect(rowColumns[2]).toHaveTextContent(/MCP-only document pipeline/);
+    expect(rowColumns[2]?.querySelector("small")).toHaveTextContent(
+      "v4 · 1/2 Tasks complete",
+    );
+    expect(rowColumns[3]).toHaveTextContent(/^Current$/);
+    expect(rowColumns[4]).toHaveTextContent(/^2$/);
+    expect(rowColumns[5]).toHaveTextContent(
+      /^2026년 7월 18일 오전 11:00$/,
+    );
+    for (const column of rowColumns) {
+      expect(column).not.toHaveClass("max-lg:hidden");
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: /Drafts/ }));
+    const draftRow = within(recordsPane).getByRole("option", {
+      name: /Dashboard information model/,
+    });
+    const draftColumns = Array.from(draftRow.children);
+    expect(draftColumns[1]).toHaveTextContent(/^30$/);
+    expect(draftColumns[2]).toHaveTextContent(/^Dashboard information model$/);
+    expect(draftColumns[2]?.querySelector("small")).toBeNull();
+    expect(draftColumns[5]).toHaveTextContent(
+      /^2026년 7월 18일 오전 11:00$/,
+    );
   });
 
   it("desktop detail pane을 닫아 Records를 확장하고 같은 또는 다른 record 선택으로 다시 연다", () => {
@@ -574,6 +691,91 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
   });
 
+  it("Design의 상대 HTML navigation은 같은 Asset의 대상 Wireframe Design을 선택한다", () => {
+    const { sourceDesign, targetDesign, targetWireframe } =
+      renderPreviewNavigationWorkbench();
+    const sourcePreview = screen.getByTitle(
+      `${sourceDesign.title} HTML preview`,
+    ) as HTMLIFrameElement;
+
+    expect(sourcePreview).toHaveAttribute(
+      "srcdoc",
+      expect.stringContaining(
+        `data-wireframe-index="${targetWireframe.index}"`,
+      ),
+    );
+    fireEvent(
+      window,
+      new MessageEvent("message", {
+        data: {
+          type: "YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE",
+          wireframeIndex: targetWireframe.index,
+        },
+        source: sourcePreview.contentWindow,
+      }),
+    );
+
+    expect(
+      screen.getByRole("complementary", { name: targetDesign.title }),
+    ).toBeInTheDocument();
+    expect(routerReplace).toHaveBeenLastCalledWith(
+      `/projects/1?type=designs&id=${targetDesign.id}`,
+      { scroll: false },
+    );
+  });
+
+  it("Wireframe의 상대 HTML navigation은 기존 대상 Wireframe 선택을 유지한다", () => {
+    const { sourceWireframe, targetWireframe } =
+      renderPreviewNavigationWorkbench({ initialRelation: "wireframes" });
+    const sourcePreview = screen.getByTitle(
+      `${sourceWireframe.title} HTML preview`,
+    ) as HTMLIFrameElement;
+
+    fireEvent(
+      window,
+      new MessageEvent("message", {
+        data: {
+          type: "YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE",
+          wireframeIndex: targetWireframe.index,
+        },
+        source: sourcePreview.contentWindow,
+      }),
+    );
+
+    expect(
+      screen.getByRole("complementary", { name: targetWireframe.title }),
+    ).toBeInTheDocument();
+    expect(routerReplace).toHaveBeenLastCalledWith(
+      `/projects/1?type=wireframes&id=${targetWireframe.id}`,
+      { scroll: false },
+    );
+  });
+
+  it("대상 Wireframe의 형제 Design이 없으면 현재 Design과 URL을 유지한다", () => {
+    const { sourceDesign, targetWireframe } = renderPreviewNavigationWorkbench({
+      includeTargetDesign: false,
+    });
+    const sourcePreview = screen.getByTitle(
+      `${sourceDesign.title} HTML preview`,
+    ) as HTMLIFrameElement;
+
+    fireEvent(
+      window,
+      new MessageEvent("message", {
+        data: {
+          type: "YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE",
+          wireframeIndex: targetWireframe.index,
+        },
+        source: sourcePreview.contentWindow,
+      }),
+    );
+
+    expect(
+      screen.getByRole("complementary", { name: sourceDesign.title }),
+    ).toBeInTheDocument();
+    expect(routerReplace).not.toHaveBeenCalled();
+  });
+
   it("Cmd/Ctrl+K, Escape, relation/status filter로 현재 목록을 좁힌다", () => {
     const { context, projects, rerender } = renderWorkbench();
 
@@ -668,6 +870,53 @@ describe("Dashboard artifact workbench visual contract", () => {
       within(detailPane).queryByRole("tabpanel"),
     ).not.toBeInTheDocument();
     expect(document.querySelector("#relations-panel")).toBeNull();
+  });
+
+  it("Design Metadata에 연결된 Asset ID와 Wireframe ID만 표시한다", () => {
+    renderWorkbench();
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
+    fireEvent.click(
+      within(records).getByRole("option", {
+        name: /Workbench production UI/,
+      }),
+    );
+
+    let detailPane = screen.getByRole("complementary", {
+      name: "Workbench production UI",
+    });
+    let metadataContent = getMetadataContent(detailPane);
+    const assetIdLabel = within(metadataContent).getByText("Asset ID", {
+      selector: "dt",
+    });
+    const wireframeIdLabel = within(metadataContent).getByText(
+      "Wireframe ID",
+      { selector: "dt" },
+    );
+
+    expect(assetIdLabel.nextElementSibling).toHaveTextContent(/^70$/);
+    expect(wireframeIdLabel.nextElementSibling).toHaveTextContent(/^60$/);
+
+    fireEvent.click(screen.getByRole("button", { name: /Assets/ }));
+    fireEvent.click(
+      within(records).getByRole("option", {
+        name: /Workbench interface tokens/,
+      }),
+    );
+
+    detailPane = screen.getByRole("complementary", {
+      name: "Workbench interface tokens",
+    });
+    metadataContent = getMetadataContent(detailPane);
+    expect(
+      within(metadataContent).queryByText("Asset ID", { selector: "dt" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(metadataContent).queryByText("Wireframe ID", {
+        selector: "dt",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it.each([
@@ -879,6 +1128,13 @@ describe("Dashboard artifact workbench visual contract", () => {
     const childRow = within(records).getByRole("option", {
       name: /Case study detail/,
     });
+    expect(childRow).toHaveAccessibleName(
+      "Type Wireframe, No 631, Title Case study detail, Status None, Links 0, Updated 2026년 7월 18일 오전 11:00",
+    );
+    expect(childRow).toHaveAttribute(
+      "aria-describedby",
+      `wireframe-parent-${childWireframe.id}`,
+    );
 
     expect(
       parentRow.compareDocumentPosition(childRow) &

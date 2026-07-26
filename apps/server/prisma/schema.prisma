@@ -19,20 +19,29 @@ enum TaskStatus {
   COMPLETED
 }
 
+enum RequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 model Project {
-  id            Int                 @id @default(autoincrement())
-  title         String
-  description   String
-  repoPaths     ProjectRepository[]
-  plans         Plan[]
-  tasks         Task[]
-  domains       Domain[]
-  wireframes    Wireframe[]
-  architectures Architecture[]
-  drafts        Draft[]
-  assets        Asset[]
-  designs       Design[]
-  reviews       Review[]
+  id                Int                 @id @default(autoincrement())
+  title             String
+  description       String
+  repoPaths         ProjectRepository[]
+  plans             Plan[]
+  tasks             Task[]
+  domains           Domain[]
+  wireframes        Wireframe[]
+  architectures     Architecture[]
+  architecturePlans ArchitecturePlan[]
+  drafts            Draft[]
+  assets            Asset[]
+  designs           Design[]
+  reviews           Review[]
+  requests          Request[]
+  workLogs          WorkLog[]
 }
 
 model ProjectRepository {
@@ -88,13 +97,54 @@ model Design {
   title       String
   version     Int       @default(1)
 
-  @@unique([projectId, assetId, version])
+  @@unique([wireframeId, assetId, version])
   @@index([projectId])
   @@index([assetId])
   @@index([wireframeId])
 }
 
+//실제 구현된 아키텍쳐 기준
 model Architecture {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title     String
+  content   String
+
+  @@index([projectId])
+}
+
+// 구현 전 아키텍처 설계 계획을 HTML 구조도로 저장한다.
+model ArchitecturePlan {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title     String
+  content   String
+
+  @@index([projectId])
+}
+
+// 프로젝트에 요청된 작업과 진행 상태를 저장한다.
+model Request {
+  id        Int           @id @default(autoincrement())
+  projectId Int
+  project   Project       @relation(fields: [projectId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  title     String
+  content   String
+  status    RequestStatus @default(PENDING)
+
+  @@index([projectId])
+}
+
+// 프로젝트에서 수행한 작업 내역을 저장한다.
+model WorkLog {
   id        Int      @id @default(autoincrement())
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])
