@@ -206,6 +206,22 @@ function getMetadataContent(detailPane: HTMLElement): HTMLElement {
   return metadataContent;
 }
 
+function dispatchPreviewScroll(
+  previewFrame: HTMLIFrameElement,
+  scrollTop: number,
+) {
+  fireEvent(
+    window,
+    new MessageEvent("message", {
+      data: {
+        type: "YUSUNG_HARNESS_HTML_PREVIEW_SCROLL",
+        scrollTop,
+      },
+      source: previewFrame.contentWindow,
+    }),
+  );
+}
+
 describe("Dashboard artifact workbench visual contract", () => {
   beforeEach(() => {
     routerReplace.mockClear();
@@ -870,6 +886,98 @@ describe("Dashboard artifact workbench visual contract", () => {
       within(detailPane).queryByRole("tabpanel"),
     ).not.toBeInTheDocument();
     expect(document.querySelector("#relations-panel")).toBeNull();
+  });
+
+  it("HTML preview scroll 상태에 따라 Metadata를 접고 preview 영역을 확장·복원한다", () => {
+    renderWorkbench();
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
+    fireEvent.click(
+      within(records).getByRole("option", {
+        name: /Workbench production UI/,
+      }),
+    );
+
+    const detailPane = screen.getByRole("complementary", {
+      name: "Workbench production UI",
+    });
+    const recordDetails = within(detailPane).getByRole("region", {
+      name: "Record details",
+    });
+    const metadataWrapper = recordDetails.querySelector<HTMLElement>(
+      "[data-record-metadata]",
+    );
+    const previewRegion = recordDetails.querySelector<HTMLElement>(
+      "[data-record-preview]",
+    );
+    const previewFrame = within(recordDetails).getByTitle(
+      "Workbench production UI HTML preview",
+    ) as HTMLIFrameElement;
+
+    expect(metadataWrapper).not.toBeNull();
+    expect(previewRegion).not.toBeNull();
+    expect(recordDetails).toHaveClass("grid", "h-full", "min-h-0");
+
+    dispatchPreviewScroll(previewFrame, 160);
+
+    expect(recordDetails).toHaveAttribute("data-metadata-collapsed", "true");
+    expect(metadataWrapper).toHaveAttribute("aria-hidden", "true");
+    expect(metadataWrapper).toHaveClass("max-h-0", "overflow-hidden");
+    expect(previewRegion).toHaveAttribute("data-preview-expanded", "true");
+    expect(previewRegion).toHaveClass("h-full", "min-h-0");
+
+    dispatchPreviewScroll(previewFrame, 0);
+
+    expect(recordDetails).toHaveAttribute("data-metadata-collapsed", "false");
+    expect(metadataWrapper).toHaveAttribute("aria-hidden", "false");
+    expect(metadataWrapper).not.toHaveClass("max-h-0");
+    expect(previewRegion).toHaveAttribute("data-preview-expanded", "false");
+  });
+
+  it("다른 HTML record를 선택하면 Metadata 접힘 상태를 초기화한다", () => {
+    const { sourceDesign, targetDesign } = renderPreviewNavigationWorkbench();
+    const sourcePreview = screen.getByTitle(
+      `${sourceDesign.title} HTML preview`,
+    ) as HTMLIFrameElement;
+
+    dispatchPreviewScroll(sourcePreview, 160);
+
+    let detailPane = screen.getByRole("complementary", {
+      name: sourceDesign.title,
+    });
+    expect(
+      within(detailPane).getByRole("region", { name: "Record details" }),
+    ).toHaveAttribute("data-metadata-collapsed", "true");
+
+    fireEvent.click(
+      screen.getByRole("option", {
+        name: new RegExp(targetDesign.title, "i"),
+      }),
+    );
+
+    detailPane = screen.getByRole("complementary", {
+      name: targetDesign.title,
+    });
+    const nextRecordDetails = within(detailPane).getByRole("region", {
+      name: "Record details",
+    });
+    const nextMetadataWrapper = nextRecordDetails.querySelector(
+      "[data-record-metadata]",
+    );
+    const nextPreviewRegion = nextRecordDetails.querySelector(
+      "[data-record-preview]",
+    );
+
+    expect(nextRecordDetails).toHaveAttribute(
+      "data-metadata-collapsed",
+      "false",
+    );
+    expect(nextMetadataWrapper).toHaveAttribute("aria-hidden", "false");
+    expect(nextPreviewRegion).toHaveAttribute(
+      "data-preview-expanded",
+      "false",
+    );
   });
 
   it("Design Metadata에 연결된 Asset ID와 Wireframe ID만 표시한다", () => {

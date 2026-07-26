@@ -1,7 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createDesign } from "@/test/fixtures/dashboard";
-import { ArtifactHtmlSidePage } from "./ArtifactHtmlSidePage";
+import {
+  ArtifactHtmlPreviewFrame,
+  ArtifactHtmlSidePage,
+} from "./ArtifactHtmlSidePage";
 
 describe("ArtifactHtmlSidePage", () => {
   it("주석의 fake head보다 앞선 실제 protected head를 한 번만 생성한다", () => {
@@ -81,6 +84,66 @@ describe("ArtifactHtmlSidePage", () => {
     ]) {
       expect(srcdoc).toContain(directive);
     }
+  });
+
+  it("scroll-state bridge를 주입하고 현재 iframe의 유효한 scrollTop만 전달한다", () => {
+    const onScrollStateChange = vi.fn();
+    const design = createDesign({
+      html: "<!doctype html><html><head><title>Scroll state</title></head><body><main>Scrollable preview</main></body></html>",
+      title: "Scroll state bridge document",
+    });
+
+    render(
+      <ArtifactHtmlPreviewFrame
+        onScrollStateChange={onScrollStateChange}
+        record={design}
+      />,
+    );
+
+    const preview = screen.getByTitle(
+      "Scroll state bridge document HTML preview",
+    ) as HTMLIFrameElement;
+    const srcdoc = preview.getAttribute("srcdoc") ?? "";
+
+    expect(srcdoc).toContain("YUSUNG_HARNESS_HTML_PREVIEW_SCROLL");
+    expect(srcdoc).toMatch(/addEventListener\(["']scroll["']/);
+    expect(srcdoc).toContain("scrollTop");
+
+    fireEvent(
+      window,
+      new MessageEvent("message", {
+        data: {
+          type: "YUSUNG_HARNESS_HTML_PREVIEW_SCROLL",
+          scrollTop: 160,
+        },
+        source: preview.contentWindow,
+      }),
+    );
+    fireEvent(
+      window,
+      new MessageEvent("message", {
+        data: {
+          type: "YUSUNG_HARNESS_HTML_PREVIEW_SCROLL",
+          scrollTop: 240,
+        },
+        source: window,
+      }),
+    );
+    for (const invalidScrollTop of [-1, "64", Number.NaN]) {
+      fireEvent(
+        window,
+        new MessageEvent("message", {
+          data: {
+            type: "YUSUNG_HARNESS_HTML_PREVIEW_SCROLL",
+            scrollTop: invalidScrollTop,
+          },
+          source: preview.contentWindow,
+        }),
+      );
+    }
+
+    expect(onScrollStateChange).toHaveBeenCalledTimes(1);
+    expect(onScrollStateChange).toHaveBeenCalledWith(160);
   });
 
   it("hash route link의 기본 navigation을 막고 iframe 내부 hash만 갱신하는 bridge를 주입한다", () => {

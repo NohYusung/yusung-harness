@@ -145,6 +145,7 @@ const defaultDetailPaneRatio = 30;
 const minimumDetailPaneRatio = 15;
 const maximumDetailPaneRatio = 70;
 const detailPaneResizeStep = 2;
+const metadataCollapseScrollThreshold = 120;
 
 /** Pointer와 keyboard 입력으로 계산한 viewport 비율을 15~70%로 제한한다. */
 function clampDetailPaneRatio(ratio: number): number {
@@ -337,15 +338,18 @@ function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
 /** HTML artifact의 Metadata에 sandbox preview와 Wireframe 전환 callback을 연결한다. */
 function WorkbenchHtmlPreview({
   onNavigateWireframe,
+  onScrollStateChange,
   record,
 }: {
   onNavigateWireframe: (target: HtmlPreviewWireframeNavigation) => void;
+  onScrollStateChange: (scrollTop: number) => void;
   record: HtmlArtifactDocument;
 }) {
   return (
-    <div className="h-[clamp(24rem,65vh,56rem)] overflow-hidden rounded-card">
+    <div className="h-full min-h-0 overflow-hidden rounded-card">
       <ArtifactHtmlPreviewFrame
         onNavigateWireframe={onNavigateWireframe}
+        onScrollStateChange={onScrollStateChange}
         record={record}
       />
     </div>
@@ -442,6 +446,7 @@ export function ArtifactWorkbench({
   const [detailPaneRatio, setDetailPaneRatio] = useState(
     defaultDetailPaneRatio,
   );
+  const [isHtmlMetadataCollapsed, setIsHtmlMetadataCollapsed] = useState(false);
 
   useSearchShortcut(searchRef);
 
@@ -494,6 +499,7 @@ export function ArtifactWorkbench({
 
   /** 선택 record와 deep link를 유지하면서 닫힌 detail pane을 다시 연다. */
   function selectEntry(entry: WorkbenchEntry) {
+    setIsHtmlMetadataCollapsed(false);
     setSelectedKey(getEntryKey(entry));
     setIsDetailPaneOpen(true);
     setMobilePane("detail");
@@ -553,6 +559,11 @@ export function ArtifactWorkbench({
     }
 
     selectEntry({ record: wireframe, relation: "wireframes" });
+  }
+
+  /** iframe 내부 scroll이 임계값을 넘으면 Metadata를 접고 최상단에서 복원한다. */
+  function updateHtmlPreviewScrollState(scrollTop: number) {
+    setIsHtmlMetadataCollapsed(scrollTop > metadataCollapseScrollThreshold);
   }
 
   /** Detail pane의 viewport 점유 비율을 15~70% 범위에서 갱신한다. */
@@ -1019,58 +1030,96 @@ export function ArtifactWorkbench({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-auto p-[18px]">
+          <div
+            className={`min-h-0 flex-1 p-[18px] ${selectedHtmlArtifact ? "overflow-hidden" : "overflow-auto"}`}
+          >
             {selectedEntry ? (
-              <section aria-label="Record details">
-                <p className="mt-0 mb-[9px] font-mono text-[10px] tracking-[0.1em] text-subtle uppercase">
+              <section
+                aria-label="Record details"
+                className={
+                  selectedHtmlArtifact
+                    ? "grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)]"
+                    : undefined
+                }
+                data-metadata-collapsed={
+                  selectedHtmlArtifact ? isHtmlMetadataCollapsed : undefined
+                }
+              >
+                <p
+                  aria-hidden={
+                    selectedHtmlArtifact ? isHtmlMetadataCollapsed : false
+                  }
+                  className={`mt-0 font-mono text-[10px] tracking-[0.1em] text-subtle uppercase ${
+                    selectedHtmlArtifact
+                      ? `overflow-hidden transition-[max-height,margin,opacity] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "mb-0 max-h-0 opacity-0" : "mb-[9px] max-h-8 opacity-100"}`
+                      : "mb-[9px]"
+                  }`}
+                >
                   Record metadata
                 </p>
-                <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-2.5 text-xs">
-                  <dt className="text-subtle">Type</dt>
-                  <dd className="m-0 text-ink">
-                    {relationConfig[selectedEntry.relation].label}
-                  </dd>
-                  {selectedDesign ? (
-                    <>
-                      <dt className="text-subtle">Asset ID</dt>
-                      <dd className="m-0 font-mono text-ink">
-                        {selectedDesign.assetId}
-                      </dd>
-                      <dt className="text-subtle">Wireframe ID</dt>
-                      <dd className="m-0 font-mono text-ink">
-                        {selectedDesign.wireframeId}
-                      </dd>
-                    </>
-                  ) : null}
-                  {selectedWireframe ? (
-                    <>
-                      <dt className="text-subtle">Index</dt>
-                      <dd className="m-0 font-mono text-ink">
-                        {selectedWireframe.index}
-                      </dd>
-                    </>
-                  ) : null}
-                  {selectedStatus ? (
-                    <>
-                      <dt className="text-subtle">Status</dt>
-                      <dd className="m-0 text-ink">{selectedStatus}</dd>
-                    </>
-                  ) : null}
-                  <dt className="text-subtle">Project</dt>
-                  <dd className="m-0 text-ink">{context.title}</dd>
-                  <dt className="text-subtle">Updated</dt>
-                  <dd className="m-0 font-mono text-ink">
-                    {formatDashboardDate(selectedEntry.record.updatedAt)}
-                  </dd>
-                  <dt className="text-subtle">Source</dt>
-                  <dd className="m-0 overflow-wrap-anywhere font-mono text-ink">
-                    {getSource(selectedEntry)}
-                  </dd>
-                </dl>
+                <div
+                  aria-hidden={
+                    selectedHtmlArtifact ? isHtmlMetadataCollapsed : false
+                  }
+                  className={
+                    selectedHtmlArtifact
+                      ? `overflow-hidden transition-[max-height,opacity] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "max-h-0 opacity-0" : "max-h-96 opacity-100"}`
+                      : undefined
+                  }
+                  data-record-metadata
+                >
+                  <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-2.5 text-xs">
+                    <dt className="text-subtle">Type</dt>
+                    <dd className="m-0 text-ink">
+                      {relationConfig[selectedEntry.relation].label}
+                    </dd>
+                    {selectedDesign ? (
+                      <>
+                        <dt className="text-subtle">Asset ID</dt>
+                        <dd className="m-0 font-mono text-ink">
+                          {selectedDesign.assetId}
+                        </dd>
+                        <dt className="text-subtle">Wireframe ID</dt>
+                        <dd className="m-0 font-mono text-ink">
+                          {selectedDesign.wireframeId}
+                        </dd>
+                      </>
+                    ) : null}
+                    {selectedWireframe ? (
+                      <>
+                        <dt className="text-subtle">Index</dt>
+                        <dd className="m-0 font-mono text-ink">
+                          {selectedWireframe.index}
+                        </dd>
+                      </>
+                    ) : null}
+                    {selectedStatus ? (
+                      <>
+                        <dt className="text-subtle">Status</dt>
+                        <dd className="m-0 text-ink">{selectedStatus}</dd>
+                      </>
+                    ) : null}
+                    <dt className="text-subtle">Project</dt>
+                    <dd className="m-0 text-ink">{context.title}</dd>
+                    <dt className="text-subtle">Updated</dt>
+                    <dd className="m-0 font-mono text-ink">
+                      {formatDashboardDate(selectedEntry.record.updatedAt)}
+                    </dd>
+                    <dt className="text-subtle">Source</dt>
+                    <dd className="m-0 overflow-wrap-anywhere font-mono text-ink">
+                      {getSource(selectedEntry)}
+                    </dd>
+                  </dl>
+                </div>
                 {selectedHtmlArtifact ? (
-                  <div className="mt-[18px]">
+                  <div
+                    className={`min-h-0 transition-[margin] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "h-full" : "mt-[18px]"}`}
+                    data-preview-expanded={isHtmlMetadataCollapsed}
+                    data-record-preview
+                  >
                     <WorkbenchHtmlPreview
                       onNavigateWireframe={navigateToWireframe}
+                      onScrollStateChange={updateHtmlPreviewScrollState}
                       record={selectedHtmlArtifact.record}
                     />
                   </div>

@@ -35,6 +35,7 @@ interface ArtifactHtmlPreviewFrameProps {
   frameRef?: RefObject<HTMLIFrameElement | null>;
   id?: string;
   onNavigateWireframe?: (target: HtmlPreviewWireframeNavigation) => void;
+  onScrollStateChange?: (scrollTop: number) => void;
   record: HtmlArtifactDocument;
 }
 
@@ -57,6 +58,7 @@ const largeResizeStep = 80;
 const defaultWidthRatio = 0.64;
 const previewEscapeMessage = "YUSUNG_HARNESS_HTML_PREVIEW_ESCAPE";
 const previewNavigationMessage = "YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE";
+const previewScrollMessage = "YUSUNG_HARNESS_HTML_PREVIEW_SCROLL";
 
 const previewContentSecurityPolicy = [
   "default-src 'none'",
@@ -125,12 +127,18 @@ function buildNavigationBridge(): string {
   return `<script>(function(){["replaceState","pushState"].forEach(function(methodName){var nativeMethod=history[methodName];history[methodName]=function(data,unused,url){if(typeof url!=="string"||!url.startsWith("#/")){return nativeMethod.apply(history,arguments)}var args=Array.prototype.slice.call(arguments);args[2]="about:srcdoc"+url;try{return nativeMethod.apply(history,args)}catch(error){if(!error||error.name!=="SecurityError"){throw error}window.location.hash=url.slice(1)}}});window.addEventListener("click",function(event){var target=event.target instanceof Element?event.target.closest("a[href]"):null;if(!target){return}var href=target.getAttribute("href");if(!href){return}if(target.matches('a.route-link[href^="#/"]')){event.preventDefault();window.location.hash=href.slice(1);return}if(href.startsWith("#")&&!href.startsWith("#/")){event.preventDefault();window.location.hash=href.slice(1);return}var path=href.split("#",1)[0].split("?",1)[0];var hasAbsolutePrefix=href.startsWith("/")||href.startsWith("#")||/^[a-z][a-z0-9+.-]*:/i.test(href);var isRelativeHtml=!hasAbsolutePrefix&&path.toLowerCase().endsWith(".html");if(!isRelativeHtml){return}event.preventDefault();var wireframeId=target.getAttribute("data-wireframe-id");var wireframeIndex=target.getAttribute("data-wireframe-index");if(!wireframeId&&!wireframeIndex){return}window.parent.postMessage({type:"${previewNavigationMessage}",wireframeId:wireframeId||undefined,wireframeIndex:wireframeIndex||undefined},"*")},true)})()</script>`;
 }
 
+/** iframe document의 초기 위치와 이후 scrollTop을 부모 UI에 전달한다. */
+function buildScrollBridge(): string {
+  return `<script>(function(){function reportScroll(){var scrollingElement=document.scrollingElement||document.documentElement||document.body;var scrollTop=scrollingElement?scrollingElement.scrollTop:0;if(Number.isFinite(scrollTop)&&scrollTop>=0){window.parent.postMessage({type:"${previewScrollMessage}",scrollTop:scrollTop},"*")}}window.addEventListener("load",reportScroll);window.addEventListener("scroll",reportScroll,{passive:true})})()</script>`;
+}
+
 /** CSP와 iframe 전용 상호작용 bridge를 원본 문서의 실제 head에 주입한다. */
 function buildSandboxedPreviewHtml(html: string): string {
   const policy = `<meta http-equiv="Content-Security-Policy" content="${previewContentSecurityPolicy}">`;
   const escapeBridge = `<script>window.addEventListener("keydown",function(event){if(event.key==="Escape"){window.parent.postMessage({type:"${previewEscapeMessage}"},"*")}})</script>`;
   const navigationBridge = buildNavigationBridge();
-  const protectedHead = `${policy}${escapeBridge}${navigationBridge}`;
+  const scrollBridge = buildScrollBridge();
+  const protectedHead = `${policy}${escapeBridge}${navigationBridge}${scrollBridge}`;
 
   return mergeProtectedHead(html, protectedHead);
 }
@@ -140,6 +148,7 @@ export function ArtifactHtmlPreviewFrame({
   frameRef,
   id,
   onNavigateWireframe,
+  onScrollStateChange,
   record,
 }: ArtifactHtmlPreviewFrameProps) {
   const internalFrameRef = useRef<HTMLIFrameElement>(null);
@@ -192,6 +201,41 @@ export function ArtifactHtmlPreviewFrame({
     window.addEventListener("message", navigateFromPreview);
     return () => window.removeEventListener("message", navigateFromPreview);
   }, [onNavigateWireframe, resolvedFrameRef]);
+
+  /** 현재 iframe이 보낸 finite nonnegative scrollTop만 typed callback으로 전달한다. */
+  useEffect(() => {
+    const changeScrollState = onScrollStateChange;
+
+    if (!changeScrollState) {
+      return;
+    }
+
+    /** 다른 window, message type, 잘못된 수치의 scroll 상태를 모두 무시한다. */
+    function updateScrollStateFromPreview(event: MessageEvent<unknown>) {
+      if (event.source !== resolvedFrameRef.current?.contentWindow) {
+        return;
+      }
+
+      if (
+        typeof event.data !== "object" ||
+        event.data === null ||
+        !("type" in event.data) ||
+        event.data.type !== previewScrollMessage ||
+        !("scrollTop" in event.data) ||
+        typeof event.data.scrollTop !== "number" ||
+        !Number.isFinite(event.data.scrollTop) ||
+        event.data.scrollTop < 0
+      ) {
+        return;
+      }
+
+      changeScrollState?.(event.data.scrollTop);
+    }
+
+    window.addEventListener("message", updateScrollStateFromPreview);
+    return () =>
+      window.removeEventListener("message", updateScrollStateFromPreview);
+  }, [onScrollStateChange, resolvedFrameRef]);
 
   return (
     <iframe

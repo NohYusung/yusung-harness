@@ -29,7 +29,7 @@ description: 작업 계획을 세우는 스킬
 - task를 나누는 기준은 **_기능_** 단위 여야 한다.
   > **예시)**
   >
-  > - Plan 1: GA4 API를 활용한 웹 통계 대시보드 작성(title)
+  > - Plan-1: GA4 API를 활용한 웹 통계 대시보드 작성(title)
   > - Task-1: GA4 API 서비스 레이어 작성(title)
   > - Task-2: 통계 도메인 GA4 전용 API 추가(title)
   > - Task-3: 구글 클라우드 서비스 계정 등록(title)
