@@ -17,7 +17,10 @@ description: 디자인 에셋을 만드는 스킬
 
 > - doc-curator는 먼저 yusung-harness-doc mcp 서버의 'get_project'를 통해 작업 지시가 내려진 레포가 project로 등록이 되어있는지 확인한다.
 > - 만약 project로 등록이 되어있지 않으면, 'project로 등록되지 않았습니다. 먼저 레포를 project로 등록하세요' 라고 반환한 후 메인 에이전트의 대화를 종료한다.
-> - coder는 html 을 작업한 후 doc-curator에게 전달하여 저장한 후 워크스페이스에서 개발용으로 저장한 파일을 삭제한다.
+> - 에셋의 각 요소를 디자인하기 전에 항상 image_gen 툴을 호출한다.
+>   - image_gen 호출이 불가능하면, 메인 에이전트 스레드에 이 사실을 전달 한 후 작업을 중단하고, 이유를 보고한다.
+>   - image_gen 으로 산출된 image의 디자인을 참조하여, 에셋을 구현한다.
+> - coder는 designer에게 디자인을 지시받아 html 을 작업한 후 doc-curator에게 전달하여 저장한 후 워크스페이스에서 개발용으로 저장한 파일을 삭제한다.
 
 ## 에셋의 생성 원칙
 

@@ -91,9 +91,9 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
     > | coder       | 코드 검색, 코드 작성, 코드 수정       |
     > | designer    | 디자인 생성, 디자인 수정, 디자인 검증 |
     > | doc-curator | 문서 작성, 문서 수정, 문서 보관       |
-    > | researcher  | 웹 검색                               |
     > | planner     | 계획 수립, 계획 수정, 계획 검증       |
-    > | reviewer    | 코드 검토, 코드 수정, 코드 검증       |
+    > | researcher  | 웹 검색, 레퍼런스 체크 등             |
+    > | reviewer    | 프로젝트 전체에 대한 통합적인 평가    |
     > | tester      | 테스트 작성, 테스트 수정, 테스트 검증 |
 
 ```rs

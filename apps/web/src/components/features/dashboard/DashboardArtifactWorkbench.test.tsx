@@ -204,6 +204,62 @@ describe("Dashboard artifact workbench visual contract", () => {
     }
   });
 
+  it("desktop detail pane을 닫아 Records를 확장하고 같은 또는 다른 record 선택으로 다시 연다", () => {
+    renderWorkbench();
+
+    const workspace = screen.getByRole("main");
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    const selectedRow = within(records).getByRole("option", {
+      name: /MCP-only document pipeline/,
+    });
+    const otherRow = within(records).getByRole("option", {
+      name: /Previous delivery plan/,
+    });
+    let detailPane = screen.getByRole("complementary", {
+      name: "MCP-only document pipeline",
+    });
+    let closeButton = within(detailPane).getByRole("button", {
+      name: "Close detail pane",
+    });
+
+    expect(closeButton).toHaveClass("size-11");
+    fireEvent.click(closeButton);
+
+    expect(detailPane).toHaveClass("hidden");
+    expect(workspace).toHaveClass(
+      "md:grid-cols-[230px_minmax(0,1fr)]",
+      "lg:grid-cols-[270px_minmax(0,1fr)]",
+    );
+    expect(workspace).not.toHaveClass(
+      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
+      "lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]",
+    );
+    expect(selectedRow).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(selectedRow);
+    expect(detailPane).not.toHaveClass("hidden");
+    expect(workspace).toHaveClass(
+      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
+      "lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]",
+    );
+
+    closeButton = within(detailPane).getByRole("button", {
+      name: "Close detail pane",
+    });
+    fireEvent.click(closeButton);
+    fireEvent.click(otherRow);
+
+    detailPane = screen.getByRole("complementary", {
+      name: "Previous delivery plan",
+    });
+    expect(detailPane).not.toHaveClass("hidden");
+    expect(otherRow).toHaveAttribute("aria-selected", "true");
+    expect(workspace).toHaveClass(
+      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
+      "lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]",
+    );
+  });
+
   it("모든 record Inspector에서 탭 UI 없이 Metadata 콘텐츠를 직접 제공한다", () => {
     renderWorkbench();
 
@@ -1194,5 +1250,54 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(treePane).toHaveClass("hidden");
     expect(recordsPane).toHaveClass("hidden");
     expect(detailPane).toHaveClass("flex");
+  });
+
+  it("mobile detail pane을 닫으면 Records로 돌아가고 Info 또는 record 선택으로 다시 연다", () => {
+    setWindowInnerWidth(390);
+    fireEvent.resize(window);
+    renderWorkbench();
+
+    const mobileNavigation = screen.getByRole("navigation", {
+      name: "Mobile panes",
+    });
+    const recordsPane = screen.getByRole("region", { name: "Records" });
+    const records = within(recordsPane).getByRole("listbox", {
+      name: "Artifact records",
+    });
+    const selectedRow = within(records).getByRole("option", {
+      name: /MCP-only document pipeline/,
+    });
+    let detailPane = screen.getByRole("complementary", {
+      name: "MCP-only document pipeline",
+    });
+
+    fireEvent.click(
+      within(mobileNavigation).getByRole("button", { name: "Open detail" }),
+    );
+    fireEvent.click(
+      within(detailPane).getByRole("button", { name: "Close detail pane" }),
+    );
+
+    expect(recordsPane).toHaveClass("flex");
+    expect(detailPane).toHaveClass("hidden");
+    expect(selectedRow).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(
+      within(mobileNavigation).getByRole("button", { name: "Open detail" }),
+    );
+    expect(recordsPane).toHaveClass("hidden");
+    expect(detailPane).toHaveClass("flex");
+
+    fireEvent.click(
+      within(detailPane).getByRole("button", { name: "Close detail pane" }),
+    );
+    fireEvent.click(selectedRow);
+
+    detailPane = screen.getByRole("complementary", {
+      name: "MCP-only document pipeline",
+    });
+    expect(recordsPane).toHaveClass("hidden");
+    expect(detailPane).toHaveClass("flex");
+    expect(selectedRow).toHaveAttribute("aria-selected", "true");
   });
 });

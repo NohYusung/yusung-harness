@@ -434,6 +434,7 @@ export function ArtifactWorkbench({
     initialEntry ? getEntryKey(initialEntry) : null,
   );
   const [mobilePane, setMobilePane] = useState<MobilePane>("records");
+  const [isDetailPaneOpen, setIsDetailPaneOpen] = useState(true);
   const [detailPaneRatio, setDetailPaneRatio] = useState(
     defaultDetailPaneRatio,
   );
@@ -482,10 +483,26 @@ export function ArtifactWorkbench({
   const currentRepository = context.repoPaths[0];
   const repositoryPath = currentRepository?.path ?? "No repository connected";
 
+  /** 선택 record와 deep link를 유지하면서 닫힌 detail pane을 다시 연다. */
   function selectEntry(entry: WorkbenchEntry) {
     setSelectedKey(getEntryKey(entry));
+    setIsDetailPaneOpen(true);
     setMobilePane("detail");
     router.replace(getRelationHref(entry, context.id), { scroll: false });
+  }
+
+  /** 모바일 pane 전환 중 Info 선택만 닫힌 detail pane을 다시 연다. */
+  function selectMobilePane(pane: MobilePane) {
+    if (pane === "detail") {
+      setIsDetailPaneOpen(true);
+    }
+    setMobilePane(pane);
+  }
+
+  /** 선택 record와 resize 비율은 보존하고 detail pane만 닫는다. */
+  function closeDetailPane() {
+    setIsDetailPaneOpen(false);
+    setMobilePane("records");
   }
 
   /** 명시된 id를 먼저, index를 다음으로 해석해 기존 record 선택 흐름을 재사용한다. */
@@ -578,6 +595,10 @@ export function ArtifactWorkbench({
   const workspaceStyle = {
     "--detail-pane-width": `${detailPaneRatio}%`,
   } as CSSProperties;
+  /** Detail 표시 여부에 따라 Explorer / Records / Detail grid를 2열 또는 3열로 전환한다. */
+  const workspaceGridClassName = isDetailPaneOpen
+    ? "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)] lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]"
+    : "md:grid-cols-[230px_minmax(0,1fr)] lg:grid-cols-[270px_minmax(0,1fr)]";
 
   return (
     <div
@@ -643,7 +664,7 @@ export function ArtifactWorkbench({
               key={pane.id}
               aria-label={pane.ariaLabel}
               className="h-9 min-w-9 rounded-control border border-line bg-surface px-2 text-[11px] text-muted focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
-              onClick={() => setMobilePane(pane.id)}
+              onClick={() => selectMobilePane(pane.id)}
               type="button"
             >
               {pane.label}
@@ -653,7 +674,7 @@ export function ArtifactWorkbench({
       </header>
 
       <main
-        className="min-h-0 bg-surface md:grid md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)] lg:grid lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]"
+        className={`min-h-0 bg-surface md:grid lg:grid ${workspaceGridClassName}`}
         style={workspaceStyle}
       >
         <aside
@@ -901,7 +922,7 @@ export function ArtifactWorkbench({
 
         <aside
           aria-labelledby="detail-heading"
-          className={`${mobilePane === "detail" ? "flex" : "hidden"} relative min-h-[calc(100dvh-58px)] min-w-0 flex-col bg-[#0f141b] md:flex md:min-h-0`}
+          className={`${isDetailPaneOpen && mobilePane === "detail" ? "flex" : "hidden"} relative min-h-[calc(100dvh-58px)] min-w-0 flex-col bg-[#0f141b] ${isDetailPaneOpen ? "md:flex" : "md:hidden"} md:min-h-0`}
         >
           <div
             aria-label="Resize detail pane"
@@ -947,6 +968,14 @@ export function ArtifactWorkbench({
                   : "Choose a record to inspect"}
               </p>
             </div>
+            <button
+              aria-label="Close detail pane"
+              className="grid size-11 shrink-0 place-items-center rounded-control text-xl text-muted transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none motion-reduce:transition-none"
+              onClick={closeDetailPane}
+              type="button"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto p-[18px]">
