@@ -46,6 +46,12 @@ interface WorkbenchEntry {
   relation: WorkbenchRelation;
 }
 
+/** Wireframe 목록 제목에 적용할 1단계 계층과 유효한 부모 record. */
+interface WireframeHierarchy {
+  depth: 0 | 1;
+  parent: Wireframe | null;
+}
+
 interface ArtifactWorkbenchProps {
   activeRelation: WorkspaceRelation;
   context: ProjectContext;
@@ -169,6 +175,46 @@ function getEntries(context: ProjectContext): WorkbenchEntry[] {
   return relationOrder.flatMap((relation) =>
     entriesByRelation[relation].map((record) => ({ record, relation })),
   );
+}
+
+/** parentId와 index가 일치하는 Wireframe만 child로 표시하고 비정상 관계는 root로 되돌린다. */
+function getWireframeHierarchy(
+  entry: WorkbenchEntry,
+  wireframesById: ReadonlyMap<number, Wireframe>,
+): WireframeHierarchy | null {
+  if (entry.relation !== "wireframes") {
+    return null;
+  }
+
+  const wireframe = entry.record as Wireframe;
+
+  if (wireframe.parentId === null) {
+    return { depth: 0, parent: null };
+  }
+
+  const parent = wireframesById.get(wireframe.parentId);
+
+  if (!parent || !wireframe.index.startsWith(`${parent.index}.`)) {
+    return { depth: 0, parent: null };
+  }
+
+  const visitedIds = new Set<number>();
+  let ancestor: Wireframe | undefined = wireframe;
+
+  /** 자기 참조와 순환 parent chain은 계층 표식 없이 안전하게 렌더링한다. */
+  while (ancestor) {
+    if (visitedIds.has(ancestor.id)) {
+      return { depth: 0, parent: null };
+    }
+
+    visitedIds.add(ancestor.id);
+    ancestor =
+      ancestor.parentId === null
+        ? undefined
+        : wireframesById.get(ancestor.parentId);
+  }
+
+  return { depth: 1, parent };
 }
 
 /** 실제 Task lifecycle 또는 Plan version에서 파생 가능한 상태만 반환한다. */
@@ -351,6 +397,14 @@ export function ArtifactWorkbench({
     startX: number;
   } | null>(null);
   const allEntries = useMemo(() => getEntries(context), [context]);
+  /** visible row마다 재구성하지 않도록 Wireframe lookup을 context 변경 시 한 번만 만든다. */
+  const wireframesById = useMemo(
+    () =>
+      new Map(
+        context.wireframes.map((wireframe) => [wireframe.id, wireframe]),
+      ),
+    [context.wireframes],
+  );
   const initialEntry = useMemo(() => {
     if (selectedTaskId) {
       return allEntries.find(
@@ -756,10 +810,24 @@ export function ArtifactWorkbench({
               const status = getStatus(entry, context);
               const entryRelations = getRelations(entry, context);
               const isSelected = getEntryKey(entry) === selectedKey;
+              const wireframeHierarchy = getWireframeHierarchy(
+                entry,
+                wireframesById,
+              );
 
               return (
                 <button
                   key={getEntryKey(entry)}
+                  aria-describedby={
+                    wireframeHierarchy?.parent
+                      ? `wireframe-parent-${entry.record.id}`
+                      : undefined
+                  }
+                  aria-label={
+                    wireframeHierarchy?.parent
+                      ? entry.record.title
+                      : undefined
+                  }
                   aria-selected={isSelected}
                   className="grid min-h-14 w-full grid-cols-[88px_minmax(180px,1fr)_104px_72px] items-center gap-3 border-0 border-b border-line bg-transparent px-4 text-left text-ink hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_2px_0_var(--color-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none max-lg:grid-cols-[76px_minmax(160px,1fr)_90px]"
                   onClick={() => selectEntry(entry)}
@@ -773,7 +841,31 @@ export function ArtifactWorkbench({
                     />
                     {config.label}
                   </span>
-                  <span className="min-w-0">
+                  <span
+                    className={
+                      wireframeHierarchy?.depth === 1
+                        ? "relative min-w-0 pl-4"
+                        : "min-w-0"
+                    }
+                    data-wireframe-depth={wireframeHierarchy?.depth}
+                  >
+                    {wireframeHierarchy?.parent ? (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="absolute top-0 left-0 text-subtle"
+                          data-wireframe-branch
+                        >
+                          └
+                        </span>
+                        <span
+                          id={`wireframe-parent-${entry.record.id}`}
+                          className="sr-only"
+                        >
+                          Parent wireframe: {wireframeHierarchy.parent.title}
+                        </span>
+                      </>
+                    ) : null}
                     <strong className="block truncate text-[13px]">
                       {entry.record.title}
                     </strong>

@@ -785,6 +785,91 @@ describe("Dashboard artifact workbench visual contract", () => {
     },
   );
 
+  it("Wireframe records는 parent 다음 child 순서와 title 전용 hierarchy 표식을 제공한다", () => {
+    const parentWireframe = createWireframe({
+      id: 630,
+      index: "3",
+      parentId: null,
+      title: "Portfolio overview",
+    });
+    const childWireframe = createWireframe({
+      id: 631,
+      index: "3.1",
+      parentId: parentWireframe.id,
+      title: "Case study detail",
+    });
+    const asset = createAsset({ id: 632, title: "Hierarchy-free asset" });
+    const design = createDesign({ id: 633, title: "Hierarchy-free design" });
+    const context = createProjectContext({
+      assets: [asset],
+      designs: [design],
+      wireframes: [parentWireframe, childWireframe],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="wireframes"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    const parentRow = within(records).getByRole("option", {
+      name: /Portfolio overview/,
+    });
+    const childRow = within(records).getByRole("option", {
+      name: /Case study detail/,
+    });
+
+    expect(
+      parentRow.compareDocumentPosition(childRow) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const parentTitleRegion = within(parentRow)
+      .getByText(parentWireframe.title)
+      .closest<HTMLElement>("[data-wireframe-depth]");
+    const childTitleRegion = within(childRow)
+      .getByText(childWireframe.title)
+      .closest<HTMLElement>("[data-wireframe-depth]");
+
+    expect(parentTitleRegion).toHaveAttribute("data-wireframe-depth", "0");
+    expect(childTitleRegion).toHaveAttribute("data-wireframe-depth", "1");
+    expect(parentRow).not.toHaveAttribute("data-wireframe-depth");
+    expect(childRow).not.toHaveAttribute("data-wireframe-depth");
+    expect(
+      parentTitleRegion?.querySelector("[data-wireframe-branch]"),
+    ).toBeNull();
+
+    const branchMarker = childTitleRegion?.querySelector(
+      "[data-wireframe-branch]",
+    );
+    expect(branchMarker).toHaveAttribute("aria-hidden", "true");
+    const parentRelation = within(childTitleRegion as HTMLElement).getByText(
+      `Parent wireframe: ${parentWireframe.title}`,
+    );
+    expect(parentRelation).toHaveClass("sr-only");
+
+    for (const testCase of [
+      { relation: /Assets/, record: asset },
+      { relation: /Designs/, record: design },
+    ]) {
+      fireEvent.click(screen.getByRole("button", { name: testCase.relation }));
+      const row = within(records).getByRole("option", {
+        name: new RegExp(testCase.record.title),
+      });
+
+      expect(row.querySelector("[data-wireframe-depth]")).toBeNull();
+      expect(row.querySelector("[data-wireframe-branch]")).toBeNull();
+      expect(
+        within(row).queryByText(/Parent wireframe:/),
+      ).not.toBeInTheDocument();
+    }
+  });
+
   it("Wireframe 상세 영역에 선택 record의 HTML을 iframe으로 즉시 렌더한다", () => {
     const firstWireframe = createWireframe({
       html: "<!doctype html><html><head></head><body>First wireframe</body></html>",

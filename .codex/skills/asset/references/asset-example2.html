@@ -1,0 +1,1923 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>두비덥 DobeDub — 브랜드 에셋 키트 (Voice Wave)</title>
+    <style>
+      /* ============================================================
+   DobeDub — Brand Asset Kit
+   선택 컨셉: 03 보이스 웨이브 (Voice Wave)
+   DNA: DOBE(잉크) + DUB(레드) 워드마크 + 목소리 파형 언더라인.
+        DUB 구간만 레드 파형 → "어디에 목소리가 입혀지는지".
+   팔레트 고정: Ink #0C0C0D · Paper #FFFFFF · DUB Red #ED1C24
+   ============================================================ */
+      :root {
+        --bg: #ffffff;
+        --paper: #fafafa;
+        --paper-2: #f2f2f3;
+        --ink: #0c0c0d;
+        --ink-soft: #16161a;
+        --muted: #74747a;
+        --faint: #a3a3a9;
+        --line: #e9e9ec;
+        --line-2: #dcdce0;
+        --red: #ed1c24;
+        --red-deep: #c40f16;
+        --display:
+          "Arial Black", "Helvetica Neue", Impact, system-ui, sans-serif;
+        --sans:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font: 14px/1.55 var(--sans);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 60px 36px 130px;
+      }
+
+      /* ---------- masthead ---------- */
+      .kick {
+        font: 11px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+      }
+      .mast {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+      }
+      .mast h1 {
+        font-family: var(--display);
+        font-weight: 900;
+        letter-spacing: -0.025em;
+        font-size: 46px;
+        line-height: 0.92;
+      }
+      .mast h1 .r {
+        color: var(--red);
+      }
+      .mast .sub {
+        color: var(--muted);
+        font-size: 13.5px;
+        max-width: 42ch;
+        text-align: right;
+        line-height: 1.6;
+      }
+      .mast .sub b {
+        color: var(--ink);
+      }
+      .barline {
+        height: 3px;
+        background: var(--ink);
+        margin: 24px 0 0;
+        position: relative;
+      }
+      .barline::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 3px;
+        width: 96px;
+        background: var(--red);
+      }
+      .legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        color: var(--faint);
+        font: 11px/1 var(--mono);
+        letter-spacing: 0.05em;
+        margin-top: 14px;
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .legend i {
+        width: 11px;
+        height: 11px;
+        border-radius: 2px;
+        border: 1px solid var(--line-2);
+      }
+
+      /* index nav */
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 30px;
+      }
+      .toc a {
+        font: 11px/1 var(--mono);
+        color: var(--muted);
+        text-decoration: none;
+        border: 1px solid var(--line-2);
+        border-radius: 5px;
+        padding: 8px 12px;
+        letter-spacing: 0.04em;
+        transition: 0.12s;
+      }
+      .toc a:hover {
+        background: var(--ink);
+        color: #fff;
+        border-color: var(--ink);
+      }
+      .toc a b {
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      /* ---------- section ---------- */
+      .sec {
+        margin-top: 62px;
+        scroll-margin-top: 24px;
+      }
+      .sec-h {
+        display: flex;
+        align-items: baseline;
+        gap: 13px;
+        margin-bottom: 22px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 13px;
+      }
+      .sec-h .n {
+        font: 12px/1 var(--mono);
+        font-weight: 700;
+        color: #fff;
+        background: var(--ink);
+        border-radius: 5px;
+        padding: 6px 9px;
+        letter-spacing: 0.05em;
+      }
+      .sec-h .n.red {
+        background: var(--red);
+      }
+      .sec-h h2 {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      .sec-h .en {
+        font: 11px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .sec-h .d {
+        color: var(--faint);
+        font-size: 12px;
+        margin-left: auto;
+        font-family: var(--mono);
+        letter-spacing: 0.04em;
+      }
+
+      /* asset card grid */
+      .grid {
+        display: grid;
+        gap: 18px;
+      }
+      .g2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .g3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+      }
+      .stage {
+        flex: 1;
+        min-height: 190px;
+        display: grid;
+        place-items: center;
+        padding: 34px;
+        position: relative;
+      }
+      .stage.light {
+        background: var(--bg);
+      }
+      .stage.paper {
+        background: var(--paper-2);
+      }
+      .stage.dark {
+        background: var(--ink);
+      }
+      .stage.red {
+        background: var(--red);
+      }
+      .cap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font: 10.5px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.08em;
+        padding: 12px 15px;
+        border-top: 1px solid var(--line);
+        background: var(--paper);
+      }
+      .cap .nm {
+        color: var(--muted);
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .cap .dl {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        color: var(--ink);
+        border: 1px solid var(--line-2);
+        border-radius: 4px;
+        padding: 5px 8px;
+        background: var(--bg);
+        transition: 0.12s;
+        font-weight: 700;
+      }
+      .cap .dl:hover {
+        background: var(--ink);
+        color: #fff;
+        border-color: var(--ink);
+      }
+      .cap .dl svg {
+        width: 11px;
+        height: 11px;
+      }
+
+      /* ---------- wordmark ---------- */
+      .wm {
+        font-family: var(--display);
+        font-weight: 900;
+        line-height: 0.9;
+        white-space: nowrap;
+        display: inline-flex;
+        letter-spacing: -0.02em;
+      }
+      .wm .ink {
+        color: var(--ink);
+      }
+      .wm .pap {
+        color: #fff;
+      }
+      .wm .red {
+        color: var(--red);
+      }
+      .lockH {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 13px;
+      }
+      .lockH .wm {
+        font-size: 46px;
+      }
+      .lockS {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      .lockS .kor {
+        font: 10px/1 var(--mono);
+        letter-spacing: 0.36em;
+        color: var(--muted);
+      }
+      .lockS.on-dark .kor {
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .lockS .wm {
+        font-size: 40px;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.6;
+      }
+      .note b {
+        color: var(--ink);
+      }
+      .note .rr {
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      /* size grid */
+      .sizes {
+        display: flex;
+        align-items: flex-end;
+        gap: 26px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .sz {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 9px;
+      }
+      .sz .lab {
+        font: 9.5px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.05em;
+      }
+      .sz .lab b {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      /* meta chips */
+      .metarow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+      .mchip {
+        font: 10px/1 var(--mono);
+        color: var(--muted);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 6px 9px;
+      }
+      .mchip b {
+        color: var(--ink);
+      }
+      .mchip.red b {
+        color: var(--red);
+      }
+
+      /* ---------- header bar mockups ---------- */
+      .hdbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        height: 64px;
+        padding: 0 24px;
+      }
+      .hdbar.light {
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+      }
+      .hdbar.dark {
+        background: var(--ink);
+      }
+      .hdbar-logo {
+        display: flex;
+        align-items: center;
+      }
+      .hdbar-nav {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .hdbar-nav a {
+        cursor: pointer;
+        color: var(--muted);
+      }
+      .hdbar-nav a.on {
+        color: var(--ink);
+      }
+      .hdbar.dark .hdbar-nav a {
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .hdbar.dark .hdbar-nav a.on {
+        color: #fff;
+      }
+      .hdbar-cta {
+        background: var(--red);
+        color: #fff;
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 8px 15px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .hd-sz {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 11px;
+      }
+      .hd-sz .lab {
+        font: 9.5px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.05em;
+      }
+      .hd-sz .lab b {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      /* ---------- live equalizer (motion flourish) ---------- */
+      .eq {
+        display: flex;
+        align-items: flex-end;
+        gap: 5px;
+        height: 60px;
+      }
+      .eq i {
+        width: 7px;
+        background: var(--ink);
+        border-radius: 3px;
+        height: 14px;
+        animation: bounce 1.1s ease-in-out infinite;
+      }
+      .eq i.r {
+        background: var(--red);
+      }
+      .eq i:nth-child(1) {
+        animation-delay: 0s;
+      }
+      .eq i:nth-child(2) {
+        animation-delay: 0.12s;
+      }
+      .eq i:nth-child(3) {
+        animation-delay: 0.24s;
+      }
+      .eq i:nth-child(4) {
+        animation-delay: 0.36s;
+      }
+      .eq i:nth-child(5) {
+        animation-delay: 0.5s;
+      }
+      .eq i:nth-child(6) {
+        animation-delay: 0.32s;
+      }
+      .eq i:nth-child(7) {
+        animation-delay: 0.18s;
+      }
+      .eq i:nth-child(8) {
+        animation-delay: 0.42s;
+      }
+      .eq i:nth-child(9) {
+        animation-delay: 0.26s;
+      }
+      @keyframes bounce {
+        0%,
+        100% {
+          height: 12px;
+        }
+        50% {
+          height: 54px;
+        }
+      }
+      .eq.dark i {
+        background: #fff;
+      }
+      .eq.dark i.r {
+        background: var(--red);
+      }
+      .live {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font: 11px/1 var(--mono);
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        color: var(--red);
+        text-transform: uppercase;
+      }
+      .live .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--red);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.35;
+          transform: scale(0.7);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .eq i,
+        .live .dot {
+          animation: none !important;
+        }
+      }
+
+      /* ---------- OG banner ---------- */
+      .og {
+        width: 100%;
+        max-width: 560px;
+        aspect-ratio: 1200/630;
+        background: var(--ink);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 7% 9%;
+      }
+      .og .badge {
+        font: 11px/1 var(--mono);
+        letter-spacing: 0.3em;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+      }
+      .og .big {
+        font-family: var(--display);
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        color: #fff;
+        font-size: clamp(28px, 7vw, 58px);
+        line-height: 0.95;
+        margin: 14px 0;
+      }
+      .og .big .red {
+        color: var(--red);
+      }
+      .og .tl {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: clamp(11px, 2vw, 15px);
+        max-width: 34ch;
+      }
+      .og .wave {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 55%;
+        opacity: 0.9;
+      }
+
+      /* ---------- application strips ---------- */
+      .appcard {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .appcard .body {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 170px;
+        justify-content: center;
+      }
+      /* watermark badge */
+      .wmk {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font: 11px/1 var(--sans);
+        font-weight: 700;
+        color: var(--ink);
+        border: 1.5px solid var(--ink);
+        border-radius: 999px;
+        padding: 9px 15px;
+        letter-spacing: -0.01em;
+        width: max-content;
+      }
+      .wmk svg {
+        width: 54px;
+        height: 13px;
+      }
+      /* email signature */
+      .sig {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        font-family: var(--sans);
+      }
+      .sig .av {
+        width: 46px;
+        height: 46px;
+        border-radius: 9px;
+        flex: none;
+      }
+      .sig .l1 {
+        font-weight: 800;
+        font-size: 14px;
+        letter-spacing: -0.01em;
+      }
+      .sig .l2 {
+        font-size: 11.5px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .sig .l3 {
+        font: 10px/1.4 var(--mono);
+        color: var(--faint);
+        margin-top: 5px;
+        letter-spacing: 0.02em;
+      }
+      .sig .l3 b {
+        color: var(--red);
+      }
+      /* button set */
+      .btnset {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .uib {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 7px;
+        font-size: 12.5px;
+        font-weight: 700;
+        padding: 10px 15px;
+        cursor: default;
+        letter-spacing: -0.01em;
+      }
+      .uib.primary {
+        background: var(--red);
+        color: #fff;
+        border: 1px solid var(--red);
+      }
+      .uib.ink {
+        background: var(--ink);
+        color: #fff;
+        border: 1px solid var(--ink);
+      }
+      .uib.ghost {
+        background: var(--bg);
+        color: var(--ink);
+        border: 1px solid var(--line-2);
+      }
+      .uib svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* ---------- clearspace / misuse ---------- */
+      .rulecols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .clearbox {
+        position: relative;
+        background: var(--paper-2);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        height: 230px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .cs-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(237, 28, 36, 0.12) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(237, 28, 36, 0.12) 1px, transparent 1px);
+        background-size: 16px 16px;
+      }
+      .misuse {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+      .mis {
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        overflow: hidden;
+      }
+      .mis .top {
+        height: 96px;
+        display: grid;
+        place-items: center;
+        background: var(--paper);
+        position: relative;
+      }
+      .mis .x {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--red);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font: 11px/1 var(--sans);
+        font-weight: 900;
+      }
+      .mis .cap2 {
+        font: 10px/1.3 var(--mono);
+        color: var(--muted);
+        padding: 9px 11px;
+        border-top: 1px solid var(--line);
+        letter-spacing: 0.02em;
+      }
+
+      /* ---------- palette ---------- */
+      .pal {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .sw {
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: 0.12s;
+      }
+      .sw:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+      }
+      .sw .b {
+        height: 86px;
+        position: relative;
+      }
+      .sw .b .role {
+        position: absolute;
+        left: 11px;
+        bottom: 9px;
+        font: 9.5px/1 var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .sw .t {
+        padding: 12px 14px;
+      }
+      .sw .t .nm {
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .sw .t .hx {
+        font: 10.5px/1.5 var(--mono);
+        color: var(--faint);
+        margin-top: 3px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .sw .t .copy {
+        color: var(--muted);
+      }
+
+      .foot {
+        margin-top: 70px;
+        padding-top: 26px;
+        border-top: 1px solid var(--line);
+        color: var(--faint);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      .foot b {
+        color: var(--muted);
+      }
+      .foot code {
+        font: 11px/1 var(--mono);
+        color: var(--muted);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 2px 6px;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 26px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        opacity: 0;
+        background: var(--ink);
+        color: #fff;
+        font: 12px/1 var(--mono);
+        letter-spacing: 0.04em;
+        padding: 12px 18px;
+        border-radius: 7px;
+        pointer-events: none;
+        transition: 0.22s;
+        z-index: 99;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      @media (max-width: 880px) {
+        .g2,
+        .g3,
+        .pal,
+        .rulecols {
+          grid-template-columns: 1fr;
+        }
+        .mast .sub {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- ============ MASTHEAD ============ -->
+      <div class="kick">Brand Asset Kit · 보이스뱅크 두비덥</div>
+      <div class="mast">
+        <h1>DOBE<span class="r">DUB</span><br />에셋 키트</h1>
+        <p class="sub">
+          선택된 <b>03 보이스 웨이브</b> 컨셉을 로고·심볼·아이콘·모션·응용까지
+          한 시스템으로 확장했습니다. 모든 에셋은 <b>SVG로 내려받아</b> 어디서나
+          재사용할 수 있어요.
+        </p>
+      </div>
+      <div class="barline"></div>
+      <div class="legend">
+        <span><i style="background: #0c0c0d"></i> Ink #0C0C0D</span>
+        <span><i style="background: #fff"></i> Paper #FFFFFF</span>
+        <span><i style="background: #ed1c24"></i> DUB Red #ED1C24</span>
+        <span style="margin-left: auto"
+          >3색 고정 · 레드 = 목소리(DUB) 강세</span
+        >
+      </div>
+      <nav class="toc">
+        <a href="#logo"><b>01</b> 로고 시스템</a>
+        <a href="#symbol"><b>02</b> 심볼 마크</a>
+        <a href="#icon"><b>03</b> 앱 아이콘 · 파비콘</a>
+        <a href="#motion"><b>04</b> 모션 / 라이브</a>
+        <a href="#social"><b>05</b> 소셜 / OG</a>
+        <a href="#apply"><b>06</b> 응용 에셋</a>
+        <a href="#color"><b>07</b> 컬러</a>
+        <a href="#rules"><b>08</b> 여백 · 오용</a>
+      </nav>
+
+      <!-- ============ 01 LOGO SYSTEM ============ -->
+      <section class="sec" id="logo">
+        <div class="sec-h">
+          <span class="n">01</span>
+          <h2>로고 시스템</h2>
+          <span class="en">Logo System</span
+          ><span class="d">락업 · 배경 반전</span>
+        </div>
+        <div class="grid g2">
+          <!-- primary horizontal on light -->
+          <div class="card">
+            <div class="stage light">
+              <div class="lockH" id="logo-primary"></div>
+            </div>
+            <div class="cap">
+              <span class="nm">Primary · On Light</span>
+              <span
+                class="dl"
+                data-svg="logo-primary"
+                data-name="dobedub-logo-primary"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+
+          <!-- reversed on dark -->
+          <div class="card">
+            <div class="stage dark">
+              <div class="lockH" id="logo-reversed"></div>
+            </div>
+            <div class="cap">
+              <span class="nm">Reversed · On Ink</span>
+              <span
+                class="dl"
+                data-svg="logo-reversed"
+                data-name="dobedub-logo-reversed"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+
+          <!-- stacked w/ korean descriptor -->
+          <div class="card">
+            <div class="stage paper">
+              <div id="logo-stacked"></div>
+            </div>
+            <div class="cap">
+              <span class="nm">Stacked · 한글 디스크립터</span>
+              <span
+                class="dl"
+                data-svg="logo-stacked"
+                data-name="dobedub-logo-stacked"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+
+          <!-- on red -->
+          <div class="card">
+            <div class="stage red">
+              <div id="logo-onred"></div>
+            </div>
+            <div class="cap">
+              <span class="nm">On Red · 반전 강세</span>
+              <span
+                class="dl"
+                data-svg="logo-onred"
+                data-name="dobedub-logo-onred"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+        </div>
+        <div class="metarow" style="margin-top: 16px">
+          <span class="mchip"><b>Display</b> Arial Black 900 / -0.02em</span>
+          <span class="mchip red"><b>DUB</b> = Red 파형 강세</span>
+          <span class="mchip"><b>Wave</b> 27 bars · DUB 8 red</span>
+        </div>
+        <p class="note" style="margin-top: 12px">
+          워드마크 아래 <span class="rr">목소리 파형</span>을 깔아 "어디에
+          목소리가 입혀지는지"를 색만으로 읽히게 했습니다. 가로로 길어
+          헤더·스플래시·문서 머리에 적합합니다.
+        </p>
+      </section>
+
+      <!-- ============ 01b SITE HEADER ============ -->
+      <section class="sec" id="header">
+        <div class="sec-h">
+          <span class="n red">01b</span>
+          <h2>헤더 로고</h2>
+          <span class="en">Site Header</span
+          ><span class="d">좌측 상단 · 가로 인라인</span>
+        </div>
+
+        <div class="grid g2">
+          <!-- inline lockup on light -->
+          <div class="card">
+            <div class="stage light" style="min-height: 150px">
+              <div id="hd-light"></div>
+            </div>
+            <div class="cap">
+              <span class="nm">헤더 락업 · On Light</span>
+              <span
+                class="dl"
+                data-svg="hd-light"
+                data-name="dobedub-header-logo"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+          <!-- inline lockup on dark -->
+          <div class="card">
+            <div class="stage dark" style="min-height: 150px">
+              <div id="hd-dark"></div>
+            </div>
+            <div class="cap">
+              <span class="nm">헤더 락업 · On Ink</span>
+              <span
+                class="dl"
+                data-svg="hd-dark"
+                data-name="dobedub-header-logo-reversed"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- real header bar mockups -->
+        <div class="card" style="margin-top: 16px; overflow: hidden">
+          <div class="hdbar light">
+            <div class="hdbar-logo" id="bar-light"></div>
+            <nav class="hdbar-nav">
+              <a class="on">스튜디오</a><a>보이스뱅크</a><a>요금</a
+              ><span class="hdbar-cta">시작하기</span>
+            </nav>
+          </div>
+          <div class="hdbar dark">
+            <div class="hdbar-logo" id="bar-dark"></div>
+            <nav class="hdbar-nav">
+              <a class="on">스튜디오</a><a>보이스뱅크</a><a>요금</a
+              ><span class="hdbar-cta">시작하기</span>
+            </nav>
+          </div>
+          <div class="cap">
+            <span class="nm">실제 헤더 바 적용 예 (라이트 / 다크)</span
+            ><span style="font: 10.5px/1 var(--mono); color: var(--faint)"
+              >64px bar</span
+            >
+          </div>
+        </div>
+
+        <!-- height proof -->
+        <div class="card" style="margin-top: 16px">
+          <div
+            class="stage light"
+            style="min-height: 140px; gap: 38px; flex-wrap: wrap"
+          >
+            <div class="hd-sz">
+              <div id="hd-40"></div>
+              <span class="lab"><b>40</b> px</span>
+            </div>
+            <div class="hd-sz">
+              <div id="hd-32"></div>
+              <span class="lab"><b>32</b> px</span>
+            </div>
+            <div class="hd-sz">
+              <div id="hd-24"></div>
+              <span class="lab"><b>24</b> px</span>
+            </div>
+          </div>
+          <div class="cap">
+            <span class="nm">헤더 높이별 가독성 (24 / 32 / 40px)</span>
+          </div>
+        </div>
+
+        <div class="metarow" style="margin-top: 16px">
+          <span class="mchip"><b>파형</b> 아래 → 왼쪽 심볼로 이동</span>
+          <span class="mchip red"><b>레드</b> 중앙 1막대 = 목소리</span>
+          <span class="mchip"><b>24px</b> 높이에서도 또렷</span>
+        </div>
+        <p class="note" style="margin-top: 12px">
+          헤더처럼 높이가 낮은 자리에서는 워드마크 아래 파형이 뭉개집니다.
+          그래서 파형을 <span class="rr">왼쪽 심볼</span>로 옮겨
+          <b>심볼 + DOBEDUB</b>를 한 줄로 정렬했습니다. 좁은 바에서도 균형이
+          잡히고, 더 좁아지면 왼쪽 심볼만 단독으로 써도 됩니다.
+        </p>
+      </section>
+
+      <!-- ============ 02 SYMBOL ============ -->
+      <section class="sec" id="symbol">
+        <div class="sec-h">
+          <span class="n red">02</span>
+          <h2>심볼 마크</h2>
+          <span class="en">Symbol</span
+          ><span class="d">파형 단독 · 아바타</span>
+        </div>
+        <div class="grid g3">
+          <div class="card">
+            <div class="stage paper"><div id="sym-bare"></div></div>
+            <div class="cap">
+              <span class="nm">파형 심볼 (단독)</span>
+              <span class="dl" data-svg="sym-bare" data-name="dobedub-symbol"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+          <div class="card">
+            <div class="stage light"><div id="sym-circle"></div></div>
+            <div class="cap">
+              <span class="nm">원형 아바타</span>
+              <span
+                class="dl"
+                data-svg="sym-circle"
+                data-name="dobedub-avatar-circle"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+          <div class="card">
+            <div class="stage dark"><div id="sym-squircle"></div></div>
+            <div class="cap">
+              <span class="nm">스퀴클 (다크)</span>
+              <span
+                class="dl"
+                data-svg="sym-squircle"
+                data-name="dobedub-avatar-squircle"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+        </div>
+        <p class="note" style="margin-top: 14px">
+          워드마크가 들어가기 힘든 좁은 곳(앱 도크·SNS 프로필·파비콘)을 위한
+          <b>심볼 단독</b>. 가운데 가장 높은 한 막대만
+          <span class="rr">레드</span> — 멀리서도 "목소리 한 줄기"로 읽힙니다.
+        </p>
+      </section>
+
+      <!-- ============ 03 APP ICON ============ -->
+      <section class="sec" id="icon">
+        <div class="sec-h">
+          <span class="n">03</span>
+          <h2>앱 아이콘 · 파비콘</h2>
+          <span class="en">App Icon</span
+          ><span class="d">macOS 스퀴클 · 전 사이즈</span>
+        </div>
+        <div class="card">
+          <div class="stage light" style="min-height: 230px">
+            <div class="sizes" id="icon-sizes"></div>
+          </div>
+          <div class="cap">
+            <span class="nm">Icon master + size grid</span>
+            <span
+              class="dl"
+              data-svg="icon-master"
+              data-name="dobedub-appicon-1024"
+              >⤓ 1024 SVG</span
+            >
+          </div>
+        </div>
+        <div class="metarow" style="margin-top: 14px">
+          <span class="mchip"><b>스퀴클</b> Apple superellipse</span>
+          <span class="mchip"><b>마스터</b> 1024px</span>
+          <span class="mchip red"><b>16px</b> 에서도 레드 1막대 유지</span>
+        </div>
+      </section>
+
+      <!-- ============ 04 MOTION ============ -->
+      <section class="sec" id="motion">
+        <div class="sec-h">
+          <span class="n red">04</span>
+          <h2>모션 / 라이브</h2>
+          <span class="en">Motion</span><span class="d">녹음·재생 상태</span>
+        </div>
+        <div class="grid g2">
+          <div class="card">
+            <div class="stage paper">
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  gap: 18px;
+                "
+              >
+                <div class="eq">
+                  <i></i><i></i><i></i><i class="r"></i><i class="r"></i><i></i
+                  ><i></i><i></i><i></i>
+                </div>
+                <span class="live"
+                  ><span class="dot"></span> REC · 더빙 중</span
+                >
+              </div>
+            </div>
+            <div class="cap">
+              <span class="nm">라이브 이퀄라이저 (Light)</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="stage dark">
+              <div class="eq dark">
+                <i></i><i></i><i class="r"></i><i></i><i></i><i class="r"></i
+                ><i></i><i></i><i></i>
+              </div>
+            </div>
+            <div class="cap"><span class="nm">로딩 / 재생 (Dark)</span></div>
+          </div>
+        </div>
+        <p class="note" style="margin-top: 14px">
+          정적인 파형 로고가 <b>살아 움직이는 순간</b> — 녹음·재생·로딩 상태에
+          쓰는 단 하나의 모션. 막대가 staggered로 튀고, 레드 막대 = 현재 더빙
+          중인 캐릭터 라인.
+          <code style="font: 10px var(--mono)">prefers-reduced-motion</code>
+          존중.
+        </p>
+      </section>
+
+      <!-- ============ 05 SOCIAL / OG ============ -->
+      <section class="sec" id="social">
+        <div class="sec-h">
+          <span class="n">05</span>
+          <h2>소셜 / OG 배너</h2>
+          <span class="en">Social</span><span class="d">1200 × 630</span>
+        </div>
+        <div class="card">
+          <div class="stage dark" style="padding: 34px">
+            <div class="og">
+              <span class="badge">보이스뱅크 · 웹툰 더빙</span>
+              <div class="big">웹툰을 <span class="red">목소리</span>로.</div>
+              <div class="tl">
+                캐릭터마다 목소리를 입히고, 한 편을 영상으로 — DOBEDUB
+              </div>
+              <svg
+                class="wave"
+                viewBox="0 0 400 200"
+                preserveAspectRatio="xMaxYMax slice"
+                id="og-wave"
+              ></svg>
+            </div>
+          </div>
+          <div class="cap">
+            <span class="nm">Open Graph 카드</span>
+            <span class="dl" data-svg="og-wave" data-name="dobedub-og-wave"
+              >⤓ 파형 SVG</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 06 APPLICATIONS ============ -->
+      <section class="sec" id="apply">
+        <div class="sec-h">
+          <span class="n red">06</span>
+          <h2>응용 에셋</h2>
+          <span class="en">Applications</span
+          ><span class="d">워터마크 · 시그니처 · UI</span>
+        </div>
+        <div class="grid g3">
+          <!-- watermark badge -->
+          <div class="appcard">
+            <div class="body" style="align-items: center">
+              <div class="wmk">
+                <span>두비덥으로 제작</span>
+                <svg viewBox="0 0 54 13" id="wmk-wave"></svg>
+              </div>
+              <span class="note" style="text-align: center"
+                >영상 하단 워터마크 / "Made with" 뱃지</span
+              >
+            </div>
+            <div class="cap">
+              <span class="nm">워터마크 뱃지</span>
+              <span
+                class="dl"
+                data-svg="wmk-wave"
+                data-name="dobedub-watermark-wave"
+                >⤓ SVG</span
+              >
+            </div>
+          </div>
+
+          <!-- email signature -->
+          <div class="appcard">
+            <div class="body">
+              <div class="sig">
+                <span class="av" id="sig-av"></span>
+                <div>
+                  <div class="l1">홍길동 · 보이스 디렉터</div>
+                  <div class="l2">DOBEDUB · 보이스뱅크</div>
+                  <div class="l3">dub@dobedub.com · <b>dobedub.com</b></div>
+                </div>
+              </div>
+            </div>
+            <div class="cap">
+              <span class="nm">이메일 시그니처</span>
+              <span
+                class="dl"
+                data-svg="sig-av"
+                data-name="dobedub-signature-avatar"
+                >⤓ 아바타 SVG</span
+              >
+            </div>
+          </div>
+
+          <!-- UI buttons -->
+          <div class="appcard">
+            <div class="body">
+              <div class="btnset">
+                <span class="uib primary"
+                  ><svg viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M4 3.5v9l8-4.5z" />
+                  </svg>
+                  더빙 시작</span
+                >
+                <span class="uib ink">큐 보기</span>
+                <span class="uib ghost">취소</span>
+              </div>
+              <span class="note"
+                >제품 UI 버튼 — 레드 = 1차 액션(재생/녹음)</span
+              >
+            </div>
+            <div class="cap"><span class="nm">UI 버튼 토큰</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 07 COLOR ============ -->
+      <section class="sec" id="color">
+        <div class="sec-h">
+          <span class="n">07</span>
+          <h2>컬러</h2>
+          <span class="en">Color</span
+          ><span class="d">brand-spec.md · 클릭 복사</span>
+        </div>
+        <div class="pal">
+          <div class="sw" data-hex="#0C0C0D">
+            <div class="b" style="background: #0c0c0d">
+              <span class="role" style="color: rgba(255, 255, 255, 0.6)"
+                >Primary</span
+              >
+            </div>
+            <div class="t">
+              <div class="nm">Ink</div>
+              <div class="hx">
+                <span>#0C0C0D</span><span class="copy">복사 ⧉</span>
+              </div>
+            </div>
+          </div>
+          <div class="sw" data-hex="#FFFFFF">
+            <div
+              class="b"
+              style="background: #fff; border-bottom: 1px solid var(--line)"
+            >
+              <span class="role" style="color: var(--faint)">Surface</span>
+            </div>
+            <div class="t">
+              <div class="nm">Paper White</div>
+              <div class="hx">
+                <span>#FFFFFF</span><span class="copy">복사 ⧉</span>
+              </div>
+            </div>
+          </div>
+          <div class="sw" data-hex="#ED1C24">
+            <div class="b" style="background: #ed1c24">
+              <span class="role" style="color: rgba(255, 255, 255, 0.85)"
+                >Accent</span
+              >
+            </div>
+            <div class="t">
+              <div class="nm">DUB Red</div>
+              <div class="hx">
+                <span>#ED1C24</span><span class="copy">복사 ⧉</span>
+              </div>
+            </div>
+          </div>
+          <div class="sw" data-hex="#C40F16">
+            <div class="b" style="background: #c40f16"></div>
+            <div class="t">
+              <div class="nm">Red Deep (hover)</div>
+              <div class="hx">
+                <span>#C40F16</span><span class="copy">복사 ⧉</span>
+              </div>
+            </div>
+          </div>
+          <div class="sw" data-hex="#74747A">
+            <div class="b" style="background: #74747a"></div>
+            <div class="t">
+              <div class="nm">Muted</div>
+              <div class="hx">
+                <span>#74747A</span><span class="copy">복사 ⧉</span>
+              </div>
+            </div>
+          </div>
+          <div class="sw" data-hex="#E9E9EC">
+            <div
+              class="b"
+              style="background: #e9e9ec; border-bottom: 1px solid var(--line)"
+            ></div>
+            <div class="t">
+              <div class="nm">Line</div>
+              <div class="hx">
+                <span>#E9E9EC</span><span class="copy">복사 ⧉</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="note" style="margin-top: 14px">
+          레드는 <b>강세 1곳</b> 원칙 — 한 화면에서 목소리/재생/녹음 같은 핵심
+          액션에만. 나머지는 잉크·페이퍼·뉴트럴로.
+        </p>
+      </section>
+
+      <!-- ============ 08 RULES ============ -->
+      <section class="sec" id="rules">
+        <div class="sec-h">
+          <span class="n red">08</span>
+          <h2>여백 · 오용</h2>
+          <span class="en">Clearspace &amp; Misuse</span>
+        </div>
+        <div class="rulecols">
+          <div>
+            <div class="clearbox">
+              <div class="cs-grid"></div>
+              <div id="clear-logo" style="position: relative"></div>
+            </div>
+            <p class="note" style="margin-top: 11px">
+              최소 여백 = <b>워드마크 글자 높이의 ½</b>. 파형 언더라인 아래로도
+              같은 여백을 확보합니다.
+            </p>
+          </div>
+          <div>
+            <div class="misuse">
+              <div class="mis">
+                <div class="top">
+                  <span class="x">×</span
+                  ><span
+                    class="wm"
+                    style="font-size: 20px; transform: skewX(-12deg)"
+                    ><span class="ink">DOBE</span
+                    ><span class="red">DUB</span></span
+                  >
+                </div>
+                <div class="cap2">기울이기·왜곡 금지</div>
+              </div>
+              <div class="mis">
+                <div class="top" style="background: #2b6cb0">
+                  <span class="x">×</span
+                  ><span class="wm" style="font-size: 20px"
+                    ><span style="color: #fff">DOBE</span
+                    ><span style="color: #ffd400">DUB</span></span
+                  >
+                </div>
+                <div class="cap2">팔레트 밖 색상 금지</div>
+              </div>
+              <div class="mis">
+                <div class="top">
+                  <span class="x">×</span
+                  ><span
+                    class="wm"
+                    style="
+                      font-size: 20px;
+                      font-family: Georgia, serif;
+                      font-weight: 700;
+                    "
+                    ><span class="ink">Dobe</span
+                    ><span class="red">Dub</span></span
+                  >
+                </div>
+                <div class="cap2">서체 교체 금지</div>
+              </div>
+              <div class="mis">
+                <div class="top">
+                  <span class="x">×</span>
+                  <div
+                    style="filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5))"
+                  >
+                    <span class="wm" style="font-size: 20px"
+                      ><span class="ink">DOBE</span
+                      ><span class="red">DUB</span></span
+                    >
+                  </div>
+                </div>
+                <div class="cap2">그림자·효과 금지</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="foot">
+        <b>DOBEDUB Brand Asset Kit</b> · Voice Wave 컨셉 확장 · 팔레트 고정
+        #0C0C0D / #FFFFFF / #ED1C24<br />
+        원본 시안 <code>dobedub-concepts.html</code> · 토큰
+        <code>brand-spec.md</code> · 각 카드의 <code>⤓ SVG</code>로 개별 에셋
+        내보내기
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      (function () {
+        var NS = "http://www.w3.org/2000/svg";
+
+        /* ---- canonical voice wave (27 bars: 8 red + 19 ink) ---- */
+        // pattern of heights (max 22 within a 26-tall band, y centered)
+        var RED_H = [6, 14, 22, 10, 4, 18, 8, 20];
+        var INK_H = [
+          6, 16, 10, 22, 4, 12, 18, 8, 14, 6, 20, 10, 4, 16, 8, 14, 6, 12,
+        ];
+        function buildWave(opts) {
+          opts = opts || {};
+          var inkColor = opts.ink || "#0c0c0d",
+            redColor = opts.red || "#ed1c24";
+          var step = opts.step || 12,
+            w = opts.barW || 5,
+            band = 26,
+            pad = 2;
+          var total = RED_H.length + INK_H.length;
+          var width = opts.width || total * step;
+          var svg = document.createElementNS(NS, "svg");
+          svg.setAttribute("viewBox", "0 0 " + total * step + " " + band);
+          svg.setAttribute("width", width);
+          svg.setAttribute("height", (width * band) / (total * step));
+          function bar(x, h, fill) {
+            var r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", x);
+            r.setAttribute("y", (band - h) / 2);
+            r.setAttribute("width", w);
+            r.setAttribute("height", h);
+            r.setAttribute("rx", 2);
+            r.setAttribute("fill", fill);
+            svg.appendChild(r);
+          }
+          var x = pad,
+            i;
+          for (i = 0; i < RED_H.length; i++) {
+            bar(x, RED_H[i], redColor);
+            x += step;
+          }
+          for (i = 0; i < INK_H.length; i++) {
+            bar(x, INK_H[i], inkColor);
+            x += step;
+          }
+          return svg;
+        }
+
+        /* ---- full wordmark lockup as a single exportable SVG (text + wave) ---- */
+        function waveGroup(inkColor, redColor, yTop) {
+          // returns <g> of 27 bars centered within 324 user units, top at yTop
+          var g = document.createElementNS(NS, "g"),
+            step = 12,
+            w = 5,
+            band = 26,
+            x = 0,
+            i;
+          function bar(xx, h, fill) {
+            var r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", xx);
+            r.setAttribute("y", yTop + (band - h) / 2);
+            r.setAttribute("width", w);
+            r.setAttribute("height", h);
+            r.setAttribute("rx", 2);
+            r.setAttribute("fill", fill);
+            g.appendChild(r);
+          }
+          for (i = 0; i < RED_H.length; i++) {
+            bar(x, RED_H[i], redColor);
+            x += step;
+          }
+          for (i = 0; i < INK_H.length; i++) {
+            bar(x, INK_H[i], inkColor);
+            x += step;
+          }
+          return g; // total width 27*12 = 324
+        }
+        function lockupSVG(opts) {
+          // opts: ink, red, kor (bool), render width
+          var inkC = opts.ink,
+            redC = opts.red,
+            hasKor = opts.kor;
+          var VW = 360,
+            fontY = hasKor ? 64 : 48,
+            waveTop = hasKor ? 80 : 64;
+          var VH = waveTop + 30;
+          var svg = document.createElementNS(NS, "svg");
+          svg.setAttribute("viewBox", "0 0 " + VW + " " + VH);
+          var rw = opts.width || 300;
+          svg.setAttribute("width", rw);
+          svg.setAttribute("height", (rw * VH) / VW);
+          if (hasKor) {
+            var k = document.createElementNS(NS, "text");
+            k.setAttribute("x", VW / 2);
+            k.setAttribute("y", 26);
+            k.setAttribute("text-anchor", "middle");
+            k.setAttribute(
+              "font-family",
+              '"SF Mono",ui-monospace,Menlo,monospace',
+            );
+            k.setAttribute("font-size", "11");
+            k.setAttribute("letter-spacing", "5");
+            k.setAttribute("fill", opts.korFill || "#74747a");
+            k.textContent = "보이스뱅크 두비덥";
+            svg.appendChild(k);
+          }
+          var t = document.createElementNS(NS, "text");
+          t.setAttribute("x", VW / 2);
+          t.setAttribute("y", fontY);
+          t.setAttribute("text-anchor", "middle");
+          t.setAttribute(
+            "font-family",
+            '"Arial Black","Helvetica Neue",Impact,sans-serif',
+          );
+          t.setAttribute("font-weight", "900");
+          t.setAttribute("font-size", "46");
+          t.setAttribute("letter-spacing", "-1");
+          var a = document.createElementNS(NS, "tspan");
+          a.setAttribute("fill", inkC);
+          a.textContent = "DOBE";
+          var b = document.createElementNS(NS, "tspan");
+          b.setAttribute("fill", redC);
+          b.textContent = "DUB";
+          t.appendChild(a);
+          t.appendChild(b);
+          svg.appendChild(t);
+          var g = waveGroup(inkC, redC, waveTop);
+          g.setAttribute("transform", "translate(" + (VW - 324) / 2 + ",0)");
+          svg.appendChild(g);
+          return svg;
+        }
+        function place(id, opts) {
+          var box = document.getElementById(id);
+          if (box) box.appendChild(lockupSVG(opts));
+        }
+        place("logo-primary", { ink: "#0c0c0d", red: "#ed1c24" });
+        place("logo-reversed", { ink: "#ffffff", red: "#ed1c24" });
+        place("logo-stacked", { ink: "#0c0c0d", red: "#ed1c24", kor: true });
+        place("logo-onred", {
+          ink: "#ffffff",
+          red: "#0c0c0d",
+          korFill: "rgba(255,255,255,.6)",
+        });
+
+        /* ---- header lockup: wave moved LEFT as a compact symbol, wordmark inline ---- */
+        // Stays legible at header heights (24–40px) where a stacked wave collapses.
+        function headerLockup(opts) {
+          opts = opts || {};
+          var inkC = opts.ink || "#0c0c0d",
+            redC = opts.red || "#ed1c24";
+          var VW = 196,
+            VH = 40;
+          var svg = document.createElementNS(NS, "svg");
+          svg.setAttribute("viewBox", "0 0 " + VW + " " + VH);
+          var h = opts.height || 40;
+          svg.setAttribute("height", h);
+          svg.setAttribute("width", (h * VW) / VH);
+          // left mark: 5-bar pulse, center red
+          var heights = [12, 20, 30, 20, 12],
+            xs = [2, 8, 14, 20, 26],
+            bw = 4;
+          heights.forEach(function (hh, i) {
+            var r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", xs[i]);
+            r.setAttribute("y", (VH - hh) / 2);
+            r.setAttribute("width", bw);
+            r.setAttribute("height", hh);
+            r.setAttribute("rx", 2);
+            r.setAttribute("fill", i === 2 ? redC : inkC);
+            svg.appendChild(r);
+          });
+          // wordmark inline
+          var t = document.createElementNS(NS, "text");
+          t.setAttribute("x", 40);
+          t.setAttribute("y", 29);
+          t.setAttribute(
+            "font-family",
+            '"Arial Black","Helvetica Neue",Impact,sans-serif',
+          );
+          t.setAttribute("font-weight", "900");
+          t.setAttribute("font-size", "26");
+          t.setAttribute("letter-spacing", "-1");
+          var a = document.createElementNS(NS, "tspan");
+          a.setAttribute("fill", inkC);
+          a.textContent = "DOBE";
+          var b = document.createElementNS(NS, "tspan");
+          b.setAttribute("fill", redC);
+          b.textContent = "DUB";
+          t.appendChild(a);
+          t.appendChild(b);
+          svg.appendChild(t);
+          return svg;
+        }
+        function placeHeader(id, opts) {
+          var box = document.getElementById(id);
+          if (box) box.appendChild(headerLockup(opts));
+        }
+        placeHeader("hd-light", { ink: "#0c0c0d", red: "#ed1c24", height: 44 });
+        placeHeader("hd-dark", { ink: "#ffffff", red: "#ed1c24", height: 44 });
+        placeHeader("bar-light", {
+          ink: "#0c0c0d",
+          red: "#ed1c24",
+          height: 30,
+        });
+        placeHeader("bar-dark", { ink: "#ffffff", red: "#ed1c24", height: 30 });
+        placeHeader("hd-40", { ink: "#0c0c0d", red: "#ed1c24", height: 40 });
+        placeHeader("hd-32", { ink: "#0c0c0d", red: "#ed1c24", height: 32 });
+        placeHeader("hd-24", { ink: "#0c0c0d", red: "#ed1c24", height: 24 });
+
+        /* ---- symbol: compact 5-bar pulse, center tallest = red ---- */
+        function symbol(opts) {
+          opts = opts || {};
+          var ink = opts.ink || "#0c0c0d",
+            red = opts.red || "#ed1c24",
+            size = opts.size || 96;
+          var svg = document.createElementNS(NS, "svg");
+          svg.setAttribute("viewBox", "0 0 64 64");
+          svg.setAttribute("width", size);
+          svg.setAttribute("height", size);
+          var heights = [20, 34, 52, 34, 20],
+            xs = [8, 19, 30, 41, 52];
+          heights.forEach(function (h, i) {
+            var r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", xs[i]);
+            r.setAttribute("y", (64 - h) / 2);
+            r.setAttribute("width", 6);
+            r.setAttribute("height", h);
+            r.setAttribute("rx", 3);
+            r.setAttribute("fill", i === 2 ? red : ink);
+            svg.appendChild(r);
+          });
+          return svg;
+        }
+        function squirclePath() {
+          // 64x64 superellipse approx
+          return "M32 2 C12 2 2 12 2 32 C2 52 12 62 32 62 C52 62 62 52 62 32 C62 12 52 2 32 2 Z";
+        }
+        // bare
+        document.getElementById("sym-bare").appendChild(symbol({ size: 104 }));
+        // circle avatar (white bg ring + symbol)
+        (function () {
+          var s = document.createElementNS(NS, "svg");
+          s.setAttribute("viewBox", "0 0 64 64");
+          s.setAttribute("width", 108);
+          s.setAttribute("height", 108);
+          var c = document.createElementNS(NS, "circle");
+          c.setAttribute("cx", 32);
+          c.setAttribute("cy", 32);
+          c.setAttribute("r", 31);
+          c.setAttribute("fill", "#fff");
+          c.setAttribute("stroke", "#0c0c0d");
+          c.setAttribute("stroke-width", 2);
+          s.appendChild(c);
+          var inner = symbol({ size: 64 });
+          Array.prototype.slice.call(inner.childNodes).forEach(function (n) {
+            s.appendChild(n.cloneNode(true));
+          });
+          document.getElementById("sym-circle").appendChild(s);
+        })();
+        // squircle dark
+        (function () {
+          var s = document.createElementNS(NS, "svg");
+          s.setAttribute("viewBox", "0 0 64 64");
+          s.setAttribute("width", 108);
+          s.setAttribute("height", 108);
+          var p = document.createElementNS(NS, "path");
+          p.setAttribute("d", squirclePath());
+          p.setAttribute("fill", "#0c0c0d");
+          s.appendChild(p);
+          var inner = symbol({ size: 64, ink: "#ffffff" });
+          Array.prototype.slice.call(inner.childNodes).forEach(function (n) {
+            s.appendChild(n.cloneNode(true));
+          });
+          document.getElementById("sym-squircle").appendChild(s);
+        })();
+
+        /* ---- app icon (squircle + waveform) at sizes ---- */
+        function appIcon(px) {
+          var s = document.createElementNS(NS, "svg");
+          s.setAttribute("viewBox", "0 0 64 64");
+          s.setAttribute("width", px);
+          s.setAttribute("height", px);
+          var p = document.createElementNS(NS, "path");
+          p.setAttribute("d", squirclePath());
+          p.setAttribute("fill", "#0c0c0d");
+          s.appendChild(p);
+          var small = px <= 20;
+          var heights = small ? [26, 46, 26] : [16, 28, 44, 28, 16];
+          var xs = small ? [24, 30.5, 37] : [14, 23, 32, 41, 50];
+          var bw = small ? 5 : 6;
+          var redIdx = small ? 2 : 3; // a right-side bar is red
+          heights.forEach(function (h, i) {
+            var r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", xs[i]);
+            r.setAttribute("y", (64 - h) / 2);
+            r.setAttribute("width", bw);
+            r.setAttribute("height", h);
+            r.setAttribute("rx", bw / 2);
+            r.setAttribute("fill", i === redIdx ? "#ed1c24" : "#ffffff");
+            s.appendChild(r);
+          });
+          return s;
+        }
+        (function () {
+          var grid = document.getElementById("icon-sizes");
+          var sizes = [
+            [120, "1024 master", "icon-master"],
+            [80, "256"],
+            [56, "128"],
+            [40, "64"],
+            [28, "32"],
+            [18, "16"],
+          ];
+          sizes.forEach(function (cfg) {
+            var sz = document.createElement("div");
+            sz.className = "sz";
+            var ic = appIcon(cfg[0]);
+            if (cfg[2]) ic.setAttribute("id", cfg[2]);
+            sz.appendChild(ic);
+            var lab = document.createElement("span");
+            lab.className = "lab";
+            lab.innerHTML =
+              cfg[1].indexOf("master") > -1
+                ? "<b>" + cfg[1].split(" ")[0] + "</b> " + cfg[1].split(" ")[1]
+                : "<b>" + cfg[1] + "</b> px";
+            sz.appendChild(lab);
+            grid.appendChild(sz);
+          });
+        })();
+
+        /* ---- OG banner wave (tall, decorative) ---- */
+        (function () {
+          var svg = document.getElementById("og-wave");
+          var heights = [
+              40, 90, 150, 70, 110, 180, 60, 130, 90, 40, 160, 80, 50, 120,
+            ],
+            x = 10;
+          heights.forEach(function (h, i) {
+            var r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", x);
+            r.setAttribute("y", 200 - h);
+            r.setAttribute("width", 14);
+            r.setAttribute("height", h);
+            r.setAttribute("rx", 6);
+            r.setAttribute(
+              "fill",
+              i >= 4 && i <= 6 ? "#ed1c24" : "rgba(255,255,255,.16)",
+            );
+            svg.appendChild(r);
+            x += 28;
+          });
+        })();
+
+        /* ---- watermark mini wave ---- */
+        (function () {
+          var svg = document.getElementById("wmk-wave");
+          var heights = [5, 9, 13, 8, 4, 11, 6],
+            x = 2;
+          heights.forEach(function (h, i) {
+            var r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", x);
+            r.setAttribute("y", (13 - h) / 2);
+            r.setAttribute("width", 3.5);
+            r.setAttribute("height", h);
+            r.setAttribute("rx", 1.5);
+            r.setAttribute("fill", i === 2 ? "#ed1c24" : "#0c0c0d");
+            svg.appendChild(r);
+            x += 8;
+          });
+        })();
+
+        /* ---- signature avatar (squircle small) ---- */
+        document.getElementById("sig-av").appendChild(appIcon(46));
+
+        /* ---- clearspace logo ---- */
+        (function () {
+          var box = document.getElementById("clear-logo");
+          var wm = document.createElement("span");
+          wm.className = "wm";
+          wm.style.fontSize = "38px";
+          wm.innerHTML =
+            '<span class="ink">DOBE</span><span class="red">DUB</span>';
+          var wrap = document.createElement("div");
+          wrap.style.cssText =
+            "display:flex;flex-direction:column;align-items:center;gap:9px;background:#fff;padding:22px 26px;border-radius:4px";
+          wrap.appendChild(wm);
+          wrap.appendChild(buildWave({ width: 230 }));
+          box.appendChild(wrap);
+        })();
+
+        /* ---- SVG export ---- */
+        function downloadSVG(el, name) {
+          var clone = el.cloneNode(true);
+          clone.setAttribute("xmlns", NS);
+          var data =
+            '<?xml version="1.0" encoding="UTF-8"?>\n' +
+            new XMLSerializer().serializeToString(clone);
+          var blob = new Blob([data], { type: "image/svg+xml" });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url;
+          a.download = (name || "dobedub") + ".svg";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          toast(name + ".svg 내보냄");
+        }
+        document.querySelectorAll(".dl").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var host = document.getElementById(btn.dataset.svg);
+            if (!host) return;
+            var svg =
+              host.tagName.toLowerCase() === "svg"
+                ? host
+                : host.querySelector("svg");
+            // lockups: wrap wordmark text + wave into one svg is complex; export the wave svg for those,
+            // but if the host itself is an svg use it directly.
+            if (svg) downloadSVG(svg, btn.dataset.name);
+            else toast("내보낼 벡터가 없어요");
+          });
+        });
+
+        /* ---- color copy ---- */
+        document.querySelectorAll(".sw").forEach(function (sw) {
+          sw.addEventListener("click", function () {
+            var hex = sw.dataset.hex;
+            navigator.clipboard && navigator.clipboard.writeText(hex);
+            toast(hex + " 복사됨");
+          });
+        });
+
+        /* ---- toast ---- */
+        var tEl = document.getElementById("toast"),
+          tTimer;
+        function toast(msg) {
+          tEl.textContent = msg;
+          tEl.classList.add("show");
+          clearTimeout(tTimer);
+          tTimer = setTimeout(function () {
+            tEl.classList.remove("show");
+          }, 1600);
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tooned — 로고 &amp; 앱 아이콘</title>
+    <style>
+      /* ============================================================
+   Tooned — 브랜드 마크 & 일렉트론 앱 아이콘 시트
+   컨셉: 세로 웹툰 스트립 → 영상. 재생 삼각형을 가로 스트립
+   패널이 가로지르는 단일 기호. 제품 토큰을 브랜드 컬러로 승격.
+   ============================================================ */
+      :root {
+        --bg: #0b0c10;
+        --panel: #101218;
+        --panel-2: #161922;
+        --elev: #1c2029;
+        --line: #262b37;
+        --line-soft: #1d212b;
+        --fg: #e8eaf1;
+        --muted: #8a90a2;
+        --faint: #5b6172;
+        --accent: #4d8dff;
+        --violet: #7b5bff;
+        --rec: #ff5a5f;
+        --ok: #34d399;
+        --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+        --sans:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font: 14px/1.5 var(--sans);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background:
+          radial-gradient(
+            900px 500px at 80% -8%,
+            rgba(123, 91, 255, 0.1),
+            transparent 60%
+          ),
+          radial-gradient(
+            900px 500px at 10% 0%,
+            rgba(77, 141, 255, 0.08),
+            transparent 55%
+          ),
+          var(--bg);
+      }
+      .wrap {
+        max-width: 1060px;
+        margin: 0 auto;
+        padding: 64px 32px 110px;
+      }
+
+      /* ---- header ---- */
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 10px;
+      }
+      .head .lockup {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .head .word {
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+      }
+      .head .word b {
+        background: linear-gradient(120deg, var(--accent), var(--violet));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .tagline {
+        color: var(--muted);
+        font-size: 15px;
+        margin: 14px 0 6px;
+        letter-spacing: -0.01em;
+      }
+      .kicker {
+        font: 11px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+      .rule {
+        height: 1px;
+        background: linear-gradient(90deg, var(--line), transparent);
+        margin: 34px 0;
+      }
+
+      /* ---- section ---- */
+      .sec {
+        margin-top: 54px;
+      }
+      .sec-h {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .sec-h h2 {
+        font-size: 17px;
+        font-weight: 750;
+        letter-spacing: -0.01em;
+      }
+      .sec-h .n {
+        font: 11px/1 var(--mono);
+        color: var(--accent);
+        letter-spacing: 0.1em;
+      }
+      .sec-h .d {
+        color: var(--faint);
+        font-size: 12.5px;
+        margin-left: auto;
+      }
+
+      /* ---- hero icon ---- */
+      .hero {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 46px;
+        align-items: center;
+        background: linear-gradient(180deg, #0e1016, #0b0c10);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 40px 44px;
+      }
+      .hero .big {
+        width: 208px;
+        height: 208px;
+        flex: none;
+      }
+      .hero .meta h3 {
+        font-size: 20px;
+        font-weight: 750;
+        margin-bottom: 10px;
+        letter-spacing: -0.01em;
+      }
+      .hero .meta p {
+        color: var(--muted);
+        font-size: 13.5px;
+        max-width: 52ch;
+        margin-bottom: 8px;
+      }
+      .hero .meta .why {
+        color: var(--faint);
+        font-size: 12.5px;
+        max-width: 54ch;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .chip {
+        font: 11px/1 var(--mono);
+        color: var(--muted);
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 7px 11px;
+      }
+      .chip b {
+        color: var(--fg);
+        font-weight: 700;
+      }
+
+      /* ---- size grid (electron) ---- */
+      .sizes {
+        display: flex;
+        align-items: flex-end;
+        gap: 30px;
+        flex-wrap: wrap;
+        background: #0d0f15;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 34px 30px;
+      }
+      .sz {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 11px;
+      }
+      .sz .frame {
+        display: grid;
+        place-items: center;
+      }
+      .sz .lab {
+        font: 10px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.06em;
+      }
+      .sz .lab b {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      /* ---- light / dark lockups ---- */
+      .locks {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      .lockcard {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .lockcard .top {
+        height: 172px;
+        display: grid;
+        place-items: center;
+      }
+      .lockcard .top.dark {
+        background: #0b0c10;
+      }
+      .lockcard .top.light {
+        background: #f4f5f8;
+      }
+      .lockcard .cap {
+        font: 10px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.1em;
+        padding: 11px 14px;
+        border-top: 1px solid var(--line-soft);
+        background: var(--panel);
+      }
+      .lk {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .lk .word {
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+      }
+      .lk.on-light .word {
+        color: #14161c;
+      }
+      .lk.on-light .word b {
+        color: #5b6bff;
+      }
+      .lk.on-dark .word {
+        color: #f2f3f7;
+      }
+      .lk.on-dark .word b {
+        background: linear-gradient(120deg, var(--accent), var(--violet));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      /* ---- mono / clearspace ---- */
+      .threecol {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+      }
+      .minicard {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0d0f15;
+        overflow: hidden;
+      }
+      .minicard .pad {
+        height: 170px;
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+      .minicard .pad.invert {
+        background: #f4f5f8;
+      }
+      .minicard .cap {
+        font: 10px/1 var(--mono);
+        color: var(--faint);
+        letter-spacing: 0.08em;
+        padding: 11px 14px;
+        border-top: 1px solid var(--line-soft);
+        background: var(--panel);
+      }
+      .clearspace {
+        position: relative;
+      }
+      .cs-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(77, 141, 255, 0.12) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(77, 141, 255, 0.12) 1px, transparent 1px);
+        background-size: 13px 13px;
+      }
+
+      /* ---- palette ---- */
+      .pal {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+      .sw {
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .sw .b {
+        height: 74px;
+      }
+      .sw .t {
+        padding: 11px 13px;
+      }
+      .sw .t .nm {
+        font-size: 12.5px;
+        font-weight: 700;
+      }
+      .sw .t .hx {
+        font: 10.5px/1.4 var(--mono);
+        color: var(--faint);
+        margin-top: 3px;
+      }
+
+      /* ---- export ---- */
+      .exp {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        background: #0d0f15;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 20px 22px;
+      }
+      .exp .lab {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .exp .lab b {
+        color: var(--fg);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 15px;
+        border-radius: 10px;
+        font-size: 12.5px;
+        font-weight: 650;
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        color: var(--fg);
+        transition: 0.12s;
+      }
+      .btn:hover {
+        background: var(--elev);
+        border-color: #3a4150;
+        transform: translateY(-1px);
+      }
+      .btn.pri {
+        background: linear-gradient(120deg, var(--accent), var(--violet));
+        border: 0;
+        color: #fff;
+        box-shadow: 0 4px 16px rgba(91, 107, 255, 0.35);
+      }
+      .btn svg {
+        width: 15px;
+        height: 15px;
+      }
+      .exp .hint {
+        font: 10.5px/1.4 var(--mono);
+        color: var(--faint);
+        width: 100%;
+        margin-top: 4px;
+      }
+
+      .foot {
+        margin-top: 60px;
+        color: var(--faint);
+        font-size: 12px;
+        text-align: center;
+        line-height: 1.7;
+      }
+      .foot code {
+        font: 11px/1 var(--mono);
+        color: var(--muted);
+        background: var(--panel-2);
+        border: 1px solid var(--line-soft);
+        border-radius: 5px;
+        padding: 2px 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- ============ HEADER ============ -->
+      <div class="kicker">Brand identity · Electron app</div>
+      <div class="head" style="margin-top: 14px">
+        <div class="lockup">
+          <span id="hLogo"></span>
+          <span class="word">T<b>oo</b>ned</span>
+        </div>
+      </div>
+      <p class="tagline">
+        웹툰을 영상으로 — 세로 스트립으로 연출하고, 캐릭터마다 목소리를 입히는
+        영상 제작툴.
+      </p>
+
+      <div class="rule"></div>
+
+      <!-- ============ HERO ICON ============ -->
+      <section class="sec" style="margin-top: 8px">
+        <div class="sec-h">
+          <span class="n">01</span>
+          <h2>앱 아이콘</h2>
+          <span class="d">macOS 스퀴클 · 1024px 마스터</span>
+        </div>
+        <div class="hero">
+          <span class="big" id="heroIcon"></span>
+          <div class="meta">
+            <h3>스트립이 재생되는 순간</h3>
+            <p>
+              재생 삼각형(▶ 영상)을 가로 패널 두 줄이 가로지릅니다. 이 패널
+              분할이 곧 세로로 흐르던 웹툰 컷 — 즉
+              <b style="color: var(--fg)"
+                >"스크롤 웹툰 컷이 재생되는 영상 프레임이 된다"</b
+              >는 제품의 본질을 한 기호로 압축했습니다.
+            </p>
+            <p class="why">
+              패널 시임은 16px에서 사라지고 재생 기호만 또렷이 남도록 굵기를
+              잡아, 도크/트레이/파비콘 어디서나 'Tooned = 재생'으로 읽힙니다.
+            </p>
+            <div class="chips">
+              <span class="chip"><b>스트립</b> 웹툰</span>
+              <span class="chip"><b>▶</b> 영상</span>
+              <span class="chip"><b>그라데이션</b> 4d8dff→7b5bff</span>
+              <span class="chip"><b>스퀴클</b> Apple superellipse</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SIZE GRID ============ -->
+      <section class="sec">
+        <div class="sec-h">
+          <span class="n">02</span>
+          <h2>아이콘 사이즈</h2>
+          <span class="d">.icns / .ico 에 필요한 전 사이즈</span>
+        </div>
+        <div class="sizes" id="sizeGrid"></div>
+      </section>
+
+      <!-- ============ LOCKUPS ============ -->
+      <section class="sec">
+        <div class="sec-h">
+          <span class="n">03</span>
+          <h2>로고 락업</h2>
+          <span class="d">다크 / 라이트 배경</span>
+        </div>
+        <div class="locks">
+          <div class="lockcard">
+            <div class="top dark">
+              <div class="lk on-dark" id="lkDark"></div>
+            </div>
+            <div class="cap">PRIMARY · ON DARK (#0b0c10)</div>
+          </div>
+          <div class="lockcard">
+            <div class="top light">
+              <div class="lk on-light" id="lkLight"></div>
+            </div>
+            <div class="cap">ON LIGHT (#f4f5f8)</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ MONO + CLEARSPACE ============ -->
+      <section class="sec">
+        <div class="sec-h">
+          <span class="n">04</span>
+          <h2>마크 변형</h2>
+          <span class="d">모노크롬 · 여백 규칙</span>
+        </div>
+        <div class="threecol">
+          <div class="minicard">
+            <div class="pad" id="monoWhite"></div>
+            <div class="cap">모노 화이트 (knockout)</div>
+          </div>
+          <div class="minicard">
+            <div class="pad invert" id="monoInk"></div>
+            <div class="cap">모노 잉크 (#14161c)</div>
+          </div>
+          <div class="minicard">
+            <div class="pad clearspace">
+              <div class="cs-grid"></div>
+              <span id="csIcon" style="position: relative"></span>
+            </div>
+            <div class="cap">여백 = 마크 높이의 ¼</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PALETTE ============ -->
+      <section class="sec">
+        <div class="sec-h">
+          <span class="n">05</span>
+          <h2>컬러</h2>
+          <span class="d">제품 토큰 = 브랜드 토큰</span>
+        </div>
+        <div class="pal">
+          <div class="sw">
+            <div
+              class="b"
+              style="background: linear-gradient(135deg, #4d8dff, #7b5bff)"
+            ></div>
+            <div class="t">
+              <div class="nm">Brand Gradient</div>
+              <div class="hx">#4D8DFF → #7B5BFF</div>
+            </div>
+          </div>
+          <div class="sw">
+            <div class="b" style="background: #4d8dff"></div>
+            <div class="t">
+              <div class="nm">Accent Blue</div>
+              <div class="hx">#4D8DFF</div>
+            </div>
+          </div>
+          <div class="sw">
+            <div class="b" style="background: #7b5bff"></div>
+            <div class="t">
+              <div class="nm">Violet</div>
+              <div class="hx">#7B5BFF</div>
+            </div>
+          </div>
+          <div class="sw">
+            <div class="b" style="background: #0b0c10"></div>
+            <div class="t">
+              <div class="nm">Canvas Ink</div>
+              <div class="hx">#0B0C10</div>
+            </div>
+          </div>
+          <div class="sw">
+            <div class="b" style="background: #ff5a5f"></div>
+            <div class="t">
+              <div class="nm">Rec</div>
+              <div class="hx">#FF5A5F</div>
+            </div>
+          </div>
+          <div class="sw">
+            <div class="b" style="background: #34d399"></div>
+            <div class="t">
+              <div class="nm">Done</div>
+              <div class="hx">#34D399</div>
+            </div>
+          </div>
+          <div class="sw">
+            <div class="b" style="background: #e8eaf1"></div>
+            <div class="t">
+              <div class="nm">Fg</div>
+              <div class="hx">#E8EAF1</div>
+            </div>
+          </div>
+          <div class="sw">
+            <div class="b" style="background: #8a90a2"></div>
+            <div class="t">
+              <div class="nm">Muted</div>
+              <div class="hx">#8A90A2</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ EXPORT ============ -->
+      <section class="sec">
+        <div class="sec-h">
+          <span class="n">06</span>
+          <h2>내보내기</h2>
+          <span class="d">일렉트론 빌드용 PNG</span>
+        </div>
+        <div class="exp">
+          <span class="lab"
+            ><b>아이콘 PNG</b> — 클릭하면 해당 사이즈로 즉시
+            다운로드됩니다.</span
+          >
+          <button class="btn" data-png="512">512</button>
+          <button class="btn" data-png="256">256</button>
+          <button class="btn" data-png="128">128</button>
+          <button class="btn pri" data-png="1024">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" />
+            </svg>
+            1024 마스터
+          </button>
+          <button class="btn" id="dlSvg">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 7V5a2 2 0 012-2h12a2 2 0 012 2v2M9 21h6M12 8v13" />
+            </svg>
+            SVG 마스터
+          </button>
+          <div class="hint">
+            macOS: 1024.png → <code>iconutil</code> 또는
+            <code>icon.iconset</code> 로 .icns / Win: <code>png-to-ico</code> 로
+            .ico / 일렉트론 <code>icon</code> 옵션에 지정
+          </div>
+        </div>
+      </section>
+
+      <div class="foot">
+        Tooned 브랜드 시트 · 마크는 인라인 SVG라 무손실 확대 가능 · 컬러는
+        record.html / canvas.html 의 에디터 토큰과 1:1 일치<br />
+        파일: <code>brand.html</code>
+      </div>
+    </div>
+
+    <script>
+      /* =========================================================
+   ICON — 단일 SVG 마스터에서 모든 사이즈를 생성한다.
+   재생 삼각형 ▶ 을 가로 패널 시임 2줄이 가로지름(웹툰 컷).
+   mask 로 시임을 '비워' 배경 그라데이션이 비치게 한다.
+   ========================================================= */
+
+      /* Apple 스퀴클(슈퍼타원) 근사 path — viewBox 0 0 1024 1024 */
+      var SQUIRCLE =
+        "M512 0C865 0 1024 159 1024 512C1024 865 865 1024 512 1024C159 1024 0 865 0 512C0 159 159 0 512 0Z";
+
+      /* 재생 삼각형 좌표(꼭짓점 우측). 광학 중심 보정으로 살짝 우측. */
+      var TRI = "M392 300 L392 724 L735 512 Z";
+
+      /* opts: {fill, mono, seamColor} */
+      function iconSVG(px, opts) {
+        opts = opts || {};
+        var uid = "ic" + Math.random().toString(36).slice(2, 8);
+        var mono = opts.mono; // 'white' | 'ink' | undefined(=full color)
+        var bg, triFill, seam;
+        if (mono === "white") {
+          bg = "none";
+          triFill = "#ffffff";
+          seam = "transparent";
+        } else if (mono === "ink") {
+          bg = "none";
+          triFill = "#14161c";
+          seam = "transparent";
+        } else {
+          bg = "url(#" + uid + "g)";
+          triFill = "#ffffff";
+          seam = "#000";
+        }
+
+        // 시임 2줄(가로 패널 분할). 삼각형 높이 300~724 사이에 배치.
+        var seams =
+          '<rect x="360" y="430" width="420" height="26" rx="6" fill="black"/>' +
+          '<rect x="360" y="568" width="420" height="26" rx="6" fill="black"/>';
+
+        var defs =
+          "<defs>" +
+          '<linearGradient id="' +
+          uid +
+          'g" x1="120" y1="90" x2="900" y2="940" gradientUnits="userSpaceOnUse">' +
+          '<stop offset="0" stop-color="#5b9bff"/><stop offset="0.55" stop-color="#4d8dff"/><stop offset="1" stop-color="#7b5bff"/>' +
+          "</linearGradient>" +
+          '<linearGradient id="' +
+          uid +
+          'sheen" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">' +
+          '<stop offset="0" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>' +
+          "</linearGradient>" +
+          '<mask id="' +
+          uid +
+          'm">' +
+          '<path d="' +
+          TRI +
+          '" fill="white"/>' +
+          seams +
+          "</mask>" +
+          "</defs>";
+
+        var body = "";
+        if (mono) {
+          // 모노: 배경 없이 마크만. ink/white 색의 삼각형(시임 포함).
+          body =
+            '<g mask="url(#' +
+            uid +
+            'm)"><rect x="0" y="0" width="1024" height="1024" fill="' +
+            triFill +
+            '"/></g>';
+        } else {
+          body =
+            '<path d="' +
+            SQUIRCLE +
+            '" fill="' +
+            bg +
+            '"/>' +
+            '<path d="' +
+            SQUIRCLE +
+            '" fill="url(#' +
+            uid +
+            'sheen)"/>' +
+            // 미세 내부 테두리로 입체감
+            '<path d="' +
+            SQUIRCLE +
+            '" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>' +
+            '<g mask="url(#' +
+            uid +
+            'm)"><rect x="0" y="0" width="1024" height="1024" fill="' +
+            triFill +
+            '"/></g>';
+        }
+
+        return (
+          '<svg width="' +
+          px +
+          '" height="' +
+          px +
+          '" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">' +
+          defs +
+          body +
+          "</svg>"
+        );
+      }
+
+      /* 작은 사이즈에서 모서리 보존 위해 컨테이너 radius 적용(모노 제외) */
+      function place(elId, px, opts) {
+        var el = document.getElementById(elId);
+        if (!el) return;
+        el.innerHTML = iconSVG(px, opts);
+        var svg = el.querySelector("svg");
+        if (svg && !(opts && opts.mono)) {
+          svg.style.borderRadius = px * 0.225 + "px";
+          svg.style.display = "block";
+        }
+      }
+
+      /* 헤더 / 히어로 / clearspace */
+      place("hLogo", 38, {});
+      document.querySelector("#hLogo svg").style.borderRadius = "9px";
+      place("heroIcon", 208, {});
+      place("csIcon", 96, {});
+
+      /* 락업 */
+      (function () {
+        var d = document.getElementById("lkDark");
+        d.innerHTML = iconSVG(46, {});
+        d.querySelector("svg").style.borderRadius = "11px";
+        d.insertAdjacentHTML(
+          "beforeend",
+          '<span class="word">T<b>oo</b>ned</span>',
+        );
+        var l = document.getElementById("lkLight");
+        l.innerHTML = iconSVG(46, {});
+        l.querySelector("svg").style.borderRadius = "11px";
+        l.insertAdjacentHTML(
+          "beforeend",
+          '<span class="word">T<b>oo</b>ned</span>',
+        );
+      })();
+
+      /* 모노 */
+      place("monoWhite", 96, { mono: "white" });
+      place("monoInk", 96, { mono: "ink" });
+
+      /* 사이즈 그리드 */
+      (function () {
+        var sizes = [
+          { px: 1024, l: "1024" },
+          { px: 512, l: "512" },
+          { px: 256, l: "256" },
+          { px: 128, l: "128" },
+          { px: 64, l: "64" },
+          { px: 32, l: "32" },
+          { px: 16, l: "16" },
+        ];
+        var disp = {
+          1024: 104,
+          512: 104,
+          256: 96,
+          128: 80,
+          64: 64,
+          32: 32,
+          16: 16,
+        };
+        var g = document.getElementById("sizeGrid");
+        g.innerHTML = sizes
+          .map(function (s) {
+            return (
+              '<div class="sz"><div class="frame" data-sz="' +
+              s.px +
+              '" style="width:' +
+              disp[s.px] +
+              "px;height:" +
+              disp[s.px] +
+              'px"></div>' +
+              '<div class="lab"><b>' +
+              s.l +
+              "</b>px</div></div>"
+            );
+          })
+          .join("");
+        g.querySelectorAll("[data-sz]").forEach(function (f) {
+          var n = +f.dataset.sz,
+            d = disp[n];
+          f.innerHTML = iconSVG(d, {});
+          f.querySelector("svg").style.borderRadius = d * 0.225 + "px";
+        });
+      })();
+
+      /* =========================================================
+   EXPORT — SVG → canvas → PNG 다운로드
+   ========================================================= */
+      function svgToPng(px) {
+        var svgStr = iconSVG(px, {});
+        var blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+        var url = URL.createObjectURL(blob);
+        var img = new Image();
+        img.onload = function () {
+          var c = document.createElement("canvas");
+          c.width = px;
+          c.height = px;
+          var ctx = c.getContext("2d");
+          ctx.drawImage(img, 0, 0, px, px);
+          URL.revokeObjectURL(url);
+          c.toBlob(function (b) {
+            dl(b, "tooned-icon-" + px + ".png");
+          }, "image/png");
+        };
+        img.src = url;
+      }
+      function dl(blob, name) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () {
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        }, 400);
+      }
+      document.querySelectorAll("[data-png]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          svgToPng(+b.dataset.png);
+        });
+      });
+      document.getElementById("dlSvg").addEventListener("click", function () {
+        var blob = new Blob([iconSVG(1024, {})], {
+          type: "image/svg+xml;charset=utf-8",
+        });
+        dl(blob, "tooned-icon.svg");
+      });
+    </script>
+  </body>
+</html>
