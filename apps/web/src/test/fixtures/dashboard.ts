@@ -1,15 +1,20 @@
 import type {
+  ArchitecturePlan,
   ArtifactDocument,
   ArtifactRecord,
   Asset,
+  Database,
   Design,
   Domain,
+  Erd,
   Plan,
   ProjectContext,
   ProjectSummary,
+  Request,
   Review,
   Task,
   Wireframe,
+  WorkLog,
 } from "@/types/dashboard";
 
 const createdAt = "2026-07-18T01:00:00.000Z";
@@ -73,6 +78,7 @@ export function createWireframe(
     ...createArtifactRecord({ title: "Wireframe" }),
     parentId: null,
     index: "1",
+    version: 1,
     html: "<!doctype html><html><head><title>User journey</title></head><body><a href='#next'>Next</a><section id='next'>Next step</section></body></html>",
     ...overrides,
   };
@@ -103,8 +109,48 @@ export function createReview(overrides: Partial<Review> = {}): Review {
 export function createPlan(overrides: Partial<Plan> = {}): Plan {
   return {
     ...createArtifact({ title: "Plan" }),
-    version: 1,
+    status: "PENDING",
     tasks: [],
+    ...overrides,
+  };
+}
+
+export function createRequest(overrides: Partial<Request> = {}): Request {
+  return {
+    ...createArtifact({ title: "Request" }),
+    status: "PENDING",
+    ...overrides,
+  };
+}
+
+export function createWorkLog(overrides: Partial<WorkLog> = {}): WorkLog {
+  return createArtifact({ title: "WorkLog", ...overrides });
+}
+
+export function createArchitecturePlan(
+  overrides: Partial<ArchitecturePlan> = {},
+): ArchitecturePlan {
+  return {
+    ...createArtifact({
+      content:
+        "<!doctype html><html><head><title>Architecture plan</title></head><body><main>Architecture plan</main></body></html>",
+      title: "Architecture Plan",
+    }),
+    html: "",
+    ...overrides,
+  };
+}
+
+export function createDatabase(
+  overrides: Partial<Database> = {},
+): Database {
+  return createArtifact({ title: "DB", ...overrides });
+}
+
+export function createErd(overrides: Partial<Erd> = {}): Erd {
+  return {
+    ...createArtifactRecord({ title: "ERD" }),
+    html: "<!doctype html><html><head><title>ERD</title></head><body><main>ERD</main></body></html>",
     ...overrides,
   };
 }
@@ -128,7 +174,12 @@ export function createProjectContext(
     wireframes: [],
     assets: [],
     designs: [],
+    requests: [],
     reviews: [],
+    workLogs: [],
+    architecturePlans: [],
+    databases: [],
+    erds: [],
     ...overrides,
   };
 }
@@ -150,7 +201,12 @@ export function createProjectSummary(
       wireframes: context.wireframes.length,
       assets: context.assets.length,
       designs: context.designs.length,
+      requests: context.requests.length,
       reviews: context.reviews.length,
+      workLogs: context.workLogs.length,
+      architecturePlans: context.architecturePlans.length,
+      databases: context.databases.length,
+      erds: context.erds.length,
     },
   };
 }

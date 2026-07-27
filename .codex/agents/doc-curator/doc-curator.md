@@ -66,6 +66,8 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | create_architecturePlan | 아키텍처 계획 문서 생성 |
 > | create_workLog | 작업 로그 문서 생성 |
 > | create_request | 요구사항 문서 생성 |
+> | create_db | 타겟 프로젝트의 db 스키마(테이블별) 정리 문서 생성 |
+> | create_erd | 타겟 프로젝트의 db 스키마 관계 erd 생성|
 
 **_업데이트용 tool 목록_**
 
@@ -76,3 +78,7 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | update_asset | 디자인 에셋 문서 업데이트 |
 > | update_design | 디자인 문서 업데이트 |
 > | update_wireframe | 와이어프레임 문서 업데이트 |
+> | update_db| 타겟 프로젝트 db 스키마(테이블별) 정리 문서 업데이트 |
+> | update_erd | 타겟 프로젝트 db 스킴카 관계 erd 업데이트 |
+> | update_architecturePlan | 아키텍쳐 설계 계획 문서 업데이트 |
+> | update_request | 요구사항 문서 업데이트 |

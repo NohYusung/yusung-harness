@@ -98,7 +98,7 @@ test("ProjectsService.create는 Project와 repository 경로를 nested create로
   assert.equal(calls.some(([method]) => method === "update"), false);
 });
 
-test("ProjectsService.list는 repository 경로를 결정적 순서로 조회한다", async () => {
+test("ProjectsService.list는 repository 경로와 모든 project record count를 조회한다", async () => {
   const calls = [];
   const prisma = {
     project: {
@@ -116,6 +116,24 @@ test("ProjectsService.list는 repository 경로를 결정적 순서로 조회한
   assert.deepEqual(calls[0][1].select.repoPaths, {
     select: { path: true, repoType: true },
     orderBy: [{ path: "asc" }, { id: "asc" }],
+  });
+  assert.deepEqual(calls[0][1].select._count, {
+    select: {
+      plans: true,
+      tasks: true,
+      drafts: true,
+      domains: true,
+      architectures: true,
+      wireframes: true,
+      assets: true,
+      designs: true,
+      reviews: true,
+      requests: true,
+      workLogs: true,
+      architecturePlans: true,
+      databases: true,
+      erds: true,
+    },
   });
   assert.equal(Object.hasOwn(calls[0][1].select, "repoPath"), false);
   assert.equal(Object.hasOwn(calls[0][1].select, "repoType"), false);

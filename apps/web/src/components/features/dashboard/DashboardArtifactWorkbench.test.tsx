@@ -54,13 +54,13 @@ function createWorkbenchFixture() {
     id: 10,
     tasks: [completedTask, pendingTask],
     title: "MCP-only document pipeline",
-    version: 4,
+    status: "IN_PROGRESS",
   });
   const otherPlan = createPlan({
     id: 11,
     tasks: [otherPlanTask],
     title: "Previous delivery plan",
-    version: 3,
+    status: "PENDING",
   });
   const wireframe = createWireframe({
     id: 60,
@@ -128,6 +128,22 @@ function renderWorkbench() {
   );
 
   return { ...rendered, context, projects };
+}
+
+function getWorkbenchLayout() {
+  const topbar = screen.getByRole("banner");
+  const workspace = screen.getByRole("main");
+  const contentShell = topbar.parentElement;
+  const viewportLayout = contentShell?.parentElement;
+
+  if (!(contentShell instanceof HTMLElement)) {
+    throw new Error("Dashboard header/content shell is missing");
+  }
+  if (!(viewportLayout instanceof HTMLElement)) {
+    throw new Error("Dashboard viewport layout is missing");
+  }
+
+  return { contentShell, topbar, viewportLayout, workspace };
 }
 
 function renderPreviewNavigationWorkbench({
@@ -232,11 +248,11 @@ describe("Dashboard artifact workbench visual contract", () => {
     setWindowInnerWidth(originalInnerWidth);
   });
 
-  it("58px topbar 아래 270px / fluid / 30% 세 pane을 동시에 조립한다", () => {
+  it("공통 header와 main을 함께 밀고 detail pane을 viewport 전체 높이의 형제 열로 조립한다", () => {
     renderWorkbench();
 
-    const topbar = screen.getByRole("banner");
-    const workspace = screen.getByRole("main");
+    const { contentShell, topbar, viewportLayout, workspace } =
+      getWorkbenchLayout();
     const treePane = screen.getByRole("complementary", {
       name: "Project artifact tree",
     });
@@ -247,20 +263,34 @@ describe("Dashboard artifact workbench visual contract", () => {
       name: "MCP-only document pipeline",
     });
 
-    expect(topbar.parentElement).toHaveClass(
-      "h-dvh",
+    expect(viewportLayout).toHaveClass(
       "grid",
+      "h-dvh",
+      "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]",
+    );
+    expect(viewportLayout.style.getPropertyValue("--detail-pane-width")).toBe(
+      "30%",
+    );
+    expect(contentShell).toHaveClass(
+      "grid",
+      "min-w-0",
       "grid-rows-[58px_minmax(0,1fr)]",
+    );
+    expect(contentShell).toContainElement(topbar);
+    expect(contentShell).toContainElement(workspace);
+    expect(contentShell).not.toContainElement(detailPane);
+    expect(detailPane.parentElement).toBe(viewportLayout);
+    expect(detailPane.className).toMatch(/(?:^|\s)(?:h-dvh|h-full)(?:\s|$)/);
+    expect(detailPane.className).not.toMatch(
+      /(?:^|\s)(?:fixed|absolute|z-\S+)(?:\s|$)/,
     );
     expect(workspace).toHaveClass(
       "min-h-0",
-      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
+      "md:grid-cols-[230px_minmax(0,1fr)]",
       "lg:grid",
-      "lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]",
+      "lg:grid-cols-[270px_minmax(0,1fr)]",
     );
-    expect(workspace.style.getPropertyValue("--detail-pane-width")).toBe(
-      "30%",
-    );
+    expect(workspace.className).not.toContain("var(--detail-pane-width)");
     expect(treePane).toBeInTheDocument();
     expect(recordsPane).toBeInTheDocument();
     expect(detailPane).toBeInTheDocument();
@@ -304,7 +334,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       name: /MCP-only document pipeline/,
     });
     expect(currentPlanRow).toHaveAccessibleName(
-      "Type Plan, No 10, Title MCP-only document pipeline, Status Current, Links 2, Updated 2026년 7월 18일 오전 11:00",
+      "Type Plan, No 10, Title MCP-only document pipeline, Status In progress, Links 2, Updated 2026년 7월 18일 오전 11:00",
     );
     const rowColumns = Array.from(currentPlanRow.children);
     expect(rowColumns).toHaveLength(6);
@@ -313,9 +343,9 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(rowColumns[1]).toHaveTextContent(/^10$/);
     expect(rowColumns[2]).toHaveTextContent(/MCP-only document pipeline/);
     expect(rowColumns[2]?.querySelector("small")).toHaveTextContent(
-      "v4 · 1/2 Tasks complete",
+      "1/2 Tasks complete",
     );
-    expect(rowColumns[3]).toHaveTextContent(/^Current$/);
+    expect(rowColumns[3]).toHaveTextContent(/^In progress$/);
     expect(rowColumns[4]).toHaveTextContent(/^2$/);
     expect(rowColumns[5]).toHaveTextContent(
       /^2026년 7월 18일 오전 11:00$/,
@@ -337,10 +367,289 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
   });
 
+  it("Wireframes 목록은 Index 중심 칼럼과 Version 필터만 제공한다", () => {
+    const overview = {
+      ...createWireframe({
+        id: 610,
+        index: "1",
+        title: "Portfolio overview",
+      }),
+      version: 3,
+    };
+    const detail = {
+      ...createWireframe({
+        id: 611,
+        index: "1.1",
+        parentId: overview.id,
+        title: "Portfolio detail",
+      }),
+      version: 3,
+    };
+    const previousVersion = {
+      ...createWireframe({
+        id: 612,
+        index: "1",
+        title: "Previous portfolio overview",
+      }),
+      version: 2,
+    };
+    const context = createProjectContext({
+      wireframes: [overview, detail, previousVersion],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="wireframes"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    const recordsHeader = records.previousElementSibling;
+    if (!(recordsHeader instanceof HTMLElement)) {
+      throw new Error("Wireframe records column header is missing");
+    }
+
+    expect(
+      Array.from(recordsHeader.children, (column) => column.textContent),
+    ).toEqual(["Type", "No", "Index", "Title", "Updated"]);
+    expect(within(recordsHeader).queryByText("Status")).not.toBeInTheDocument();
+    expect(within(recordsHeader).queryByText("Links")).not.toBeInTheDocument();
+
+    const detailRow = within(records).getByRole("option", {
+      name: /Portfolio detail/,
+    });
+    expect(detailRow).toHaveAccessibleName(
+      "Type Wireframe, No 611, Index 1.1, Title Portfolio detail, Updated 2026년 7월 18일 오전 11:00",
+    );
+    expect(detailRow).not.toHaveAccessibleName(/Status|Links/);
+    const rowColumns = Array.from(detailRow.children);
+    expect(rowColumns).toHaveLength(5);
+    expect(rowColumns[0]).toHaveTextContent(/^Wireframe$/);
+    expect(rowColumns[1]).toHaveTextContent(/^611$/);
+    expect(rowColumns[2]).toHaveTextContent(/^1.1$/);
+    expect(rowColumns[3]).toHaveTextContent(/Portfolio detail/);
+    expect(rowColumns[4]).toHaveTextContent(
+      /^2026년 7월 18일 오전 11:00$/,
+    );
+
+    expect(
+      screen.queryByRole("combobox", { name: "Status" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("All status")).not.toBeInTheDocument();
+    const versionFilter = screen.getByRole("combobox", { name: "Version" });
+    expect(
+      within(versionFilter).getAllByRole("option").map((option) => ({
+        label: option.textContent,
+        value: (option as HTMLOptionElement).value,
+      })),
+    ).toEqual([
+      { label: "All versions", value: "All" },
+      { label: "v3", value: "3" },
+      { label: "v2", value: "2" },
+    ]);
+
+    fireEvent.change(versionFilter, { target: { value: "2" } });
+    expect(within(records).getAllByRole("option")).toHaveLength(1);
+    expect(
+      within(records).getByRole("option", {
+        name: /Previous portfolio overview/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("Wireframes가 아닌 목록은 기존 Status 필터와 Status·Links 칼럼을 유지한다", () => {
+    renderWorkbench();
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    const recordsHeader = records.previousElementSibling;
+    if (!(recordsHeader instanceof HTMLElement)) {
+      throw new Error("Plan records column header is missing");
+    }
+
+    const statusFilter = screen.getByRole("combobox", { name: "Status" });
+    expect(statusFilter).toHaveValue("All");
+    expect(
+      within(statusFilter).getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["All status", "Completed", "In progress", "Pending"]);
+    expect(
+      screen.queryByRole("combobox", { name: "Version" }),
+    ).not.toBeInTheDocument();
+    expect(
+      Array.from(recordsHeader.children, (column) => column.textContent),
+    ).toEqual(["Type", "No", "Title", "Status", "Links", "Updated"]);
+  });
+
+  it("Plan 저장 status를 Pending, In progress, Completed로 표시한다", () => {
+    const context = createProjectContext({
+      plans: [
+        createPlan({ id: 601, status: "PENDING", title: "Pending plan" }),
+        createPlan({
+          id: 602,
+          status: "IN_PROGRESS",
+          title: "Active plan",
+        }),
+        createPlan({
+          id: 603,
+          status: "COMPLETED",
+          title: "Completed plan",
+        }),
+      ],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="plans"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    for (const { label, title } of [
+      { label: "Pending", title: "Pending plan" },
+      { label: "In progress", title: "Active plan" },
+      { label: "Completed", title: "Completed plan" },
+    ]) {
+      expect(
+        within(records).getByRole("option", { name: new RegExp(title) }),
+      ).toHaveAccessibleName(new RegExp(`Status ${label}`));
+    }
+  });
+
+  it("Plan Status 필터는 Wireframe Version 기본 필터를 오염시키지 않는다", () => {
+    const completedTask = createTask({
+      id: 620,
+      planId: 610,
+      status: "COMPLETED",
+      title: "Completed delivery task",
+    });
+    const pendingTask = createTask({
+      id: 621,
+      planId: 610,
+      status: "PENDING",
+      title: "Pending delivery task",
+    });
+    const plan = createPlan({
+      id: 610,
+      status: "IN_PROGRESS",
+      tasks: [completedTask, pendingTask],
+    });
+    const wireframes = [
+      { ...createWireframe({ id: 630, index: "1" }), version: 3 },
+      { ...createWireframe({ id: 631, index: "1.1" }), version: 3 },
+      { ...createWireframe({ id: 632, index: "1" }), version: 2 },
+    ];
+    const context = createProjectContext({
+      plans: [plan],
+      tasks: [completedTask, pendingTask],
+      wireframes,
+    });
+    const projects = [createProjectSummary(context)];
+    const { rerender } = render(
+      <Dashboard
+        activeRelation="plans"
+        context={context}
+        projects={projects}
+        selectedArtifactId={plan.id}
+        selectedTaskId={null}
+      />,
+    );
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Status" }), {
+      target: { value: "Pending" },
+    });
+    expect(within(records).getAllByRole("option")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
+    rerender(
+      <Dashboard
+        activeRelation="wireframes"
+        context={context}
+        projects={projects}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
+      "All",
+    );
+    expect(within(records).getAllByRole("option")).toHaveLength(3);
+  });
+
+  it("Wireframe Version 필터는 Plans 목록에 적용되지 않는다", () => {
+    const wireframes = [
+      { ...createWireframe({ id: 640, index: "1" }), version: 3 },
+      { ...createWireframe({ id: 641, index: "1" }), version: 2 },
+    ];
+    const context = createProjectContext({
+      plans: [
+        createPlan({ id: 650, status: "IN_PROGRESS" }),
+        createPlan({ id: 651, status: "COMPLETED" }),
+      ],
+      wireframes,
+    });
+
+    render(
+      <Dashboard
+        activeRelation="wireframes"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Version" }), {
+      target: { value: "2" },
+    });
+    expect(within(records).getAllByRole("option")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Plans/ }));
+    expect(within(records).getAllByRole("option")).toHaveLength(2);
+    expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue(
+      "All",
+    );
+  });
+
+  it("main header row와 detail header는 수축 없는 동일한 58px 높이를 유지한다", () => {
+    renderWorkbench();
+
+    const { contentShell } = getWorkbenchLayout();
+    const detailPane = screen.getByRole("complementary", {
+      name: "MCP-only document pipeline",
+    });
+    const detailHeading = within(detailPane).getByRole("heading", {
+      name: "MCP-only document pipeline",
+    });
+    const detailHeader = detailHeading.parentElement?.parentElement;
+
+    if (!(detailHeader instanceof HTMLElement)) {
+      throw new Error("Record detail header is missing");
+    }
+
+    expect(contentShell).toHaveClass(
+      "grid-rows-[58px_minmax(0,1fr)]",
+    );
+    expect(detailHeader).toHaveClass("h-[58px]");
+    expect(detailHeader.className).toMatch(
+      /(?:^|\s)(?:min-h-\[58px\]|shrink-0)(?:\s|$)/,
+    );
+    expect(detailHeader).not.toHaveClass("min-h-14");
+  });
+
   it("desktop detail pane을 닫아 Records를 확장하고 같은 또는 다른 record 선택으로 다시 연다", () => {
     renderWorkbench();
 
-    const workspace = screen.getByRole("main");
+    const { viewportLayout, workspace } = getWorkbenchLayout();
     const records = screen.getByRole("listbox", { name: "Artifact records" });
     const selectedRow = within(records).getByRole("option", {
       name: /MCP-only document pipeline/,
@@ -359,21 +668,22 @@ describe("Dashboard artifact workbench visual contract", () => {
     fireEvent.click(closeButton);
 
     expect(detailPane).toHaveClass("hidden");
+    expect(viewportLayout).toHaveClass(
+      "md:grid-cols-[minmax(0,1fr)]",
+    );
+    expect(viewportLayout).not.toHaveClass(
+      "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]",
+    );
     expect(workspace).toHaveClass(
       "md:grid-cols-[230px_minmax(0,1fr)]",
       "lg:grid-cols-[270px_minmax(0,1fr)]",
-    );
-    expect(workspace).not.toHaveClass(
-      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
-      "lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]",
     );
     expect(selectedRow).toHaveAttribute("aria-selected", "true");
 
     fireEvent.click(selectedRow);
     expect(detailPane).not.toHaveClass("hidden");
-    expect(workspace).toHaveClass(
-      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
-      "lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]",
+    expect(viewportLayout).toHaveClass(
+      "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]",
     );
 
     closeButton = within(detailPane).getByRole("button", {
@@ -387,10 +697,72 @@ describe("Dashboard artifact workbench visual contract", () => {
     });
     expect(detailPane).not.toHaveClass("hidden");
     expect(otherRow).toHaveAttribute("aria-selected", "true");
-    expect(workspace).toHaveClass(
-      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
-      "lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]",
+    expect(viewportLayout).toHaveClass(
+      "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]",
     );
+  });
+
+  it("선택된 범용 record detail header에는 제목과 닫기 제어만 제공한다", () => {
+    renderWorkbench();
+
+    fireEvent.click(screen.getByRole("button", { name: /Drafts/ }));
+    fireEvent.click(
+      within(
+        screen.getByRole("listbox", { name: "Artifact records" }),
+      ).getByRole("option", { name: /Dashboard information model/ }),
+    );
+
+    const detailPane = screen.getByRole("complementary", {
+      name: "Dashboard information model",
+    });
+    const detailHeading = within(detailPane).getByRole("heading", {
+      name: "Dashboard information model",
+    });
+    const detailHeader = detailHeading.parentElement?.parentElement;
+
+    if (!(detailHeader instanceof HTMLElement)) {
+      throw new Error("Record detail header is missing");
+    }
+
+    expect(
+      within(detailHeader).getByRole("button", { name: "Close detail pane" }),
+    ).toBeInTheDocument();
+    expect(
+      within(detailHeader).queryByText(/^DRAFT · #30$/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("선택 record가 없는 detail header에 안내 fallback을 렌더하지 않는다", () => {
+    const context = createProjectContext();
+
+    render(
+      <Dashboard
+        activeRelation="plans"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    const detailPane = screen.getByRole("complementary", {
+      name: "Select a record",
+    });
+    const detailHeading = within(detailPane).getByRole("heading", {
+      name: "Select a record",
+    });
+    const detailHeader = detailHeading.parentElement?.parentElement;
+
+    if (!(detailHeader instanceof HTMLElement)) {
+      throw new Error("Empty record detail header is missing");
+    }
+
+    expect(
+      within(detailHeader).getByRole("button", { name: "Close detail pane" }),
+    ).toBeInTheDocument();
+    expect(
+      within(detailHeader).queryByText("Choose a record to inspect"),
+    ).not.toBeInTheDocument();
   });
 
   it("모든 record Inspector에서 탭 UI 없이 Metadata 콘텐츠를 직접 제공한다", () => {
@@ -525,7 +897,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     const separator = screen.getByRole("separator", {
       name: "Resize detail pane",
     });
-    const workspace = screen.getByRole("main");
+    const { viewportLayout } = getWorkbenchLayout();
 
     fireEvent.pointerDown(separator, {
       button: 0,
@@ -535,7 +907,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     fireEvent.pointerMove(separator, { clientX: 740, pointerId: 4 });
     fireEvent.pointerUp(separator, { clientX: 740, pointerId: 4 });
     expect(separator).toHaveAttribute("aria-valuenow", "40");
-    expect(workspace.style.getPropertyValue("--detail-pane-width")).toBe(
+    expect(viewportLayout.style.getPropertyValue("--detail-pane-width")).toBe(
       "40%",
     );
 
@@ -545,7 +917,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(separator).toHaveAttribute("aria-valuemin", "15");
     expect(separator).toHaveAttribute("aria-valuemax", "70");
     expect(separator).toHaveAttribute("aria-valuenow", "40");
-    expect(workspace.style.getPropertyValue("--detail-pane-width")).toBe(
+    expect(viewportLayout.style.getPropertyValue("--detail-pane-width")).toBe(
       "40%",
     );
   });
@@ -556,20 +928,20 @@ describe("Dashboard artifact workbench visual contract", () => {
     const separator = screen.getByRole("separator", {
       name: "Resize detail pane",
     });
-    const workspace = screen.getByRole("main");
+    const { viewportLayout } = getWorkbenchLayout();
     const initialWidth = Number(separator.getAttribute("aria-valuenow"));
 
     fireEvent.keyDown(separator, { key: "ArrowLeft" });
     const expandedWidth = Number(separator.getAttribute("aria-valuenow"));
     expect(expandedWidth).toBeGreaterThan(initialWidth);
-    expect(workspace.style.getPropertyValue("--detail-pane-width")).toBe(
+    expect(viewportLayout.style.getPropertyValue("--detail-pane-width")).toBe(
       `${expandedWidth}%`,
     );
 
     fireEvent.keyDown(separator, { key: "ArrowRight" });
     const contractedWidth = Number(separator.getAttribute("aria-valuenow"));
     expect(contractedWidth).toBeLessThan(expandedWidth);
-    expect(workspace.style.getPropertyValue("--detail-pane-width")).toBe(
+    expect(viewportLayout.style.getPropertyValue("--detail-pane-width")).toBe(
       `${contractedWidth}%`,
     );
   });
@@ -597,7 +969,9 @@ describe("Dashboard artifact workbench visual contract", () => {
       "Reviews",
     ]) {
       expect(
-        within(tree).getByRole("button", { name: new RegExp(label) }),
+        within(tree).getByRole("button", {
+          name: new RegExp(`^${label}\\s*\\d+$`),
+        }),
       ).toBeInTheDocument();
     }
 
@@ -1237,7 +1611,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       name: /Case study detail/,
     });
     expect(childRow).toHaveAccessibleName(
-      "Type Wireframe, No 631, Title Case study detail, Status None, Links 0, Updated 2026년 7월 18일 오전 11:00",
+      "Type Wireframe, No 631, Index 3.1, Title Case study detail, Updated 2026년 7월 18일 오전 11:00",
     );
     expect(childRow).toHaveAttribute(
       "aria-describedby",
@@ -1448,7 +1822,7 @@ describe("Dashboard artifact workbench visual contract", () => {
         typeLabelOccurrences: 0,
       },
       {
-        relationName: /Architecture/,
+        relationName: /^Architecture\s*1$/,
         rowName: /Harness production/,
         status: "Snapshot",
         typeLabelOccurrences: 0,

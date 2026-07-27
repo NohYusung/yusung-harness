@@ -59,18 +59,13 @@ function sqlite(databasePath, sql) {
   }).trim();
 }
 
-function assertSqliteRejects(databasePath, sql) {
-  assert.throws(() =>
-    execFileSync("/usr/bin/sqlite3", [databasePath], {
-      input: sql,
-      stdio: "ignore",
-    }),
-  );
-}
-
-function assertProjectOwnedDocument(model, modelName) {
+function assertProjectOwnedDocument(
+  model,
+  modelName,
+  { uniqueProject = false } = {},
+) {
   assert.match(model, /^\s*id\s+Int\s+@id\s+@default\(autoincrement\(\)\)\s*$/m);
-  assert.match(model, /^\s*projectId\s+Int\s*$/m);
+  assert.match(model, /^\s*projectId\s+Int(?:\s+@unique)?\s*$/m);
   assert.match(
     model,
     /^\s*project\s+Project\s+@relation\(fields:\s*\[projectId\],\s*references:\s*\[id\]\)\s*$/m,
@@ -79,7 +74,15 @@ function assertProjectOwnedDocument(model, modelName) {
   assert.match(model, /^\s*updatedAt\s+DateTime\s+@updatedAt\s*$/m);
   assert.match(model, /^\s*title\s+String\s*$/m);
   assert.match(model, /^\s*content\s+String\s*$/m);
-  assert.match(model, /@@index\(\[projectId\]\)/, `${modelName}.projectId index`);
+  if (uniqueProject) {
+    assert.ok(
+      /^\s*projectId\s+Int\s+@unique\s*$/m.test(model) ||
+        /@@unique\(\[projectId\]\)/.test(model),
+      `${modelName}.projectId unique`,
+    );
+  } else {
+    assert.match(model, /@@index\(\[projectId\]\)/, `${modelName}.projectId index`);
+  }
 }
 
 test("Project workflow 모델은 상태와 프로젝트 소유권 계약을 제공한다", () => {
@@ -106,7 +109,9 @@ test("Project workflow 모델은 상태와 프로젝트 소유권 계약을 제�
     assert.match(project, new RegExp(`^\\s*${field}\\s+${type}\\[\\]\\s*$`, "m"));
   }
 
-  assertProjectOwnedDocument(architecturePlan, "ArchitecturePlan");
+  assertProjectOwnedDocument(architecturePlan, "ArchitecturePlan", {
+    uniqueProject: true,
+  });
   assertProjectOwnedDocument(request, "Request");
   assertProjectOwnedDocument(workLog, "WorkLog");
   assert.match(
@@ -207,13 +212,17 @@ test("workflow migration은 기존 Design을 보존하고 identity와 신규 테
        VALUES
         (7, CURRENT_TIMESTAMP, 23, 22, '<html>Other wireframe</html>', 'Other wireframe', 1);`,
     );
-    assertSqliteRejects(
-      databasePath,
-      `INSERT INTO "Design"
-        ("projectId", "updatedAt", "wireframeId", "assetId", "html", "title", "version")
-       VALUES
-        (7, CURRENT_TIMESTAMP, 21, 22, '<html>Duplicate</html>', 'Duplicate', 1);`,
-    );
+    try {
+      sqlite(
+        databasePath,
+        `INSERT INTO "Design"
+          ("projectId", "updatedAt", "wireframeId", "assetId", "html", "title", "version")
+         VALUES
+          (7, CURRENT_TIMESTAMP, 21, 22, '<html>Duplicate</html>', 'Duplicate', 1);`,
+      );
+    } catch {
+      // SQLite CLI 버전과 무관하게 아래 row count로 unique 거부를 검증한다.
+    }
     assert.equal(sqlite(databasePath, 'SELECT COUNT(*) FROM "Design";'), "2");
 
     assert.equal(
@@ -257,14 +266,19 @@ test("workflow migration은 기존 Design을 보존하고 identity와 신규 테
         (7, CURRENT_TIMESTAMP, 'Add API', 'Create the endpoint');`,
     );
     assert.equal(sqlite(databasePath, 'SELECT "status" FROM "Request";'), "PENDING");
-    assertSqliteRejects(
-      databasePath,
-      `PRAGMA foreign_keys=ON;
-       INSERT INTO "WorkLog"
-         ("projectId", "updatedAt", "title", "content")
-       VALUES
-         (999, CURRENT_TIMESTAMP, 'Invalid', 'Missing project');`,
-    );
+    try {
+      sqlite(
+        databasePath,
+        `PRAGMA foreign_keys=ON;
+         INSERT INTO "WorkLog"
+           ("projectId", "updatedAt", "title", "content")
+         VALUES
+           (999, CURRENT_TIMESTAMP, 'Invalid', 'Missing project');`,
+      );
+    } catch {
+      // SQLite CLI 버전과 무관하게 아래 row count로 FK 거부를 검증한다.
+    }
+    assert.equal(sqlite(databasePath, 'SELECT COUNT(*) FROM "WorkLog";'), "0");
     assert.equal(
       sqlite(databasePath, "PRAGMA foreign_key_check;"),
       "",

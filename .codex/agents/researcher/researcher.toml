@@ -4,5 +4,5 @@ model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 nickname_candidates = ["researcher"]
 developer_instructions = """
-작업을 시작하기 전에 `.codex/agents/researcher.md` 의 내용을 끝까지 읽고 해당 지침을 따른다.
+작업을 시작하기 전에 `.codex/agents/researcher/researcher.md` 의 내용을 끝까지 읽고 해당 지침을 따른다.
 """

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getPlans, getProjectDashboard, getProjects, getTasks } from "@/lib/api";
 import {
+  createArtifact,
   createProjectContext,
   createProjectSummary,
 } from "@/test/fixtures/dashboard";
@@ -46,7 +47,7 @@ describe("dashboard API helpers", () => {
     });
   });
 
-  it("Plan 목록은 최신 version 우선 정렬을 REST API에 요청한다", async () => {
+  it("Plan 목록은 versionOrder 없이 REST API에 요청한다", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ data: [] }), {
         headers: { "content-type": "application/json" },
@@ -56,7 +57,7 @@ describe("dashboard API helpers", () => {
 
     await expect(getPlans(7)).resolves.toEqual([]);
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:4000/plans/7?versionOrder=desc",
+      "http://127.0.0.1:4000/plans/7",
       { cache: "no-store" },
     );
   });
@@ -89,6 +90,11 @@ describe("dashboard API helpers", () => {
       context.assets,
       context.designs,
       context.reviews,
+      context.requests,
+      context.workLogs,
+      context.architecturePlans,
+      context.databases,
+      context.erds,
     ];
 
     for (const data of [projects, ...relationResponses]) {
@@ -107,7 +113,7 @@ describe("dashboard API helpers", () => {
     expect(fetchMock.mock.calls).toEqual(
       [
         "/projects",
-        "/plans/7?versionOrder=desc",
+        "/plans/7",
         "/tasks/7/13",
         "/drafts/7",
         "/domains/7",
@@ -116,12 +122,104 @@ describe("dashboard API helpers", () => {
         "/assets/7",
         "/designs/7",
         "/reviews/7",
+        "/requests/7",
+        "/worklogs/7",
+        "/architecture-plans/7",
+        "/db/7",
+        "/erd/7",
       ].map((path) => [
         `http://127.0.0.1:4000${path}`,
         { cache: "no-store" },
       ]),
     );
     expect("_count" in context).toBe(false);
+  });
+
+  it("project dashboard는 WorkLogs, Architecture Plan, DB, ERD REST 목록을 실제 context에 조립한다", async () => {
+    const architecturePlanHtml =
+      "<!doctype html><html><head><title>Architecture plan</title></head><body><main>Architecture plan from content</main></body></html>";
+    const context = Object.assign(createProjectContext({ id: 1 }), {
+      workLogs: [
+        createArtifact({ id: 101, title: "Implementation work log" }),
+      ],
+      architecturePlans: [
+        {
+          ...createArtifact({
+            content: architecturePlanHtml,
+            id: 201,
+            title: "Project architecture plan",
+          }),
+          html: "",
+        },
+      ],
+      databases: [
+        createArtifact({ id: 301, title: "Project database schema" }),
+      ],
+      erds: [
+        {
+          id: 401,
+          projectId: 1,
+          createdAt: "2026-07-18T01:00:00.000Z",
+          updatedAt: "2026-07-18T02:00:00.000Z",
+          title: "Project database ERD",
+          html: "<!doctype html><html><head><title>ERD</title></head><body><main>Project ERD</main></body></html>",
+        },
+      ],
+    });
+    const project = createProjectSummary(context);
+    Object.assign(project._count, {
+      workLogs: context.workLogs.length,
+      architecturePlans: context.architecturePlans.length,
+      databases: context.databases.length,
+      erds: context.erds.length,
+    });
+    const dataByPath: Record<string, unknown[]> = {
+      "/projects": [project],
+      "/plans/1": context.plans,
+      "/drafts/1": context.drafts,
+      "/domains/1": context.domains,
+      "/architectures/1": context.architectures,
+      "/wireframes/1": context.wireframes,
+      "/assets/1": context.assets,
+      "/designs/1": context.designs,
+      "/reviews/1": context.reviews,
+      "/requests/1": context.requests,
+      "/worklogs/1": context.workLogs,
+      "/architecture-plans/1": context.architecturePlans,
+      "/db/1": context.databases,
+      "/erd/1": context.erds,
+    };
+
+    fetchMock.mockImplementation(async (input) => {
+      const path = new URL(String(input)).pathname;
+      const data = dataByPath[path];
+
+      if (!data) {
+        throw new Error(`Unexpected dashboard request: ${path}`);
+      }
+
+      return new Response(JSON.stringify({ data }), {
+        headers: { "content-type": "application/json" },
+        status: 200,
+      });
+    });
+
+    const dashboard = await getProjectDashboard(1);
+
+    expect(dashboard.context).toMatchObject({
+      workLogs: context.workLogs,
+      architecturePlans: context.architecturePlans,
+      databases: context.databases,
+      erds: context.erds,
+    });
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual(
+      expect.arrayContaining([
+        "http://127.0.0.1:4000/worklogs/1",
+        "http://127.0.0.1:4000/architecture-plans/1",
+        "http://127.0.0.1:4000/db/1",
+        "http://127.0.0.1:4000/erd/1",
+      ]),
+    );
   });
 
   it("산출물 list REST 오류는 HTTP status를 보존한다", async () => {
@@ -137,7 +235,7 @@ describe("dashboard API helpers", () => {
         statusText: "Bad Gateway",
       }),
       ...Array.from(
-        { length: 8 },
+        { length: 13 },
         () =>
           new Response(JSON.stringify({ data: [] }), {
             headers: { "content-type": "application/json" },

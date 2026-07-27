@@ -9,6 +9,13 @@ const {
 } = require("@nestjs/common");
 const ts = require("typescript");
 
+class PrismaClientKnownRequestError extends Error {
+  constructor(code) {
+    super(code);
+    this.code = code;
+  }
+}
+
 const serverRoot = join(__dirname, "..");
 const controllerPath = join(
   serverRoot,
@@ -47,6 +54,11 @@ const loadArchitecturePlansService = () => {
   loadedModule.filename = servicePath;
   loadedModule.paths = Module._nodeModulePaths(dirname(servicePath));
   loadedModule.require = (request) => {
+    if (request === "@prisma/client") {
+      return {
+        Prisma: { PrismaClientKnownRequestError },
+      };
+    }
     if (request === "../../prisma/prisma.service") {
       return { PrismaService: class PrismaService {} };
     }
@@ -169,6 +181,49 @@ test("ArchitecturePlansService.create는 project 검증 후 HTML 계획을 저�
   assert.deepEqual(calls, [
     ["projectsService", "ensureProject", 17],
     ["prisma", "architecturePlan", "create", { data: input }],
+  ]);
+});
+
+test("ArchitecturePlansService.create는 projectId unique P2002를 BadRequest로 변환한다", async () => {
+  const calls = [];
+  const prisma = {
+    architecturePlan: {
+      create: async (args) => {
+        calls.push(["architecturePlan.create", args]);
+        throw new PrismaClientKnownRequestError("P2002");
+      },
+    },
+  };
+  const projectsService = {
+    ensureProject: async (projectId) => {
+      calls.push(["projects.ensureProject", projectId]);
+    },
+  };
+  const ArchitecturePlansService = loadArchitecturePlansService();
+  const service = new ArchitecturePlansService(prisma, projectsService);
+
+  await assert.rejects(
+    service.create({
+      projectId: 17,
+      title: "Duplicate architecture plan",
+      content: "<!doctype html><html><body>Duplicate</body></html>",
+    }),
+    (error) =>
+      error instanceof BadRequestException &&
+      error.message === "Architecture Plan already exists for project 17",
+  );
+  assert.deepEqual(calls, [
+    ["projects.ensureProject", 17],
+    [
+      "architecturePlan.create",
+      {
+        data: {
+          projectId: 17,
+          title: "Duplicate architecture plan",
+          content: "<!doctype html><html><body>Duplicate</body></html>",
+        },
+      },
+    ],
   ]);
 });
 

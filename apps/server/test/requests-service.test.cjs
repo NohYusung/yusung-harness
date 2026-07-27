@@ -105,7 +105,7 @@ test("RequestsService.create는 project 검증 후 기본 상태 요청을 생�
   ]);
 });
 
-test("RequestsService.update는 같은 프로젝트의 요청 내용과 상태만 수정한다", async () => {
+test("RequestsService.userUpdate는 PENDING 요청만 수정한다", async () => {
   const calls = [];
   const input = {
     projectId: 17,
@@ -119,7 +119,101 @@ test("RequestsService.update는 같은 프로젝트의 요청 내용과 상태�
     request: {
       findUnique: async (args) => {
         calls.push(["request.findUnique", args]);
-        return { id: 31, projectId: 17 };
+        return { id: 31, projectId: 17, status: "PENDING" };
+      },
+      update: async (args) => {
+        calls.push(["request.update", args]);
+        return updated;
+      },
+    },
+  };
+  const projectsService = {
+    ensureProject: async (projectId) => {
+      calls.push(["projects.ensureProject", projectId]);
+    },
+  };
+  const RequestsService = loadRequestsService();
+  const service = new RequestsService(prisma, projectsService);
+
+  assert.deepEqual(await service.userUpdate(input), updated);
+  assert.deepEqual(calls, [
+    ["projects.ensureProject", 17],
+    ["request.findUnique", { where: { id: 31 } }],
+    [
+      "request.update",
+      {
+        where: { id: 31 },
+        data: {
+          title: "Updated dashboard filter",
+          content: "Filter project artifacts by type and status.",
+          status: "IN_PROGRESS",
+        },
+      },
+    ],
+  ]);
+});
+
+test("RequestsService.userUpdate는 PENDING이 아닌 요청을 쓰기 없이 거부한다", async () => {
+  for (const existingStatus of ["IN_PROGRESS", "COMPLETED"]) {
+    const calls = [];
+    const prisma = {
+      request: {
+        findUnique: async (args) => {
+          calls.push(["request.findUnique", args]);
+          return { id: 31, projectId: 17, status: existingStatus };
+        },
+        update: async (args) => {
+          calls.push(["request.update", args]);
+        },
+      },
+    };
+    const projectsService = {
+      ensureProject: async (projectId) => {
+        calls.push(["projects.ensureProject", projectId]);
+      },
+    };
+    const RequestsService = loadRequestsService();
+    const service = new RequestsService(prisma, projectsService);
+
+    await assert.rejects(
+      service.userUpdate({
+        projectId: 17,
+        requestId: 31,
+        title: "Blocked dashboard filter",
+        content: "This request is no longer editable by a web user.",
+        status: "PENDING",
+      }),
+      (error) =>
+        error instanceof BadRequestException &&
+        error.message === "Request 31 can only be updated while PENDING",
+      existingStatus,
+    );
+    assert.deepEqual(
+      calls,
+      [
+        ["projects.ensureProject", 17],
+        ["request.findUnique", { where: { id: 31 } }],
+      ],
+      existingStatus,
+    );
+  }
+});
+
+test("RequestsService.update는 기존 상태와 관계없이 에이전트 상태 전이를 수행한다", async () => {
+  const calls = [];
+  const input = {
+    projectId: 17,
+    requestId: 31,
+    title: "Updated dashboard filter",
+    content: "Filter project artifacts by type and status.",
+    status: "COMPLETED",
+  };
+  const updated = { id: input.requestId, ...input };
+  const prisma = {
+    request: {
+      findUnique: async (args) => {
+        calls.push(["request.findUnique", args]);
+        return { id: 31, projectId: 17, status: "IN_PROGRESS" };
       },
       update: async (args) => {
         calls.push(["request.update", args]);
@@ -146,7 +240,7 @@ test("RequestsService.update는 같은 프로젝트의 요청 내용과 상태�
         data: {
           title: "Updated dashboard filter",
           content: "Filter project artifacts by type and status.",
-          status: "IN_PROGRESS",
+          status: "COMPLETED",
         },
       },
     ],

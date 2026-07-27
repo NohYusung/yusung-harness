@@ -12,7 +12,12 @@ import {
 } from "react";
 import type { HtmlArtifactDocument } from "@/types/dashboard";
 
-export type HtmlArtifactKind = "Asset" | "Wireframe" | "Design";
+export type HtmlArtifactKind =
+  | "Asset"
+  | "Wireframe"
+  | "Design"
+  | "Architecture Plan"
+  | "ERD";
 
 export interface HtmlArtifactSelection {
   kind: HtmlArtifactKind;

@@ -33,6 +33,18 @@ const domains = [
     orderField: "updatedAt",
   },
   {
+    resource: "db",
+    model: "dB",
+    className: "Db",
+    orderField: "updatedAt",
+  },
+  {
+    resource: "erd",
+    model: "eRD",
+    className: "Erd",
+    orderField: "updatedAt",
+  },
+  {
     resource: "architectures",
     model: "architecture",
     className: "Architectures",
@@ -282,6 +294,8 @@ test("resource module과 AppModule은 목록 controller를 등록한다", () => 
     "DraftsModule",
     "TasksModule",
     "DomainsModule",
+    "DbModule",
+    "ErdModule",
     "ArchitecturesModule",
     "ArchitecturePlansModule",
     "WireframesModule",
@@ -318,13 +332,15 @@ test("Requests와 Worklogs module은 목록 controller와 service 의존성을 �
   }
 });
 
-test("MCP get_project는 projectId가 있으면 9종 domain list service를 병렬 조립한다", () => {
+test("MCP get_project는 projectId가 있으면 11종 domain list service를 병렬 조립한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const domainServices = [
     "plans",
     "tasks",
     "drafts",
     "domains",
+    "db",
+    "erd",
     "architectures",
     "wireframes",
     "assets",
@@ -345,7 +361,7 @@ test("MCP get_project는 projectId가 있으면 9종 domain list service를 병�
   }
 });
 
-test("Plan 목록은 caller 정렬 옵션을 사용하고 controller가 optional query를 전달한다", () => {
+test("Plan 목록과 controller는 versionOrder 없이 최근 수정순 계약을 사용한다", () => {
   const service = source("services/plans/plans.service.ts");
   const controller = source("services/plans/plans.controller.ts");
   const list = methodBody(service, "list");
@@ -359,28 +375,18 @@ test("Plan 목록은 caller 정렬 옵션을 사용하고 controller가 optional
   assert.doesNotMatch(service, /\bAGENT\b/);
   assert.match(
     service,
-    /options\?:\s*Pick<Prisma\.PlanFindManyArgs,\s*["']orderBy["']>/,
-  );
-  assert.match(list, /\.\.\.options/);
-  assert.equal(
-    topLevelPropertyIndex(findManyArgs, "orderBy"),
-    -1,
-    "PlansService.list가 top-level 정렬을 하드코딩하면 안 된다",
+    /async\s+list\s*\(\s*\{\s*projectId\s*\}\s*:\s*\{\s*projectId:\s*number\s*\}\s*\)/,
   );
   assert.match(
-    controller,
-    /new\s+ParseEnumPipe\s*\(\s*PlanVersionOrder\s*,\s*\{\s*optional:\s*true\s*\}\s*\)/,
-  );
-  assert.match(controller, /@Query\s*\(\s*["']versionOrder["']/);
-  assert.match(
-    controllerList,
-    /const\s+options\s*=\s*versionOrder\s*\?\s*\{\s*orderBy:\s*\{\s*version:\s*versionOrder\s*\}\s*\}\s*:\s*undefined/,
+    topLevelObjectBody(findManyArgs, "orderBy"),
+    /updatedAt:\s*["']desc["']/,
   );
   assert.match(
     controllerList,
-    /this\.plansService\.list\s*\(\s*\{\s*projectId\s*\}\s*,\s*options\s*\)/,
+    /this\.plansService\.list\s*\(\s*\{\s*projectId\s*\}\s*\)/,
   );
-  assert.doesNotMatch(controllerList, /version:\s*["']desc["']/);
+  assert.doesNotMatch(service, /\bversion\b|\.\.\.options/);
+  assert.doesNotMatch(controller, /versionOrder|PlanVersionOrder|@Query/);
 });
 
 test("일반 목록 service는 project 소유권을 검증하고 각 table을 결정적 순서로 조회한다", () => {
@@ -459,31 +465,19 @@ test("Plan은 Task만 포함하고 Task 목록은 제거된 산출물 relation�
   }
 });
 
-test("Plan 생성은 task 중첩 없이 최신 version 다음 값을 사용한다", () => {
+test("Plan 생성은 version 할당과 task 중첩 없이 기본 PENDING row를 만든다", () => {
   const service = source("services/plans/plans.service.ts");
 
   assert.match(service, /async\s+create\s*\(/);
   const create = methodBody(service, "create");
-  const latestPlanQuery = objectBodyAfter(
-    create,
-    /transaction\.plan\.findFirst\s*\(/,
-    "latest Plan query",
-  );
   const planCreate = objectBodyAfter(
     create,
-    /transaction\.plan\.create\s*\(/,
+    /this\.prisma\.plan\.create\s*\(/,
     "Plan create args",
   );
 
-  assert.match(
-    topLevelObjectBody(latestPlanQuery, "orderBy"),
-    /version:\s*["']desc["']/,
-  );
-  assert.match(
-    topLevelObjectBody(latestPlanQuery, "select"),
-    /version:\s*true/,
-  );
   assert.equal(topLevelPropertyIndex(planCreate, "include"), -1);
+  assert.doesNotMatch(planCreate, /\bversion\s*:/);
   assert.doesNotMatch(planCreate, /tasks\s*:\s*\{[\s\S]*?create\s*:/);
-  assert.doesNotMatch(service, /async\s+createVersion\s*\(/);
+  assert.doesNotMatch(service, /findFirst|createVersion|\bversion\b/);
 });

@@ -2,10 +2,11 @@ import { formatDashboardDate } from "@/lib/date";
 
 interface DashboardSummary {
   completedTasks: number;
+  completedPlans: number;
   lastActivityAt: string | null;
-  latestPlanVersion: number | null;
   taskCompletionPercent: number;
   totalArtifacts: number;
+  totalPlans: number;
   totalTasks: number;
 }
 
@@ -28,13 +29,10 @@ export function Summary({ summary }: SummaryProps) {
       value: `${summary.completedTasks} / ${summary.totalTasks}`,
     },
     {
-      eyebrow: "Latest plan",
-      icon: "V",
-      label: "Current Plan",
-      value:
-        summary.latestPlanVersion === null
-          ? "—"
-          : `v${summary.latestPlanVersion}`,
+      eyebrow: `${summary.completedPlans} complete`,
+      icon: "P",
+      label: "Plan progress",
+      value: `${summary.completedPlans} / ${summary.totalPlans}`,
     },
     {
       eyebrow: "Last updated",

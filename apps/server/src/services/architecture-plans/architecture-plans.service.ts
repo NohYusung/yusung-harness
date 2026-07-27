@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
 
@@ -35,9 +36,23 @@ export class ArchitecturePlansService {
   }) {
     await this.projectsService.ensureProject(projectId);
 
-    return this.prisma.architecturePlan.create({
-      data: { projectId, title, content },
-    });
+    try {
+      return await this.prisma.architecturePlan.create({
+        data: { projectId, title, content },
+      });
+    } catch (error: unknown) {
+      /** projectId unique 충돌은 호출자가 처리 가능한 domain 오류로 변환한다. */
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new BadRequestException(
+          `Architecture Plan already exists for project ${projectId}`,
+        );
+      }
+
+      throw error;
+    }
   }
 
   /** 같은 프로젝트가 소유한 아키텍처 설계 계획의 제목과 HTML을 갱신한다. */

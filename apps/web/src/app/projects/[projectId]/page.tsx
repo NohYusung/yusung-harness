@@ -14,6 +14,11 @@ const workspaceRelations = [
   "wireframes",
   "assets",
   "designs",
+  "requests",
+  "workLogs",
+  "architecturePlans",
+  "databases",
+  "erds",
 ] as const;
 
 /** project route params와 선택된 workspace query. */

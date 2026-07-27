@@ -2,30 +2,45 @@ import "server-only";
 
 import type { ZodType } from "zod";
 import {
+  architecturePlanListResponseSchema,
   architectureListResponseSchema,
   assetListResponseSchema,
   designListResponseSchema,
+  databaseListResponseSchema,
   domainListResponseSchema,
   draftListResponseSchema,
+  erdListResponseSchema,
   planListResponseSchema,
   projectListResponseSchema,
+  createRequestInputSchema,
+  requestListResponseSchema,
+  requestResponseSchema,
   reviewListResponseSchema,
   taskListResponseSchema,
+  updateRequestInputSchema,
   wireframeListResponseSchema,
+  workLogListResponseSchema,
 } from "@/lib/validations/dashboard";
 import type {
   Architecture,
+  ArchitecturePlan,
   Asset,
+  CreateRequestInput,
+  Database,
   Design,
   Domain,
   Draft,
+  Erd,
   ListResponse,
   Plan,
   ProjectDashboard,
   ProjectSummary,
+  Request,
   Review,
   Task,
+  UpdateRequestInput,
   Wireframe,
+  WorkLog,
 } from "@/types/dashboard";
 
 /** 서버 전용 Harness REST API base URL. */
@@ -103,12 +118,7 @@ export async function getProjects(): Promise<ProjectSummary[]> {
 
 /** 프로젝트의 Plan 목록을 조회한다. */
 export function getPlans(projectId: number): Promise<Plan[]> {
-  return getProjectResource(
-    projectId,
-    "plans",
-    planListResponseSchema,
-    "versionOrder=desc",
-  );
+  return getProjectResource(projectId, "plans", planListResponseSchema);
 }
 
 /** 프로젝트에서 선택한 Plan의 Task 목록을 조회한다. */
@@ -169,6 +179,84 @@ export function getReviews(projectId: number): Promise<Review[]> {
   return getProjectResource(projectId, "reviews", reviewListResponseSchema);
 }
 
+/** 프로젝트의 Request 목록을 조회한다. */
+export function getRequests(projectId: number): Promise<Request[]> {
+  return getProjectResource(projectId, "requests", requestListResponseSchema);
+}
+
+/** 프로젝트의 WorkLog 목록을 조회한다. */
+export function getWorkLogs(projectId: number): Promise<WorkLog[]> {
+  return getProjectResource(projectId, "worklogs", workLogListResponseSchema);
+}
+
+/** 프로젝트의 Architecture Plan 목록을 조회한다. */
+export function getArchitecturePlans(
+  projectId: number,
+): Promise<ArchitecturePlan[]> {
+  return getProjectResource(
+    projectId,
+    "architecture-plans",
+    architecturePlanListResponseSchema,
+  );
+}
+
+/** 프로젝트의 DB schema 문서 목록을 조회한다. */
+export function getDatabases(projectId: number): Promise<Database[]> {
+  return getProjectResource(projectId, "db", databaseListResponseSchema);
+}
+
+/** 프로젝트의 ERD HTML 문서 목록을 조회한다. */
+export function getErds(projectId: number): Promise<Erd[]> {
+  return getProjectResource(projectId, "erd", erdListResponseSchema);
+}
+
+/** 새 Request 문서를 project-scoped REST API에 생성한다. */
+export async function createRequest(
+  projectId: number,
+  input: CreateRequestInput,
+): Promise<Request> {
+  assertProjectId(projectId);
+  const body = createRequestInputSchema.parse(input);
+  const response = await fetch(`${apiUrl}/requests/${projectId}`, {
+    body: JSON.stringify(body),
+    cache: "no-store",
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  });
+
+  await assertSuccessful(response, `requests for project ${projectId}`);
+  return requestResponseSchema.parse(await response.json()).data;
+}
+
+/** 기존 Request 문서와 lifecycle 상태를 project-scoped REST API에서 수정한다. */
+export async function updateRequest(
+  projectId: number,
+  requestId: number,
+  input: UpdateRequestInput,
+): Promise<Request> {
+  assertProjectId(projectId);
+  if (!Number.isSafeInteger(requestId) || requestId <= 0) {
+    throw new Error(`Invalid request ID: ${requestId}`);
+  }
+
+  const body = updateRequestInputSchema.parse(input);
+  const response = await fetch(
+    `${apiUrl}/requests/${projectId}/${requestId}`,
+    {
+      body: JSON.stringify(body),
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    },
+  );
+
+  await assertSuccessful(
+    response,
+    `request ${requestId} for project ${projectId}`,
+  );
+  return requestResponseSchema.parse(await response.json()).data;
+}
+
 /** 프로젝트 목록과 선택 프로젝트의 REST 목록을 병렬 조립한다. */
 export async function getProjectDashboard(
   projectId: number,
@@ -188,6 +276,11 @@ export async function getProjectDashboard(
     assets,
     designs,
     reviews,
+    requests,
+    workLogs,
+    architecturePlans,
+    databases,
+    erds,
   ] = await Promise.all([
     getProjects(),
     getPlans(projectId),
@@ -201,6 +294,11 @@ export async function getProjectDashboard(
     getAssets(projectId),
     getDesigns(projectId),
     getReviews(projectId),
+    getRequests(projectId),
+    getWorkLogs(projectId),
+    getArchitecturePlans(projectId),
+    getDatabases(projectId),
+    getErds(projectId),
   ]);
 
   /** ProjectSummary에서 선택한 프로젝트의 context 기본 필드만 가져온다. */
@@ -229,6 +327,11 @@ export async function getProjectDashboard(
       assets,
       designs,
       reviews,
+      requests,
+      workLogs,
+      architecturePlans,
+      databases,
+      erds,
     },
   };
 }

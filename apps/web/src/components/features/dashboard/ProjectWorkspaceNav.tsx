@@ -42,6 +42,7 @@ export function ProjectWorkspaceNav({
     },
     { count: context.assets.length, label: "Asset", relation: "assets" },
     { count: context.designs.length, label: "Design", relation: "designs" },
+    { count: context.requests.length, label: "Request", relation: "requests" },
   ] as const satisfies ReadonlyArray<ProjectWorkspaceNavItem>;
 
   return (

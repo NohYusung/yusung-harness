@@ -1,5 +1,18 @@
 export type RepoType = "LOCAL" | "REMOTE";
 export type TaskStatus = "PENDING" | "COMPLETED";
+export type PlanStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
+export type RequestStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
+
+/** 새 Request 문서 생성에 필요한 입력. */
+export interface CreateRequestInput {
+  title: string;
+  content: string;
+}
+
+/** 기존 Request 문서와 lifecycle 상태 수정에 필요한 입력. */
+export interface UpdateRequestInput extends CreateRequestInput {
+  status: RequestStatus;
+}
 
 /** NestJS 목록 API의 공통 응답 envelope. */
 export interface ListResponse<T> {
@@ -16,6 +29,11 @@ export interface ArtifactCounts {
   assets: number;
   designs: number;
   reviews: number;
+  requests: number;
+  workLogs: number;
+  architecturePlans: number;
+  databases: number;
+  erds: number;
 }
 
 export interface ProjectRepository {
@@ -50,6 +68,7 @@ export interface HtmlArtifactDocument extends ArtifactRecord {
 export interface Wireframe extends HtmlArtifactDocument {
   parentId: number | null;
   index: string;
+  version: number;
 }
 
 export type Asset = HtmlArtifactDocument;
@@ -73,7 +92,7 @@ export interface Task {
 }
 
 export interface Plan extends ArtifactDocument {
-  version: number;
+  status: PlanStatus;
   tasks: Task[];
 }
 
@@ -83,6 +102,25 @@ export type Domain = ArtifactDocument;
 /** 프로젝트 배포 구조 snapshot 또는 legacy text record. */
 export type Architecture = ArtifactDocument;
 export type Review = ArtifactDocument;
+
+/** 프로젝트에서 수행한 단일 작업 내역 문서. */
+export type WorkLog = ArtifactDocument;
+
+/** 구현 전 구조를 HTML로 저장한 프로젝트 아키텍처 계획. */
+export interface ArchitecturePlan extends ArtifactDocument {
+  html: string;
+}
+
+/** 프로젝트의 현행 DB 스키마 Markdown 문서. */
+export type Database = ArtifactDocument;
+
+/** 프로젝트 DB 관계를 표현하는 완성형 HTML ERD 문서. */
+export type Erd = HtmlArtifactDocument;
+
+/** 프로젝트에 접수된 작업 요청과 진행 상태. */
+export interface Request extends ArtifactDocument {
+  status: RequestStatus;
+}
 
 export interface ProjectContext {
   id: number;
@@ -98,6 +136,11 @@ export interface ProjectContext {
   assets: Asset[];
   designs: Design[];
   reviews: Review[];
+  requests: Request[];
+  workLogs: WorkLog[];
+  architecturePlans: ArchitecturePlan[];
+  databases: Database[];
+  erds: Erd[];
 }
 
 /** 프로젝트 선택 목록과 선택한 프로젝트의 전체 대시보드 context. */

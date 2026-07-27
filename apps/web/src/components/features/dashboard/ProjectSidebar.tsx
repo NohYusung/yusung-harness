@@ -21,7 +21,7 @@ interface ProjectInventoryItem {
   label: string;
 }
 
-/** 현재 ProjectContext를 Workbench Explorer의 고정된 9종 inventory로 축소한다. */
+/** 현재 ProjectContext를 Workbench Explorer의 고정된 10종 inventory로 축소한다. */
 function getProjectInventory(
   context: ProjectContext,
 ): ReadonlyArray<ProjectInventoryItem> {
@@ -74,6 +74,11 @@ function getProjectInventory(
       code: "RV",
       count: context.reviews.length,
       label: `Review ${context.reviews.length}`,
+    },
+    {
+      code: "RQ",
+      count: context.requests.length,
+      label: `Request ${context.requests.length}`,
     },
   ];
 }

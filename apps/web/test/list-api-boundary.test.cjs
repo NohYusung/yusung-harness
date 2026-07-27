@@ -46,7 +46,7 @@ test("Web API는 project 목록과 9종 project-scoped REST list helper를 제�
   const getPlansBody = api.match(
     /export\s+(?:async\s+)?function\s+getPlans\s*\([^)]*\)[\s\S]*?\n}/,
   )?.[0] ?? "";
-  assert.match(getPlansBody, /["']versionOrder=desc["']/);
+  assert.doesNotMatch(getPlansBody, /versionOrder|\bversion\b/);
 });
 
 test("getProjectDashboard는 선택한 plan 범위의 Task와 REST helper를 한 Promise.all에서 조립한다", () => {

@@ -41,6 +41,48 @@ export class RequestsService {
     });
   }
 
+  /** 웹 사용자가 같은 프로젝트의 PENDING 작업 요청 내용과 상태를 갱신한다. */
+  async userUpdate({
+    projectId,
+    requestId,
+    title,
+    content,
+    status,
+  }: {
+    projectId: number;
+    requestId: number;
+    title: string;
+    content: string;
+    status: RequestStatus;
+  }) {
+    await this.projectsService.ensureProject(projectId);
+    const existingRequest = await this.prisma.request.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!existingRequest) {
+      throw new NotFoundException(`Request ${requestId} not found`);
+    }
+
+    if (existingRequest.projectId !== projectId) {
+      throw new BadRequestException(
+        `Request ${requestId} does not belong to project ${projectId}`,
+      );
+    }
+
+    // NOTE: 웹 편집은 에이전트가 작업을 시작하기 전인 PENDING 상태에서만 허용한다.
+    if (existingRequest.status !== "PENDING") {
+      throw new BadRequestException(
+        `Request ${requestId} can only be updated while PENDING`,
+      );
+    }
+
+    return this.prisma.request.update({
+      where: { id: requestId },
+      data: { title, content, status },
+    });
+  }
+
   /** 같은 프로젝트가 소유한 작업 요청의 내용과 상태를 갱신한다. */
   async update({
     projectId,

@@ -51,9 +51,9 @@ const loadPlansService = () => {
   return loadedModule.exports.PlansService;
 };
 
-test("PlansService.list는 caller의 top-level 정렬 옵션을 Prisma에 전달한다", async () => {
+test("PlansService.list는 version 정렬 없이 최근 수정순으로 Plan과 Task를 조회한다", async () => {
   const calls = [];
-  const plans = [{ id: 11, projectId: 7, version: 1 }];
+  const plans = [{ id: 11, projectId: 7, status: "PENDING" }];
   const prisma = {
     plan: {
       findMany: async (args) => {
@@ -67,13 +67,10 @@ test("PlansService.list는 caller의 top-level 정렬 옵션을 Prisma에 전달
       calls.push(["projects.ensureProject", projectId]);
     },
   };
-  const options = {
-    orderBy: [{ version: "asc" }, { id: "asc" }],
-  };
   const PlansService = loadPlansService();
   const service = new PlansService(prisma, projectsService);
 
-  const result = await service.list({ projectId: 7 }, options);
+  const result = await service.list({ projectId: 7 });
 
   assert.deepEqual(result, plans);
   assert.deepEqual(calls.map(([name]) => name), [
@@ -82,7 +79,7 @@ test("PlansService.list는 caller의 top-level 정렬 옵션을 Prisma에 전달
   ]);
   const findManyArgs = calls[1][1];
   assert.deepEqual(findManyArgs.where, { projectId: 7 });
-  assert.deepEqual(findManyArgs.orderBy, options.orderBy);
+  assert.deepEqual(findManyArgs.orderBy, { updatedAt: "desc" });
   assert.deepEqual(findManyArgs.include, {
     tasks: { orderBy: { createdAt: "asc" } },
   });
@@ -94,23 +91,16 @@ test("PlansService.list는 caller의 top-level 정렬 옵션을 Prisma에 전달
   }
 });
 
-test("PlansService.create는 task 중첩 없이 다음 version의 Plan만 만든다", async () => {
+test("PlansService.create는 version 할당 없이 초기 PENDING Plan을 만든다", async () => {
   const calls = [];
-  const createdPlan = { id: 12, projectId: 7, version: 5 };
-  const transaction = {
+  const createdPlan = { id: 12, projectId: 7, status: "PENDING" };
+  const prisma = {
     plan: {
-      findFirst: async (args) => {
-        calls.push(["plan.findFirst", args]);
-        return { version: 4 };
-      },
       create: async (args) => {
         calls.push(["plan.create", args]);
         return createdPlan;
       },
     },
-  };
-  const prisma = {
-    $transaction: async (operation) => operation(transaction),
   };
   const projectsService = {
     ensureProject: async (projectId) => {
@@ -122,30 +112,22 @@ test("PlansService.create는 task 중첩 없이 다음 version의 Plan만 만든
 
   const result = await service.create({
     projectId: 7,
-    title: "Version 5",
+    title: "Delivery plan",
     content: "Plan content",
   });
 
   assert.deepEqual(result, createdPlan);
   assert.deepEqual(calls[1], [
-    "plan.findFirst",
-    {
-      where: { projectId: 7 },
-      orderBy: { version: "desc" },
-      select: { version: true },
-    },
-  ]);
-  assert.deepEqual(calls[2], [
     "plan.create",
     {
       data: {
         projectId: 7,
-        title: "Version 5",
+        title: "Delivery plan",
         content: "Plan content",
-        version: 5,
       },
     },
   ]);
-  assert.equal(Object.hasOwn(calls[2][1].data, "tasks"), false);
-  assert.equal(Object.hasOwn(calls[2][1], "include"), false);
+  assert.equal(Object.hasOwn(calls[1][1].data, "version"), false);
+  assert.equal(Object.hasOwn(calls[1][1].data, "tasks"), false);
+  assert.equal(Object.hasOwn(calls[1][1], "include"), false);
 });

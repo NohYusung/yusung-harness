@@ -5,7 +5,8 @@ export interface DashboardSummary {
   completedTasks: number;
   totalTasks: number;
   taskCompletionPercent: number;
-  latestPlanVersion: number | null;
+  completedPlans: number;
+  totalPlans: number;
   lastActivityAt: string | null;
 }
 
@@ -22,6 +23,11 @@ export function deriveDashboardSummary(
     assets,
     designs,
     reviews,
+    requests,
+    workLogs,
+    architecturePlans,
+    databases,
+    erds,
   } = context;
 
   const totalArtifacts =
@@ -33,14 +39,21 @@ export function deriveDashboardSummary(
     wireframes.length +
     assets.length +
     designs.length +
-    reviews.length;
+    reviews.length +
+    requests.length +
+    workLogs.length +
+    architecturePlans.length +
+    databases.length +
+    erds.length;
   const completedTasks = tasks.filter(
     ({ status }) => status === "COMPLETED",
   ).length;
   const totalTasks = tasks.length;
   const taskCompletionPercent =
     totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-  const latestPlanVersion = plans[0]?.version ?? null;
+  const completedPlans = plans.filter(
+    ({ status }) => status === "COMPLETED",
+  ).length;
   const activityDates = [
     ...plans.map(({ updatedAt }) => updatedAt),
     ...tasks.map(({ updatedAt }) => updatedAt),
@@ -51,6 +64,11 @@ export function deriveDashboardSummary(
     ...assets.map(({ updatedAt }) => updatedAt),
     ...designs.map(({ updatedAt }) => updatedAt),
     ...reviews.map(({ updatedAt }) => updatedAt),
+    ...requests.map(({ updatedAt }) => updatedAt),
+    ...workLogs.map(({ updatedAt }) => updatedAt),
+    ...architecturePlans.map(({ updatedAt }) => updatedAt),
+    ...databases.map(({ updatedAt }) => updatedAt),
+    ...erds.map(({ updatedAt }) => updatedAt),
   ];
   const lastActivityAt = activityDates.reduce<string | null>(
     (latest, current) =>
@@ -65,7 +83,8 @@ export function deriveDashboardSummary(
     completedTasks,
     totalTasks,
     taskCompletionPercent,
-    latestPlanVersion,
+    completedPlans,
+    totalPlans: plans.length,
     lastActivityAt,
   };
 }

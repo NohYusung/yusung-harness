@@ -1,23 +1,31 @@
 import { describe, expect, it } from "vitest";
 import type { Wireframe } from "@/types/dashboard";
 import {
+  architecturePlanListResponseSchema,
+  databaseListResponseSchema,
   designListResponseSchema,
   draftListResponseSchema,
+  erdListResponseSchema,
   planListResponseSchema,
   projectListResponseSchema,
   reviewListResponseSchema,
   taskListResponseSchema,
   wireframeListResponseSchema,
+  workLogListResponseSchema,
 } from "@/lib/validations/dashboard";
 import {
+  createArchitecturePlan,
   createArtifact,
+  createDatabase,
   createDesign,
+  createErd,
   createPlan,
   createProjectContext,
   createProjectSummary,
   createReview,
   createTask,
   createWireframe,
+  createWorkLog,
 } from "@/test/fixtures/dashboard";
 
 const wireframe = {
@@ -27,6 +35,7 @@ const wireframe = {
   updatedAt: "2026-07-18T02:00:00.000Z",
   parentId: 3,
   index: "1.2",
+  version: 3,
   title: "Checkout",
   html: "<!doctype html><html><head><title>Checkout</title></head><body><main>Checkout</main></body></html>",
 } satisfies Wireframe;
@@ -43,6 +52,14 @@ const cases = [
   ["wireframes", wireframeListResponseSchema, wireframe],
   ["designs", designListResponseSchema, createDesign()],
   ["reviews", reviewListResponseSchema, createReview()],
+  ["worklogs", workLogListResponseSchema, createWorkLog()],
+  [
+    "architecture plans",
+    architecturePlanListResponseSchema,
+    createArchitecturePlan(),
+  ],
+  ["databases", databaseListResponseSchema, createDatabase()],
+  ["erds", erdListResponseSchema, createErd()],
 ] as const;
 
 describe("project-scoped list response schemas", () => {
@@ -96,7 +113,8 @@ describe("project-scoped list response schemas", () => {
       ).toBe(false);
     }
 
-    const { parentId: _parentId, ...missingParent } = wireframe;
+    const missingParent: Partial<typeof wireframe> = { ...wireframe };
+    delete missingParent.parentId;
     expect(
       wireframeListResponseSchema.safeParse({ data: [missingParent] }).success,
     ).toBe(false);
@@ -115,10 +133,70 @@ describe("project-scoped list response schemas", () => {
     ).toBe("1.10");
   });
 
-  it("createWireframe fixture는 root 계층 기본값을 제공한다", () => {
+  it("plans는 version 없이 lifecycle status를 필수로 검증하고 보존한다", () => {
+    for (const status of ["PENDING", "IN_PROGRESS", "COMPLETED"] as const) {
+      expect(
+        planListResponseSchema.parse({
+          data: [createPlan({ status })],
+        }).data[0],
+      ).toMatchObject({ status });
+    }
+
+    const plan = createPlan();
+    const missingStatus: Partial<typeof plan> = { ...plan };
+    delete missingStatus.status;
+    expect(
+      planListResponseSchema.safeParse({ data: [missingStatus] }).success,
+    ).toBe(false);
+    expect(
+      planListResponseSchema.parse({
+        data: [{ ...plan, version: 4 }],
+      }).data[0],
+    ).not.toHaveProperty("version");
+  });
+
+  it("wireframes는 양의 정수 version을 필수로 검증하고 응답에 유지한다", () => {
+    expect(
+      wireframeListResponseSchema.parse({ data: [wireframe] }).data[0],
+    ).toMatchObject({ version: 3 });
+
+    for (const invalidVersion of [undefined, 0, -1, 1.5, "3"]) {
+      expect(
+        wireframeListResponseSchema.safeParse({
+          data: [{ ...wireframe, version: invalidVersion }],
+        }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("createWireframe fixture는 root 계층과 version 기본값을 제공한다", () => {
     expect(createWireframe()).toMatchObject({
       parentId: null,
       index: "1",
+      version: 1,
     });
+  });
+
+  it("Architecture Plan은 full HTML content와 빈 호환 html 필드를 그대로 보존한다", () => {
+    const architecturePlan = createArchitecturePlan({ html: "" });
+    const parsed = architecturePlanListResponseSchema.parse({
+      data: [architecturePlan],
+    });
+
+    expect(parsed.data[0]).toMatchObject({
+      content: architecturePlan.content,
+      html: "",
+    });
+  });
+
+  it("ERD는 sandbox preview에 사용할 완성형 HTML만 허용한다", () => {
+    expect(
+      erdListResponseSchema.safeParse({ data: [createErd()] }).success,
+    ).toBe(true);
+    expect(
+      erdListResponseSchema.safeParse({
+        data: [createErd({ html: "entity User relates to Project" })],
+      }).success,
+    ).toBe(false);
   });
 });

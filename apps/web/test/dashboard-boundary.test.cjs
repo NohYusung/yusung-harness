@@ -126,7 +126,7 @@ test("API client는 project 목록과 9종 REST list의 Zod 조립 경계를 소
   assert.match(api, /Promise\.all\s*\(/);
 });
 
-test("derive helper는 9종 합계, task 진행률, 최신 plan, 마지막 활동을 계산한다", () => {
+test("derive helper는 9종 합계, task 진행률, plan 완료 수, 마지막 활동을 계산한다", () => {
   const dashboard = source("lib/dashboard.ts");
 
   assert.match(
@@ -144,7 +144,9 @@ test("derive helper는 9종 합계, task 진행률, 최신 plan, 마지막 활�
 
   assert.match(dashboard, /COMPLETED/);
   assert.match(dashboard, /updatedAt/);
-  assert.match(dashboard, /plans\s*\[\s*0\s*\]/);
+  assert.match(dashboard, /completedPlans/);
+  assert.match(dashboard, /totalPlans/);
+  assert.doesNotMatch(dashboard, /plans\s*\[\s*0\s*\]/);
 });
 
 test("App Router page는 목록 redirect/empty와 project Server Component 경계를 유지한다", () => {

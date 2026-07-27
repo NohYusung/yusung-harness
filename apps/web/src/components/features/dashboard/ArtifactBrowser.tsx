@@ -26,6 +26,7 @@ import type {
   HtmlArtifactDocument,
   Plan,
   ProjectContext,
+  Request,
   Task,
 } from "@/types/dashboard";
 
@@ -37,7 +38,12 @@ export type WorkspaceRelation =
   | "architectures"
   | "wireframes"
   | "assets"
-  | "designs";
+  | "designs"
+  | "requests"
+  | "workLogs"
+  | "architecturePlans"
+  | "databases"
+  | "erds";
 
 /** ArtifactBrowser의 text 문서와 HTML 문서 record union. */
 type WorkspaceArtifact =
@@ -45,6 +51,7 @@ type WorkspaceArtifact =
   | Draft
   | Domain
   | Architecture
+  | Request
   | HtmlArtifactDocument;
 
 /** workspace relation과 해당 relation의 record를 묶은 목록 항목. */
@@ -69,15 +76,22 @@ interface HtmlArtifactKey {
 }
 
 /** Workbench record 목록에서 제공하는 파생 상태 필터. */
-type RecordStatusFilter = "All" | "Current" | "Previous" | "Document" | "HTML";
+type RecordStatusFilter =
+  | "All"
+  | "Completed"
+  | "In progress"
+  | "Pending"
+  | "Document"
+  | "HTML";
 
 /** 우측 record inspector가 노출하는 세부 정보 surface. */
 type DetailTab = "metadata" | "relations" | "preview";
 
 const recordStatusFilters: readonly RecordStatusFilter[] = [
   "All",
-  "Current",
-  "Previous",
+  "Completed",
+  "In progress",
+  "Pending",
   "Document",
   "HTML",
 ];
@@ -125,6 +139,31 @@ const relationConfig: Record<
     label: "Design",
     tone: "bg-success-soft text-success",
   },
+  requests: {
+    code: "RQ",
+    label: "Request",
+    tone: "bg-primary-soft text-primary",
+  },
+  workLogs: {
+    code: "WL",
+    label: "WorkLog",
+    tone: "bg-teal-soft text-teal",
+  },
+  architecturePlans: {
+    code: "AP",
+    label: "Architecture Plan",
+    tone: "bg-violet-soft text-violet",
+  },
+  databases: {
+    code: "DB",
+    label: "DB",
+    tone: "bg-warning-soft text-warning",
+  },
+  erds: {
+    code: "ERD",
+    label: "ERD",
+    tone: "bg-success-soft text-success",
+  },
 };
 
 /** 프로젝트 컨텍스트에서 현재 workspace relation의 목록을 선택한다. */
@@ -162,6 +201,31 @@ function getEntries(
     return context.designs.map((artifact) => ({ artifact, relation }));
   }
 
+  /** Request workspace는 lifecycle 상태가 포함된 text 문서를 제공한다. */
+  if (relation === "requests") {
+    return context.requests.map((artifact) => ({ artifact, relation }));
+  }
+
+  /** WorkLog workspace는 작업 이력 Markdown 문서를 제공한다. */
+  if (relation === "workLogs") {
+    return context.workLogs.map((artifact) => ({ artifact, relation }));
+  }
+
+  /** Architecture Plan workspace는 구현 전 구조 HTML 문서를 제공한다. */
+  if (relation === "architecturePlans") {
+    return context.architecturePlans.map((artifact) => ({ artifact, relation }));
+  }
+
+  /** DB workspace는 현행 schema Markdown 문서를 제공한다. */
+  if (relation === "databases") {
+    return context.databases.map((artifact) => ({ artifact, relation }));
+  }
+
+  /** ERD workspace는 현행 schema 관계 HTML 문서를 제공한다. */
+  if (relation === "erds") {
+    return context.erds.map((artifact) => ({ artifact, relation }));
+  }
+
   /** 남은 Asset workspace는 HTML preview record를 제공한다. */
   return context.assets.map((artifact) => ({ artifact, relation }));
 }
@@ -169,11 +233,18 @@ function getEntries(
 /** HTML workspace 여부를 좁혀 text content detail과 preview detail을 분기한다. */
 function isHtmlWorkspaceRelation(
   relation: WorkspaceRelation,
-): relation is "wireframes" | "assets" | "designs" {
+): relation is
+  | "wireframes"
+  | "assets"
+  | "designs"
+  | "architecturePlans"
+  | "erds" {
   return (
     relation === "wireframes" ||
     relation === "assets" ||
-    relation === "designs"
+    relation === "designs" ||
+    relation === "architecturePlans" ||
+    relation === "erds"
   );
 }
 
@@ -183,26 +254,31 @@ function getEntryMeta(entry: ArtifactEntry): string {
     const completed = plan.tasks.filter(
       (task) => task.status === "COMPLETED",
     ).length;
-    return `v${plan.version} · ${completed}/${plan.tasks.length} Tasks completed`;
+    return `${completed}/${plan.tasks.length} Tasks completed`;
   }
 
   return `#${entry.artifact.id} · ${formatDashboardDate(entry.artifact.updatedAt)}`;
 }
 
-/** 저장된 status를 만들지 않고 record의 실제 shape와 Plan version만으로 상태를 파생한다. */
+/** Plan의 저장 status와 문서 shape를 목록용 상태 label로 변환한다. */
 function getEntryStatus(
   entry: ArtifactEntry,
-  context: ProjectContext,
 ): Exclude<RecordStatusFilter, "All"> {
   if (entry.relation === "plans") {
-    const latestVersion = Math.max(
-      ...context.plans.map((plan) => plan.version),
-      Number.NEGATIVE_INFINITY,
-    );
+    const status = (entry.artifact as Plan).status;
 
-    return (entry.artifact as Plan).version === latestVersion
-      ? "Current"
-      : "Previous";
+    if (status === "COMPLETED") return "Completed";
+    if (status === "IN_PROGRESS") return "In progress";
+    return "Pending";
+  }
+
+  /** Request는 저장된 lifecycle 상태를 목록 filter label로 변환한다. */
+  if (entry.relation === "requests") {
+    const status = (entry.artifact as Request).status;
+
+    if (status === "COMPLETED") return "Completed";
+    if (status === "IN_PROGRESS") return "In progress";
+    return "Pending";
   }
 
   return isHtmlWorkspaceRelation(entry.relation) ? "HTML" : "Document";
@@ -227,6 +303,8 @@ function getHtmlArtifactKind(
   if (relation === "wireframes") return "Wireframe";
   if (relation === "designs") return "Design";
   if (relation === "assets") return "Asset";
+  if (relation === "architecturePlans") return "Architecture Plan";
+  if (relation === "erds") return "ERD";
 
   throw new Error(`${relation} does not contain an HTML artifact.`);
 }
@@ -240,12 +318,30 @@ function getHtmlArtifactSelection(
     return null;
   }
 
-  const record =
-    key.kind === "Asset"
-      ? context.assets.find((asset) => asset.id === key.id)
-      : key.kind === "Wireframe"
-        ? context.wireframes.find((wireframe) => wireframe.id === key.id)
-        : context.designs.find((design) => design.id === key.id);
+  /** HTML kind마다 project context의 동일 ID record만 선택한다. */
+  const record = (() => {
+    if (key.kind === "Asset") {
+      return context.assets.find((asset) => asset.id === key.id);
+    }
+    if (key.kind === "Wireframe") {
+      return context.wireframes.find((wireframe) => wireframe.id === key.id);
+    }
+    if (key.kind === "Design") {
+      return context.designs.find((design) => design.id === key.id);
+    }
+    if (key.kind === "Architecture Plan") {
+      const architecturePlan = context.architecturePlans.find(
+        (candidate) => candidate.id === key.id,
+      );
+      return architecturePlan
+        ? {
+            ...architecturePlan,
+            html: architecturePlan.html || architecturePlan.content,
+          }
+        : undefined;
+    }
+    return context.erds.find((erd) => erd.id === key.id);
+  })();
 
   return record ? { kind: key.kind, record } : null;
 }
@@ -386,7 +482,9 @@ function PlanDetails({
       >
         {plan.title}
       </h3>
-      <p className="mt-2 font-mono text-xs text-primary">Version {plan.version}</p>
+      <p className="mt-2 font-mono text-xs text-primary">
+        {getEntryStatus({ artifact: plan, relation: "plans" })}
+      </p>
       <RecordMetadata record={plan} />
       <RecordContent content={plan.content} />
       <PlanHierarchy
@@ -667,9 +765,9 @@ export function ArtifactBrowser({
         (entry) =>
           entryMatchesQuery(entry, query) &&
           (statusFilter === "All" ||
-            getEntryStatus(entry, context) === statusFilter),
+            getEntryStatus(entry) === statusFilter),
       ),
-    [context, entries, query, statusFilter],
+    [entries, query, statusFilter],
   );
   const selectedEntry = selectedArtifactId
     ? entries.find((entry) => entry.artifact.id === selectedArtifactId) ?? null
@@ -895,7 +993,7 @@ export function ArtifactBrowser({
               <ul aria-label={`${heading} list`} className="divide-y">
                 {filteredEntries.map((entry) => {
                   const isSelected = entry.artifact.id === selectedArtifactId;
-                  const status = getEntryStatus(entry, context);
+                  const status = getEntryStatus(entry);
 
                   return (
                     <li key={getEntryKey(entry)}>

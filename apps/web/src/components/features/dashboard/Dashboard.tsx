@@ -21,6 +21,7 @@ export function Dashboard({
 }: DashboardProps) {
   return (
     <ArtifactWorkbench
+      key={context.id}
       activeRelation={activeRelation}
       context={context}
       projects={projects}

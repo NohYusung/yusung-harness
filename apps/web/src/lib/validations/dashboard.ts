@@ -1,19 +1,26 @@
 import { z } from "zod";
 import type {
   Architecture,
+  ArchitecturePlan,
   ArtifactDocument,
   ArtifactRecord,
   Asset,
+  CreateRequestInput,
+  Database,
   Design,
   Domain,
   Draft,
+  Erd,
   ListResponse,
   Plan,
   ProjectContext,
   ProjectSummary,
+  Request,
   Review,
   Task,
+  UpdateRequestInput,
   Wireframe,
+  WorkLog,
 } from "@/types/dashboard";
 
 const repoTypeSchema = z.enum(["LOCAL", "REMOTE"]);
@@ -22,6 +29,8 @@ const projectRepositorySchema = z.object({
   repoType: repoTypeSchema,
 });
 const taskStatusSchema = z.enum(["PENDING", "COMPLETED"]);
+const planStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]);
+const requestStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]);
 const dateTimeSchema = z.iso.datetime();
 
 const projectBaseSchema = z.object({
@@ -41,6 +50,11 @@ const artifactCountsSchema = z.object({
   assets: z.number().int().nonnegative(),
   designs: z.number().int().nonnegative(),
   reviews: z.number().int().nonnegative(),
+  requests: z.number().int().nonnegative(),
+  workLogs: z.number().int().nonnegative(),
+  architecturePlans: z.number().int().nonnegative(),
+  databases: z.number().int().nonnegative(),
+  erds: z.number().int().nonnegative(),
 });
 
 const artifactRecordSchema = z.object({
@@ -75,6 +89,7 @@ const wireframeSchema: z.ZodType<Wireframe> = htmlArtifactSchema.extend({
     .trim()
     .max(255)
     .regex(/^[1-9]\d*(?:\.[1-9]\d*)*$/),
+  version: z.number().int().positive(),
 });
 const assetSchema: z.ZodType<Asset> = htmlArtifactSchema;
 
@@ -86,6 +101,43 @@ const designSchema: z.ZodType<Design> = htmlArtifactSchema.extend({
 });
 
 const reviewSchema: z.ZodType<Review> = artifactDocumentSchema;
+
+/** WorkLog와 DB는 공통 Markdown artifact document shape를 사용한다. */
+const workLogSchema: z.ZodType<WorkLog> = artifactDocumentSchema;
+const databaseSchema: z.ZodType<Database> = artifactDocumentSchema;
+
+/** Architecture Plan은 HTML 원본 content와 호환용 html 필드를 함께 받는다. */
+const architecturePlanSchema: z.ZodType<ArchitecturePlan> =
+  artifactDocumentSchema.extend({
+    html: z.string(),
+  });
+
+/** ERD는 sandbox preview에 전달할 완성형 HTML document만 허용한다. */
+const erdSchema: z.ZodType<Erd> = htmlArtifactSchema;
+
+/** Request 목록의 lifecycle status를 포함한 document schema. */
+const requestSchema: z.ZodType<Request> = artifactDocumentSchema.extend({
+  status: requestStatusSchema,
+});
+
+/** Request 생성 입력의 빈 제목과 본문을 API 호출 전에 차단한다. */
+const requestDocumentInputSchema = z.object({
+  title: z.string().trim().min(1),
+  content: z.string().trim().min(1),
+});
+export const createRequestInputSchema: z.ZodType<CreateRequestInput> =
+  requestDocumentInputSchema;
+
+/** Request 수정 입력에 lifecycle 상태 검증을 추가한다. */
+export const updateRequestInputSchema: z.ZodType<UpdateRequestInput> =
+  requestDocumentInputSchema.extend({
+    status: requestStatusSchema,
+  });
+
+/** Request 생성·수정 API의 단건 `{ data }` 응답을 검증한다. */
+export const requestResponseSchema: z.ZodType<{ data: Request }> = z.object({
+  data: requestSchema,
+});
 
 const taskSchema: z.ZodType<Task> = z.object({
   id: z.number().int().positive(),
@@ -99,7 +151,7 @@ const taskSchema: z.ZodType<Task> = z.object({
 });
 
 const planSchema: z.ZodType<Plan> = artifactDocumentSchema.extend({
-  version: z.number().int().positive(),
+  status: planStatusSchema,
   tasks: z.array(taskSchema),
 });
 
@@ -151,6 +203,36 @@ export const reviewListResponseSchema: z.ZodType<ListResponse<Review>> = z.objec
   data: z.array(reviewSchema),
 });
 
+/** Request 목록 API의 `{ data }` 응답을 검증한다. */
+export const requestListResponseSchema: z.ZodType<ListResponse<Request>> =
+  z.object({
+    data: z.array(requestSchema),
+  });
+
+/** WorkLog 목록 API의 `{ data }` 응답을 검증한다. */
+export const workLogListResponseSchema: z.ZodType<ListResponse<WorkLog>> =
+  z.object({
+    data: z.array(workLogSchema),
+  });
+
+/** Architecture Plan 목록 API의 `{ data }` 응답을 검증한다. */
+export const architecturePlanListResponseSchema: z.ZodType<
+  ListResponse<ArchitecturePlan>
+> = z.object({
+  data: z.array(architecturePlanSchema),
+});
+
+/** DB schema 목록 API의 `{ data }` 응답을 검증한다. */
+export const databaseListResponseSchema: z.ZodType<ListResponse<Database>> =
+  z.object({
+    data: z.array(databaseSchema),
+  });
+
+/** ERD 목록 API의 `{ data }` 응답을 검증한다. */
+export const erdListResponseSchema: z.ZodType<ListResponse<Erd>> = z.object({
+  data: z.array(erdSchema),
+});
+
 export const projectSummarySchema: z.ZodType<ProjectSummary> =
   projectBaseSchema.extend({
     _count: artifactCountsSchema,
@@ -174,4 +256,9 @@ export const projectContextSchema: z.ZodType<ProjectContext> =
     assets: z.array(assetSchema),
     designs: z.array(designSchema),
     reviews: z.array(reviewSchema),
+    requests: z.array(requestSchema),
+    workLogs: z.array(workLogSchema),
+    architecturePlans: z.array(architecturePlanSchema),
+    databases: z.array(databaseSchema),
+    erds: z.array(erdSchema),
   });

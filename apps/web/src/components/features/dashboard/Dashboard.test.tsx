@@ -95,7 +95,9 @@ describe("Dashboard", () => {
       "Reviews",
     ]) {
       expect(
-        within(explorer).getByRole("button", { name: new RegExp(label) }),
+        within(explorer).getByRole("button", {
+          name: new RegExp(`^${label}\\s*\\d+$`),
+        }),
       ).toBeInTheDocument();
     }
   });

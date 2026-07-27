@@ -21,6 +21,10 @@ const expectedToolNames = [
   "create_draft",
   "create_domain",
   "update_domain",
+  "create_db",
+  "update_db",
+  "create_erd",
+  "update_erd",
   "create_task",
   "create_design",
   "update_design",
@@ -108,6 +112,8 @@ const createHarness = () => {
       "wireframes",
       "assets",
       "designs",
+      "databases",
+      "erds",
       "reviews",
     ].map((domain) => [domain, [{ domain, projectId: 17 }]]),
   );
@@ -163,6 +169,28 @@ const createHarness = () => {
       update: async (input) => {
         calls.push(["designsService", "update", input]);
         return result("designsService", "update", input);
+      },
+    },
+    dbService: {
+      list: listService("dbService", "databases"),
+      create: async (input) => {
+        calls.push(["dbService", "create", input]);
+        return result("dbService", "create", input);
+      },
+      update: async (input) => {
+        calls.push(["dbService", "update", input]);
+        return result("dbService", "update", input);
+      },
+    },
+    erdService: {
+      list: listService("erdService", "erds"),
+      create: async (input) => {
+        calls.push(["erdService", "create", input]);
+        return result("erdService", "create", input);
+      },
+      update: async (input) => {
+        calls.push(["erdService", "update", input]);
+        return result("erdService", "update", input);
       },
     },
     wireframesService: {
@@ -296,7 +324,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 19개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 23개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -304,7 +332,7 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 19개 도구와 �
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 19);
+  assert.equal(tools.size, 23);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
@@ -553,7 +581,7 @@ test("get_context는 전체 SQLite schema context를 읽기 전용으로 반환�
   );
 });
 
-test("get_project는 projectId가 있으면 9종 domain list를 병렬 조립한다", async () => {
+test("get_project는 projectId가 있으면 11종 domain list를 병렬 조립한다", async () => {
   const harness = createHarness();
   const listResponse = await harness.invoke("get_project", {});
   const contextResponse = await harness.invoke("get_project", {
@@ -563,12 +591,7 @@ test("get_project는 projectId가 있으면 9종 domain list를 병렬 조립한
   assert.deepEqual(harness.calls, [
     ["projectsService", "list"],
     ["projectsService", "list"],
-    [
-      "plansService",
-      "list",
-      { projectId: 17 },
-      { orderBy: { version: "desc" } },
-    ],
+    ["plansService", "list", { projectId: 17 }],
     ["tasksService", "list", { projectId: 17 }],
     ["draftsService", "list", { projectId: 17 }],
     ["domainsService", "list", { projectId: 17 }],
@@ -576,6 +599,8 @@ test("get_project는 projectId가 있으면 9종 domain list를 병렬 조립한
     ["wireframesService", "list", { projectId: 17 }],
     ["assetsService", "list", { projectId: 17 }],
     ["designsService", "list", { projectId: 17 }],
+    ["dbService", "list", { projectId: 17 }],
+    ["erdService", "list", { projectId: 17 }],
     ["reviewsService", "list", { projectId: 17 }],
   ]);
   assert.deepEqual(listResponse, [harness.project]);
@@ -682,6 +707,26 @@ const createToolCases = [
       planId: 2,
       title: "Task",
       content: "Task content",
+    },
+  },
+  {
+    name: "create_db",
+    service: "dbService",
+    method: "create",
+    input: {
+      projectId: 1,
+      title: "DB schema",
+      content: "# users\n\n| column | type |",
+    },
+  },
+  {
+    name: "create_erd",
+    service: "erdService",
+    method: "create",
+    input: {
+      projectId: 1,
+      title: "ERD",
+      html: "<!doctype html><html><head></head><body>ERD</body></html>",
     },
   },
   {
@@ -943,6 +988,134 @@ test("Domain 생성·수정 도구는 입력, annotations, service 위임 계약
     idempotentHint: false,
     openWorldHint: false,
   });
+});
+
+const databaseArtifactToolCases = [
+  {
+    label: "DB",
+    service: "dbService",
+    createName: "create_db",
+    updateName: "update_db",
+    idField: "dbId",
+    bodyField: "content",
+    bodyValue: "# users\n\n| column | type |",
+  },
+  {
+    label: "ERD",
+    service: "erdService",
+    createName: "create_erd",
+    updateName: "update_erd",
+    idField: "erdId",
+    bodyField: "html",
+    bodyValue:
+      "<!doctype html><html><head></head><body><main>ERD</main></body></html>",
+  },
+];
+
+test("DB와 ERD 생성·수정 도구는 입력 schema, annotations, service 위임 계약을 지킨다", async (t) => {
+  for (const toolCase of databaseArtifactToolCases) {
+    await t.test(toolCase.label, async () => {
+      const harness = createHarness();
+      const createInput = {
+        projectId: 17,
+        title: `${toolCase.label} artifact`,
+        [toolCase.bodyField]: toolCase.bodyValue,
+      };
+      const updateInput = {
+        projectId: 17,
+        [toolCase.idField]: 31,
+        title: `Updated ${toolCase.label} artifact`,
+        [toolCase.bodyField]: toolCase.bodyValue,
+      };
+      const created = await harness.invoke(toolCase.createName, createInput);
+      const updated = await harness.invoke(toolCase.updateName, updateInput);
+      const createTool = harness.tools.get(toolCase.createName);
+      const updateTool = harness.tools.get(toolCase.updateName);
+
+      assert.deepEqual(harness.calls, [
+        [toolCase.service, "create", createInput],
+        [toolCase.service, "update", updateInput],
+      ]);
+      assert.deepEqual(created, {
+        service: toolCase.service,
+        method: "create",
+        input: createInput,
+      });
+      assert.deepEqual(updated, {
+        service: toolCase.service,
+        method: "update",
+        input: updateInput,
+      });
+      assert.deepEqual(Object.keys(createTool.definition.inputSchema.shape), [
+        "projectId",
+        "title",
+        toolCase.bodyField,
+      ]);
+      assert.deepEqual(Object.keys(updateTool.definition.inputSchema.shape), [
+        "projectId",
+        toolCase.idField,
+        "title",
+        toolCase.bodyField,
+      ]);
+
+      for (const invalidId of [0, -1, 1.5, "17"]) {
+        assert.equal(
+          createTool.definition.inputSchema.safeParse({
+            ...createInput,
+            projectId: invalidId,
+          }).success,
+          false,
+        );
+        assert.equal(
+          updateTool.definition.inputSchema.safeParse({
+            ...updateInput,
+            [toolCase.idField]: invalidId,
+          }).success,
+          false,
+        );
+      }
+      const { [toolCase.idField]: _id, ...missingIdInput } = updateInput;
+      assert.equal(
+        updateTool.definition.inputSchema.safeParse(missingIdInput).success,
+        false,
+      );
+      for (const tool of [createTool, updateTool]) {
+        const input = tool === createTool ? createInput : updateInput;
+
+        assert.equal(
+          tool.definition.inputSchema.safeParse({ ...input, title: "   " })
+            .success,
+          false,
+        );
+        assert.equal(
+          tool.definition.inputSchema.safeParse({
+            ...input,
+            [toolCase.bodyField]: "",
+          }).success,
+          false,
+        );
+        assert.equal(
+          tool.definition.inputSchema.parse({
+            ...input,
+            title: "  Trimmed artifact  ",
+          }).title,
+          "Trimmed artifact",
+        );
+      }
+      assert.deepEqual(createTool.definition.annotations, {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      });
+      assert.deepEqual(updateTool.definition.annotations, {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      });
+    });
+  }
 });
 
 test("Wireframe 수정 도구는 입력, annotations, service 위임 계약을 지킨다", async () => {
@@ -1311,7 +1484,7 @@ test("실제 MCP workflow update는 성공과 service 오류 응답을 직렬화
   }
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 19개 공개 계약을 따른다", async (t) => {
+test("실제 MCP tools/list와 제거된 도구 호출도 23개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 

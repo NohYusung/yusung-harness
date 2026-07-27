@@ -18,16 +18,24 @@ describe("deriveDashboardSummary", () => {
       completedTasks: 0,
       totalTasks: 0,
       taskCompletionPercent: 0,
-      latestPlanVersion: null,
+      completedPlans: 0,
+      totalPlans: 0,
       lastActivityAt: null,
     });
   });
 
-  it("9종 산출물 합계와 작업 완료율, 최신 계획, 마지막 활동을 계산한다", () => {
+  it("9종 산출물 합계와 Task·Plan 완료율, 마지막 활동을 계산한다", () => {
     const completedTask = createTask({ id: 1, status: "COMPLETED" });
     const pendingTask = createTask({ id: 2, status: "PENDING" });
     const context = createProjectContext({
-      plans: [createPlan({ version: 4, tasks: [completedTask, pendingTask] })],
+      plans: [
+        createPlan({
+          id: 10,
+          status: "COMPLETED",
+          tasks: [completedTask, pendingTask],
+        }),
+        createPlan({ id: 11, status: "IN_PROGRESS" }),
+      ],
       tasks: [completedTask, pendingTask],
       drafts: [createArtifact({ id: 3, title: "Draft" })],
       domains: [createArtifact({ id: 9, title: "Domain" })],
@@ -54,11 +62,12 @@ describe("deriveDashboardSummary", () => {
     });
 
     expect(deriveDashboardSummary(context)).toEqual({
-      totalArtifacts: 10,
+      totalArtifacts: 11,
       completedTasks: 1,
       totalTasks: 2,
       taskCompletionPercent: 50,
-      latestPlanVersion: 4,
+      completedPlans: 1,
+      totalPlans: 2,
       lastActivityAt: "2026-07-20T09:30:00.000Z",
     });
   });

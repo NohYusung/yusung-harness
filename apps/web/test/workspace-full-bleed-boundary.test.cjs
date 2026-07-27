@@ -47,20 +47,41 @@ function emptyWorkspaceRootClasses(componentSource, helperName) {
   return classes;
 }
 
-test("Artifact Workbench는 58px topbar와 full-bleed 3-pane을 viewport에 조립한다", () => {
+test("Artifact Workbench detail은 header/content shell을 밀어내는 viewport 형제 열이다", () => {
   const workbench = source(
     "components/features/dashboard/ArtifactWorkbench.tsx",
   );
+  const detailPaneOpeningTag = workbench.match(
+    /<aside\b[^>]*aria-labelledby=["']detail-heading["'][^>]*>/,
+  );
+  const mainOpeningTag = workbench.match(/<main\b[^>]*>/);
 
   assert.match(
     workbench,
-    /className=["'][^"']*\bgrid\b[^"']*\bh-dvh\b[^"']*\bgrid-rows-\[58px_minmax\(0,1fr\)\][^"']*\boverflow-hidden\b[^"']*["']/,
-    "workbench root는 58px topbar 아래 viewport 가용 높이를 소유해야 한다",
+    /md:grid-cols-\[minmax\(0,1fr\)_var\(--detail-pane-width\)\]/,
+    "viewport root는 content shell과 detail pane을 별도 열로 배치해야 한다",
   );
   assert.match(
     workbench,
-    /<main\b[^>]*className=["'][^"']*\bmin-h-0\b[^"']*\bmd:grid-cols-\[230px_minmax\(0,1fr\)_var\(--detail-pane-width\)\][^"']*\blg:grid\b[^"']*\blg:grid-cols-\[270px_minmax\(0,1fr\)_var\(--detail-pane-width\)\][^"']*["']/,
-    "desktop workspace는 270px / fluid / 가변 detail pane의 세 pane이어야 한다",
+    /className=["'][^"']*\bgrid\b[^"']*\bmin-w-0\b[^"']*\bgrid-rows-\[58px_minmax\(0,1fr\)\][^"']*["'][\s\S]*?<header\b[\s\S]*?<main\b/,
+    "공통 header와 main은 같은 content shell 안에 있어 함께 밀려야 한다",
+  );
+  assert.ok(mainOpeningTag, "main opening tag를 찾을 수 있어야 한다");
+  for (const token of [
+    "min-h-0",
+    "md:grid-cols-[230px_minmax(0,1fr)]",
+    "lg:grid-cols-[270px_minmax(0,1fr)]",
+  ]) {
+    assert.match(
+      mainOpeningTag[0],
+      new RegExp(token.replace(/[()[\].-]/g, "\\$&")),
+      `main은 Explorer와 Records 두 pane을 위한 ${token}을 가져야 한다`,
+    );
+  }
+  assert.doesNotMatch(
+    mainOpeningTag[0],
+    /var\(--detail-pane-width\)/,
+    "detail pane 폭은 main 내부의 세 번째 열로 잡으면 안 된다",
   );
   assert.match(
     workbench,
@@ -69,8 +90,19 @@ test("Artifact Workbench는 58px topbar와 full-bleed 3-pane을 viewport에 조�
   );
   assert.match(
     workbench,
-    /<aside\b[^>]*aria-label=["']Project artifact tree["'][\s\S]*?<section\b[^>]*aria-labelledby=["']records-heading["'][\s\S]*?<aside\b[^>]*aria-labelledby=["']detail-heading["']/,
-    "tree, record list, inspector가 한 main 안의 3-pane 순서를 유지해야 한다",
+    /<\/main>\s*<\/div>\s*<aside\b[^>]*aria-labelledby=["']detail-heading["']/,
+    "detail pane은 main을 감싼 content shell과 직접 형제여야 한다",
+  );
+  assert.ok(detailPaneOpeningTag, "detail pane opening tag를 찾을 수 있어야 한다");
+  assert.match(
+    detailPaneOpeningTag[0],
+    /(?:^|\s)(?:h-dvh|h-full)(?:\s|$)/,
+    "detail pane은 공통 header 아래가 아닌 viewport 전체 높이를 차지해야 한다",
+  );
+  assert.doesNotMatch(
+    detailPaneOpeningTag[0],
+    /min-h-\[calc\(100dvh-58px\)\]|(?:^|\s)(?:fixed|absolute|z-\S+)(?:\s|$)/,
+    "detail pane은 header 높이를 빼거나 z-index overlay로 header를 덮으면 안 된다",
   );
 });
 

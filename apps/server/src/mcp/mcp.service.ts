@@ -12,9 +12,11 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ArchitecturePlansService } from "../services/architecture-plans/architecture-plans.service";
 import { ArchitecturesService } from "../services/architectures/architectures.service";
 import { AssetsService } from "../services/assets/assets.service";
+import { DbService } from "../services/db/db.service";
 import { DesignsService } from "../services/designs/designs.service";
 import { DomainsService } from "../services/domains/domains.service";
 import { DraftsService } from "../services/drafts/drafts.service";
+import { ErdService } from "../services/erd/erd.service";
 import { PlansService } from "../services/plans/plans.service";
 import { ProjectsService } from "../services/projects/projects.service";
 import { RequestsService } from "../services/requests/requests.service";
@@ -25,6 +27,8 @@ import { WorklogsService } from "../services/worklogs/worklogs.service";
 
 const projectIdSchema = z.number().int().positive().describe("Project ID");
 const domainIdSchema = z.number().int().positive().describe("Domain ID");
+const dbIdSchema = z.number().int().positive().describe("DB document ID");
+const erdIdSchema = z.number().int().positive().describe("ERD document ID");
 const architecturePlanIdSchema = z
   .number()
   .int()
@@ -117,12 +121,14 @@ export class McpService {
     private readonly wireframesService: WireframesService,
     private readonly assetsService: AssetsService,
     private readonly designsService: DesignsService,
+    private readonly dbService: DbService,
+    private readonly erdService: ErdService,
     private readonly reviewsService: ReviewsService,
     private readonly requestsService: RequestsService,
     private readonly worklogsService: WorklogsService,
   ) {}
 
-  /** 19개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 23개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -150,7 +156,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 19개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 23개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -221,12 +227,12 @@ export class McpService {
       (input) => this.execute(() => this.projectsService.create(input)),
     );
 
-    /** 프로젝트의 다음 plan version을 생성한다. */
+    /** 프로젝트에 초기 PENDING 상태의 plan을 생성한다. */
     server.registerTool(
       "create_plan",
       {
         title: "Create Plan",
-        description: "Creates the next Plan version for a Project.",
+        description: "Creates a Plan for a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           title: z.string().trim().min(1),
@@ -306,6 +312,96 @@ export class McpService {
         },
       },
       (input) => this.execute(() => this.domainsService.update(input)),
+    );
+
+    /** 프로젝트의 현행 DB 스키마를 테이블 단위 Markdown 문서로 생성한다. */
+    server.registerTool(
+      "create_db",
+      {
+        title: "Create DB Schema Document",
+        description:
+          "Creates a table-oriented Markdown document for the current database schema of a Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          title: z.string().trim().min(1),
+          content: z.string().min(1),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.dbService.create(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 DB 스키마 문서의 제목과 Markdown 내용을 교체한다. */
+    server.registerTool(
+      "update_db",
+      {
+        title: "Update DB Schema Document",
+        description:
+          "Replaces the title and Markdown content of a DB schema document in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          dbId: dbIdSchema,
+          title: z.string().trim().min(1),
+          content: z.string().min(1),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.dbService.update(input)),
+    );
+
+    /** 프로젝트의 현행 DB 관계를 표현한 HTML ERD 문서를 생성한다. */
+    server.registerTool(
+      "create_erd",
+      {
+        title: "Create ERD",
+        description:
+          "Creates an HTML entity-relationship diagram for the current database schema of a Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          title: z.string().trim().min(1),
+          html: htmlSchema,
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.erdService.create(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 ERD의 제목과 HTML을 교체한다. */
+    server.registerTool(
+      "update_erd",
+      {
+        title: "Update ERD",
+        description:
+          "Replaces the title and HTML of an ERD document in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          erdId: erdIdSchema,
+          title: z.string().trim().min(1),
+          html: htmlSchema,
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.erdService.update(input)),
     );
 
     /** 선택한 plan에 task를 생성한다. */
@@ -750,7 +846,7 @@ export class McpService {
     return { dialect: "sqlite", schemaObjects, tables };
   }
 
-  /** 프로젝트 기본 정보와 9종 도메인 목록을 하나의 MCP context로 조립한다. */
+  /** 프로젝트 기본 정보와 11종 도메인 목록을 하나의 MCP context로 조립한다. */
   private async getProjectContext(projectId: number) {
     /** 독립적인 도메인 조회를 병렬 실행해 MCP 응답 지연을 줄인다. */
     const [
@@ -763,10 +859,12 @@ export class McpService {
       wireframes,
       assets,
       designs,
+      databases,
+      erds,
       reviews,
     ] = await Promise.all([
       this.projectsService.list(),
-      this.plansService.list({ projectId }, { orderBy: { version: "desc" } }),
+      this.plansService.list({ projectId }),
       this.tasksService.list({ projectId }),
       this.draftsService.list({ projectId }),
       this.domainsService.list({ projectId }),
@@ -774,6 +872,8 @@ export class McpService {
       this.wireframesService.list({ projectId }),
       this.assetsService.list({ projectId }),
       this.designsService.list({ projectId }),
+      this.dbService.list({ projectId }),
+      this.erdService.list({ projectId }),
       this.reviewsService.list({ projectId }),
     ]);
 
@@ -797,6 +897,8 @@ export class McpService {
       wireframes,
       assets,
       designs,
+      databases,
+      erds,
       reviews,
     };
   }

@@ -18,14 +18,18 @@ import {
   type HtmlPreviewWireframeNavigation,
 } from "@/components/features/dashboard/ArtifactHtmlSidePage";
 import { MarkdownContent } from "@/components/features/dashboard/MarkdownContent";
+import { RequestDocumentEditor } from "@/components/features/dashboard/RequestDocumentEditor";
 import { formatDashboardDate } from "@/lib/date";
 import type {
+  ArchitecturePlan,
   ArtifactDocument,
   Design,
+  Erd,
   HtmlArtifactDocument,
   Plan,
   ProjectContext,
   ProjectSummary,
+  Request,
   Review,
   Task,
   Wireframe,
@@ -61,8 +65,11 @@ interface ArtifactWorkbenchProps {
 }
 
 type MobilePane = "tree" | "records" | "detail";
-type RecordStatus = "Completed" | "Current" | "Pending" | "Previous";
-type StatusFilter = "All" | "Completed" | "Pending";
+type RecordStatus = "Completed" | "In progress" | "Pending";
+type StatusFilter = "All" | RecordStatus;
+type RequestEditorMode =
+  | { type: "create" }
+  | { type: "update"; requestId: number };
 
 interface RelationConfig {
   code: string;
@@ -81,6 +88,11 @@ const relationOrder: readonly WorkbenchRelation[] = [
   "assets",
   "designs",
   "reviews",
+  "requests",
+  "workLogs",
+  "architecturePlans",
+  "databases",
+  "erds",
 ];
 
 const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
@@ -138,6 +150,36 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
     plural: "Reviews",
     dotClassName: "bg-danger",
   },
+  requests: {
+    code: "RQ",
+    label: "Request",
+    plural: "Requests",
+    dotClassName: "bg-primary",
+  },
+  workLogs: {
+    code: "WL",
+    label: "WorkLog",
+    plural: "WorkLogs",
+    dotClassName: "bg-teal",
+  },
+  architecturePlans: {
+    code: "AP",
+    label: "Architecture Plan",
+    plural: "Architecture Plan",
+    dotClassName: "bg-violet",
+  },
+  databases: {
+    code: "DB",
+    label: "DB",
+    plural: "DB",
+    dotClassName: "bg-warning",
+  },
+  erds: {
+    code: "ERD",
+    label: "ERD",
+    plural: "ERD",
+    dotClassName: "bg-success",
+  },
 };
 
 /** Desktop detail pane이 viewport에서 차지하는 초기 비율과 조절 범위. */
@@ -160,7 +202,21 @@ function getEntryKey(entry: WorkbenchEntry): string {
   return `${entry.relation}-${entry.record.id}`;
 }
 
-function getEntries(context: ProjectContext): WorkbenchEntry[] {
+/** 빈 목록에서 다른 artifact를 detail fallback으로 쓰지 않는 독립 workspace를 판별한다. */
+function keepsEmptySelection(relation: WorkbenchRelation): boolean {
+  return (
+    relation === "requests" ||
+    relation === "workLogs" ||
+    relation === "architecturePlans" ||
+    relation === "databases" ||
+    relation === "erds"
+  );
+}
+
+function getEntries(
+  context: ProjectContext,
+  requests: readonly Request[] = context.requests,
+): WorkbenchEntry[] {
   const entriesByRelation: Record<WorkbenchRelation, WorkbenchRecord[]> = {
     plans: context.plans,
     tasks: context.tasks,
@@ -171,6 +227,11 @@ function getEntries(context: ProjectContext): WorkbenchEntry[] {
     assets: context.assets,
     designs: context.designs,
     reviews: context.reviews,
+    requests: [...requests],
+    workLogs: context.workLogs,
+    architecturePlans: context.architecturePlans,
+    databases: context.databases,
+    erds: context.erds,
   };
 
   return relationOrder.flatMap((relation) =>
@@ -218,26 +279,31 @@ function getWireframeHierarchy(
   return { depth: 1, parent };
 }
 
-/** 실제 Task lifecycle 또는 Plan version에서 파생 가능한 상태만 반환한다. */
+/** Plan과 Task의 저장 lifecycle 상태를 일관된 UI label로 변환한다. */
 function getStatus(
   entry: WorkbenchEntry,
-  context: ProjectContext,
 ): RecordStatus | null {
   if (entry.relation === "plans") {
-    const latestVersion = Math.max(
-      ...context.plans.map((plan) => plan.version),
-      Number.NEGATIVE_INFINITY,
-    );
+    const status = (entry.record as Plan).status;
 
-    return (entry.record as Plan).version === latestVersion
-      ? "Current"
-      : "Previous";
+    if (status === "COMPLETED") return "Completed";
+    if (status === "IN_PROGRESS") return "In progress";
+    return "Pending";
   }
 
   if (entry.relation === "tasks") {
     return (entry.record as Task).status === "COMPLETED"
       ? "Completed"
       : "Pending";
+  }
+
+  /** Request lifecycle 상태를 Plan과 같은 record 상태 label로 변환한다. */
+  if (entry.relation === "requests") {
+    const status = (entry.record as Request).status;
+
+    if (status === "COMPLETED") return "Completed";
+    if (status === "IN_PROGRESS") return "In progress";
+    return "Pending";
   }
 
   return null;
@@ -253,7 +319,7 @@ function getEntrySecondaryMeta(
     const completed = plan.tasks.filter(
       (task) => task.status === "COMPLETED",
     ).length;
-    return `v${plan.version} · ${completed}/${plan.tasks.length} Tasks complete`;
+    return `${completed}/${plan.tasks.length} Tasks complete`;
   }
 
   if (entry.relation === "tasks") {
@@ -261,7 +327,7 @@ function getEntrySecondaryMeta(
     const plan = context.plans.find(
       (candidate) => candidate.id === task.planId,
     );
-    return plan ? `Plan v${plan.version}` : null;
+    return plan ? `Plan #${plan.id}` : null;
   }
 
   return null;
@@ -325,6 +391,23 @@ function getRelations(
 }
 
 function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
+  /** Architecture Plan은 service가 보존하는 HTML content를 preview record로 정규화한다. */
+  if (entry.relation === "architecturePlans") {
+    const architecturePlan = entry.record as ArchitecturePlan;
+    return {
+      kind: "Architecture Plan",
+      record: {
+        ...architecturePlan,
+        html: architecturePlan.html || architecturePlan.content,
+      },
+    };
+  }
+
+  /** ERD는 저장된 완성형 HTML을 공용 sandbox preview에 직접 전달한다. */
+  if (entry.relation === "erds") {
+    return { kind: "ERD", record: entry.record as Erd };
+  }
+
   const kindByRelation: Partial<Record<WorkbenchRelation, HtmlArtifactKind>> = {
     assets: "Asset",
     designs: "Design",
@@ -404,7 +487,11 @@ export function ArtifactWorkbench({
     startRatio: number;
     startX: number;
   } | null>(null);
-  const allEntries = useMemo(() => getEntries(context), [context]);
+  const [requestRecords, setRequestRecords] = useState(context.requests);
+  const allEntries = useMemo(
+    () => getEntries(context, requestRecords),
+    [context, requestRecords],
+  );
   /** visible row마다 재구성하지 않도록 Wireframe lookup을 context 변경 시 한 번만 만든다. */
   const wireframesById = useMemo(
     () =>
@@ -429,14 +516,19 @@ export function ArtifactWorkbench({
       );
     }
 
-    return (
-      allEntries.find((entry) => entry.relation === activeRelation) ??
-      allEntries[0]
+    const activeEntry = allEntries.find(
+      (entry) => entry.relation === activeRelation,
     );
+
+    /** 독립 workspace가 비었으면 다른 도메인의 record를 detail fallback으로 사용하지 않는다. */
+    return keepsEmptySelection(activeRelation)
+      ? (activeEntry ?? null)
+      : (activeEntry ?? allEntries[0]);
   }, [activeRelation, allEntries, selectedArtifactId, selectedTaskId]);
   const [typeFilter, setTypeFilter] =
     useState<WorkbenchRelation>(activeRelation);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [versionFilter, setVersionFilter] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(
     initialEntry ? getEntryKey(initialEntry) : null,
@@ -447,15 +539,16 @@ export function ArtifactWorkbench({
     defaultDetailPaneRatio,
   );
   const [isHtmlMetadataCollapsed, setIsHtmlMetadataCollapsed] = useState(false);
+  const [requestEditorMode, setRequestEditorMode] =
+    useState<RequestEditorMode | null>(null);
 
   useSearchShortcut(searchRef);
 
   const selectedEntry =
     allEntries.find((entry) => getEntryKey(entry) === selectedKey) ??
-    allEntries[0] ??
-    null;
+    (selectedKey === null ? null : (allEntries[0] ?? null));
   const selectedStatus = selectedEntry
-    ? getStatus(selectedEntry, context)
+    ? getStatus(selectedEntry)
     : null;
   const selectedHtmlArtifact = selectedEntry
     ? getHtmlSelection(selectedEntry)
@@ -470,9 +563,31 @@ export function ArtifactWorkbench({
     selectedEntry?.relation === "designs"
       ? (selectedEntry.record as Design)
       : null;
+  /** Request 선택에서만 편집 진입점을 노출한다. */
+  const selectedRequest =
+    selectedEntry?.relation === "requests"
+      ? (selectedEntry.record as Request)
+      : null;
   const selectedPlan =
-    activeRelation === "plans" && selectedArtifactId
+    typeFilter === "plans" && selectedArtifactId
       ? (context.plans.find((plan) => plan.id === selectedArtifactId) ?? null)
+      : null;
+  /** Wireframe filter에는 context에 실제 존재하는 고유 version만 최신순으로 제공한다. */
+  const wireframeVersions = useMemo(
+    () =>
+      [...new Set(context.wireframes.map((wireframe) => wireframe.version))].sort(
+        (left, right) => right - left,
+      ),
+    [context.wireframes],
+  );
+  const isWireframeView = selectedPlan === null && typeFilter === "wireframes";
+  const isRequestView = selectedPlan === null && typeFilter === "requests";
+  /** 수정 중인 record는 성공 응답으로 교체된 로컬 Request 목록에서 읽는다. */
+  const editorRequest =
+    requestEditorMode?.type === "update"
+      ? (requestRecords.find(
+          (request) => request.id === requestEditorMode.requestId,
+        ) ?? null)
       : null;
   const visibleEntries = allEntries.filter((entry) => {
     const config = relationConfig[entry.relation];
@@ -481,16 +596,27 @@ export function ArtifactWorkbench({
       ? entry.relation === "tasks" &&
         (entry.record as Task).planId === selectedPlan.id
       : entry.relation === typeFilter;
-    const matchesStatus =
-      statusFilter === "All" || getStatus(entry, context) === statusFilter;
+    /** Wireframe에는 숨겨진 status filter를 적용하지 않고 선택한 version만 적용한다. */
+    const matchesRecordFilter =
+      entry.relation === "wireframes"
+        ? versionFilter === null ||
+          (entry.record as Wireframe).version === versionFilter
+        : statusFilter === "All" || getStatus(entry) === statusFilter;
     const matchesQuery =
       normalizedQuery.length === 0 ||
-      [entry.record.title, entry.record.id, config.label]
+      [
+        entry.record.title,
+        entry.record.id,
+        config.label,
+        entry.relation === "wireframes"
+          ? (entry.record as Wireframe).index
+          : null,
+      ]
         .join(" ")
         .toLocaleLowerCase()
         .includes(normalizedQuery);
 
-    return matchesType && matchesStatus && matchesQuery;
+    return matchesType && matchesRecordFilter && matchesQuery;
   });
   const currentProject =
     projects.find((project) => project.id === context.id) ?? projects[0];
@@ -499,6 +625,7 @@ export function ArtifactWorkbench({
 
   /** 선택 record와 deep link를 유지하면서 닫힌 detail pane을 다시 연다. */
   function selectEntry(entry: WorkbenchEntry) {
+    setRequestEditorMode(null);
     setIsHtmlMetadataCollapsed(false);
     setSelectedKey(getEntryKey(entry));
     setIsDetailPaneOpen(true);
@@ -516,8 +643,48 @@ export function ArtifactWorkbench({
 
   /** 선택 record와 resize 비율은 보존하고 detail pane만 닫는다. */
   function closeDetailPane() {
+    setRequestEditorMode(null);
     setIsDetailPaneOpen(false);
     setMobilePane("records");
+  }
+
+  /** 빈 목록에서도 Request 생성 form을 detail surface에 연다. */
+  function openRequestCreator() {
+    setRequestEditorMode({ type: "create" });
+    setIsDetailPaneOpen(true);
+    setMobilePane("detail");
+  }
+
+  /** 선택한 Request record의 현재 문서와 상태로 수정 form을 연다. */
+  function openRequestEditor(request: Request) {
+    setRequestEditorMode({ type: "update", requestId: request.id });
+    setIsDetailPaneOpen(true);
+    setMobilePane("detail");
+  }
+
+  /** 저장 성공 record만 목록에 반영하고 선택 URL과 Server data를 갱신한다. */
+  function saveRequestRecord(savedRequest: Request) {
+    setRequestRecords((currentRequests) => {
+      const requestExists = currentRequests.some(
+        (request) => request.id === savedRequest.id,
+      );
+
+      /** 생성 record는 최신 목록 앞에, 수정 record는 기존 위치에 반영한다. */
+      return requestExists
+        ? currentRequests.map((request) =>
+            request.id === savedRequest.id ? savedRequest : request,
+          )
+        : [savedRequest, ...currentRequests];
+    });
+    setSelectedKey(`requests-${savedRequest.id}`);
+    setStatusFilter("All");
+    setRequestEditorMode(null);
+    setIsDetailPaneOpen(true);
+    router.replace(
+      `/projects/${context.id}?type=requests&id=${savedRequest.id}`,
+      { scroll: false },
+    );
+    router.refresh();
   }
 
   /** 명시된 id를 먼저, index를 다음으로 해석해 기존 record 선택 흐름을 재사용한다. */
@@ -628,21 +795,23 @@ export function ArtifactWorkbench({
     }
   }
 
-  /** Tailwind grid가 viewport 비율을 참조하도록 component-local CSS 변수를 주입한다. */
-  const workspaceStyle = {
+  /** Viewport root가 detail pane 비율을 참조하도록 component-local CSS 변수를 주입한다. */
+  const viewportLayoutStyle = {
     "--detail-pane-width": `${detailPaneRatio}%`,
   } as CSSProperties;
-  /** Detail 표시 여부에 따라 Explorer / Records / Detail grid를 2열 또는 3열로 전환한다. */
-  const workspaceGridClassName = isDetailPaneOpen
-    ? "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)] lg:grid-cols-[270px_minmax(0,1fr)_var(--detail-pane-width)]"
-    : "md:grid-cols-[230px_minmax(0,1fr)] lg:grid-cols-[270px_minmax(0,1fr)]";
+  /** Detail 표시 여부에 따라 content shell과 detail을 viewport 1열 또는 2열로 전환한다. */
+  const viewportGridClassName = isDetailPaneOpen
+    ? "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]"
+    : "md:grid-cols-[minmax(0,1fr)]";
 
   return (
     <div
-      className="grid h-dvh min-h-dvh grid-rows-[58px_minmax(0,1fr)] overflow-hidden bg-canvas max-md:h-auto max-md:overflow-visible"
+      className={`group/workbench grid h-dvh min-h-dvh overflow-hidden bg-canvas max-md:h-auto max-md:overflow-visible ${viewportGridClassName}`}
       data-mobile-pane={mobilePane}
+      style={viewportLayoutStyle}
     >
-      <header className="flex items-center gap-4 border-b border-line bg-sidebar px-4">
+      <div className="grid min-h-0 min-w-0 grid-rows-[58px_minmax(0,1fr)] max-md:group-data-[mobile-pane=detail]/workbench:hidden">
+        <header className="flex items-center gap-4 border-b border-line bg-sidebar px-4">
         <strong className="block min-w-0 truncate text-sm leading-tight tracking-[-0.01em] md:min-w-[250px]">
           Yusung Harness
         </strong>
@@ -708,12 +877,9 @@ export function ArtifactWorkbench({
             </button>
           ))}
         </nav>
-      </header>
+        </header>
 
-      <main
-        className={`min-h-0 bg-surface md:grid lg:grid ${workspaceGridClassName}`}
-        style={workspaceStyle}
-      >
+        <main className="min-h-0 bg-surface md:grid md:grid-cols-[230px_minmax(0,1fr)] lg:grid lg:grid-cols-[270px_minmax(0,1fr)]">
         <aside
           aria-label="Project artifact tree"
           className={`${mobilePane === "tree" ? "flex" : "hidden"} min-h-[calc(100dvh-58px)] min-w-0 flex-col border-r border-line bg-surface md:flex md:min-h-0`}
@@ -772,6 +938,18 @@ export function ArtifactWorkbench({
                         onClick={() => {
                           setTypeFilter(relation);
                           setMobilePane("records");
+
+                          /** 독립 workspace 진입 시 이전 도메인의 선택·편집 상태를 노출하지 않는다. */
+                          if (keepsEmptySelection(relation)) {
+                            setSelectedKey(
+                              relationEntries[0]
+                                ? getEntryKey(relationEntries[0])
+                                : null,
+                            );
+                            setStatusFilter("All");
+                            setRequestEditorMode(null);
+                          }
+
                           router.replace(
                             `/projects/${context.id}?type=${relation}`,
                             { scroll: false },
@@ -817,12 +995,23 @@ export function ArtifactWorkbench({
                 Records
               </h2>
             </div>
-            <span
-              aria-live="polite"
-              className="font-mono text-[11px] text-subtle"
-            >
-              {visibleEntries.length} visible
-            </span>
+            <div className="flex items-center gap-3">
+              <span
+                aria-live="polite"
+                className="font-mono text-[11px] text-subtle"
+              >
+                {visibleEntries.length} visible
+              </span>
+              {isRequestView ? (
+                <button
+                  className="min-h-11 rounded-control bg-primary px-3 text-xs font-semibold text-canvas hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:outline-none"
+                  onClick={openRequestCreator}
+                  type="button"
+                >
+                  New request
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="flex items-center gap-2 border-b border-line px-3.5 py-2.5">
             <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">
@@ -833,51 +1022,99 @@ export function ArtifactWorkbench({
                   : relationConfig[typeFilter].plural}
               </strong>
             </span>
-            <label>
-              <span className="sr-only">Status</span>
-              <select
-                aria-label="Status"
-                className="h-[34px] rounded-control border border-line bg-surface pr-7 pl-2.5 text-xs focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
-                onChange={(event) =>
-                  setStatusFilter(event.target.value as StatusFilter)
-                }
-                value={statusFilter}
-              >
-                <option value="All">All status</option>
-                <option value="Completed">Completed</option>
-                <option value="Pending">Pending</option>
-              </select>
-            </label>
+            {isWireframeView ? (
+              <label>
+                <span className="sr-only">Version</span>
+                <select
+                  aria-label="Version"
+                  className="h-[34px] rounded-control border border-line bg-surface pr-7 pl-2.5 text-xs focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                  onChange={(event) =>
+                    setVersionFilter(
+                      event.target.value === "All"
+                        ? null
+                        : Number(event.target.value),
+                    )
+                  }
+                  value={versionFilter ?? "All"}
+                >
+                  <option value="All">All versions</option>
+                  {wireframeVersions.map((version) => (
+                    <option key={version} value={version}>
+                      v{version}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label>
+                <span className="sr-only">Status</span>
+                <select
+                  aria-label="Status"
+                  className="h-[34px] rounded-control border border-line bg-surface pr-7 pl-2.5 text-xs focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                  onChange={(event) =>
+                    setStatusFilter(event.target.value as StatusFilter)
+                  }
+                  value={statusFilter}
+                >
+                  <option value="All">All status</option>
+                  <option value="Completed">Completed</option>
+                  <option value="In progress">In progress</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </label>
+            )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto">
             <div
               aria-hidden="true"
-              className="sticky top-0 z-10 grid h-[34px] min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px] items-center gap-3 border-b border-line bg-surface-muted px-4 font-mono text-[10px] tracking-[0.06em] text-subtle uppercase"
+              className={`sticky top-0 z-10 grid h-[34px] items-center gap-3 border-b border-line bg-surface-muted px-4 font-mono text-[10px] tracking-[0.06em] text-subtle uppercase ${isWireframeView ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
             >
               <span>Type</span>
               <span>No</span>
-              <span>Title</span>
-              <span>Status</span>
-              <span>Links</span>
-              <span>Updated</span>
+              {isWireframeView ? (
+                <>
+                  <span>Index</span>
+                  <span>Title</span>
+                  <span>Updated</span>
+                </>
+              ) : (
+                <>
+                  <span>Title</span>
+                  <span>Status</span>
+                  <span>Links</span>
+                  <span>Updated</span>
+                </>
+              )}
             </div>
             <div aria-label="Artifact records" role="listbox">
               {visibleEntries.map((entry) => {
                 const config = relationConfig[entry.relation];
-                const status = getStatus(entry, context);
+                const status = getStatus(entry);
                 const entryRelations = getRelations(entry, context);
                 const secondaryMeta = getEntrySecondaryMeta(entry, context);
                 const isSelected = getEntryKey(entry) === selectedKey;
                 const updatedAt = formatDashboardDate(entry.record.updatedAt);
+                const wireframe =
+                  entry.relation === "wireframes"
+                    ? (entry.record as Wireframe)
+                    : null;
                 /** 시각적 header가 숨겨져도 각 option에서 전체 칼럼 의미를 전달한다. */
-                const accessibleName = [
-                  `Type ${config.label}`,
-                  `No ${entry.record.id}`,
-                  `Title ${entry.record.title}`,
-                  `Status ${status ?? "None"}`,
-                  `Links ${entryRelations.length}`,
-                  `Updated ${updatedAt}`,
-                ].join(", ");
+                const accessibleName = wireframe
+                  ? [
+                      `Type ${config.label}`,
+                      `No ${entry.record.id}`,
+                      `Index ${wireframe.index}`,
+                      `Title ${entry.record.title}`,
+                      `Updated ${updatedAt}`,
+                    ].join(", ")
+                  : [
+                      `Type ${config.label}`,
+                      `No ${entry.record.id}`,
+                      `Title ${entry.record.title}`,
+                      `Status ${status ?? "None"}`,
+                      `Links ${entryRelations.length}`,
+                      `Updated ${updatedAt}`,
+                    ].join(", ");
                 const wireframeHierarchy = getWireframeHierarchy(
                   entry,
                   wireframesById,
@@ -893,7 +1130,7 @@ export function ArtifactWorkbench({
                     }
                     aria-label={accessibleName}
                     aria-selected={isSelected}
-                    className="grid min-h-14 w-full min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px] items-center gap-3 border-0 border-b border-line bg-transparent px-4 text-left text-ink hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_2px_0_var(--color-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none"
+                    className={`grid min-h-14 w-full items-center gap-3 border-0 border-b border-line bg-transparent px-4 text-left text-ink hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_2px_0_var(--color-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none ${wireframe ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
                     onClick={() => selectEntry(entry)}
                     role="option"
                     type="button"
@@ -908,6 +1145,11 @@ export function ArtifactWorkbench({
                     <span className="font-mono text-[11px] text-subtle">
                       {entry.record.id}
                     </span>
+                    {wireframe ? (
+                      <span className="font-mono text-[11px] text-subtle">
+                        {wireframe.index}
+                      </span>
+                    ) : null}
                     <span
                       className={
                         wireframeHierarchy?.depth === 1
@@ -942,18 +1184,22 @@ export function ArtifactWorkbench({
                         </small>
                       ) : null}
                     </span>
-                    <span
-                      className={
-                        status
-                          ? getStatusClassName(status)
-                          : "inline-flex w-max px-[7px] py-[3px] font-mono text-[10px] text-subtle"
-                      }
-                    >
-                      {status ?? "—"}
-                    </span>
-                    <span className="font-mono text-[11px] text-subtle">
-                      {entryRelations.length}
-                    </span>
+                    {!wireframe ? (
+                      <>
+                        <span
+                          className={
+                            status
+                              ? getStatusClassName(status)
+                              : "inline-flex w-max px-[7px] py-[3px] font-mono text-[10px] text-subtle"
+                          }
+                        >
+                          {status ?? "—"}
+                        </span>
+                        <span className="font-mono text-[11px] text-subtle">
+                          {entryRelations.length}
+                        </span>
+                      </>
+                    ) : null}
                     <span className="truncate font-mono text-[10px] text-subtle">
                       {updatedAt}
                     </span>
@@ -965,16 +1211,23 @@ export function ArtifactWorkbench({
           {visibleEntries.length === 0 ? (
             <div className="px-6 py-14 text-center text-muted">
               <strong className="mb-1.5 block text-ink">
-                No matching records
+                {isRequestView && requestRecords.length === 0
+                  ? "No Request records"
+                  : "No matching records"}
               </strong>
-              Try another search or type filter.
+              {isRequestView && requestRecords.length === 0
+                ? "Create a Request document to start tracking work."
+                : "Try another search or type filter."}
             </div>
           ) : null}
         </section>
 
-        <aside
+        </main>
+      </div>
+
+      <aside
           aria-labelledby="detail-heading"
-          className={`${isDetailPaneOpen && mobilePane === "detail" ? "flex" : "hidden"} relative min-h-[calc(100dvh-58px)] min-w-0 flex-col bg-[#0f141b] ${isDetailPaneOpen ? "md:flex" : "md:hidden"} md:min-h-0`}
+          className={`${isDetailPaneOpen && mobilePane === "detail" ? "flex" : "hidden"} relative h-full min-h-0 min-w-0 flex-col bg-[#0f141b] max-md:min-h-dvh ${isDetailPaneOpen ? "md:flex" : "md:hidden"}`}
         >
           <div
             aria-label="Resize detail pane"
@@ -983,7 +1236,7 @@ export function ArtifactWorkbench({
             aria-valuemin={minimumDetailPaneRatio}
             aria-valuenow={detailPaneRatio}
             aria-valuetext={`${detailPaneRatio} percent of viewport`}
-            className="group absolute inset-y-0 left-0 z-20 hidden w-3 -translate-x-1/2 touch-none cursor-col-resize items-center justify-center focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none md:flex"
+            className="group absolute inset-y-0 left-0 z-20 hidden w-3 touch-none cursor-col-resize items-center justify-center focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none md:flex"
             onKeyDown={handleDetailPaneResizeKeyDown}
             onLostPointerCapture={finishDetailPanePointerResize}
             onPointerCancel={finishDetailPanePointerResize}
@@ -999,7 +1252,7 @@ export function ArtifactWorkbench({
             />
           </div>
 
-          <div className="flex min-h-14 items-center gap-3 border-b border-line bg-surface px-3.5 py-2.5">
+          <div className="flex h-[58px] shrink-0 items-center gap-3 border-b border-line bg-surface px-3.5">
             <button
               className="inline-flex h-9 items-center rounded-control border border-line bg-surface px-2.5 text-muted md:hidden"
               onClick={() => setMobilePane("records")}
@@ -1012,14 +1265,22 @@ export function ArtifactWorkbench({
                 id="detail-heading"
                 className="m-0 truncate text-[13px] font-semibold text-ink"
               >
-                {selectedEntry?.record.title ?? "Select a record"}
+                {requestEditorMode?.type === "create"
+                  ? "New request"
+                  : requestEditorMode?.type === "update"
+                    ? "Edit request"
+                    : (selectedEntry?.record.title ?? "Select a record")}
               </h2>
-              <p className="mt-1 mb-0 font-mono text-[10px] text-subtle">
-                {selectedEntry
-                  ? `${relationConfig[selectedEntry.relation].label.toUpperCase()} · #${selectedEntry.record.id}`
-                  : "Choose a record to inspect"}
-              </p>
             </div>
+            {selectedRequest && requestEditorMode === null ? (
+              <button
+                className="min-h-11 shrink-0 rounded-control border border-line bg-surface px-3 text-xs font-semibold text-muted hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                onClick={() => openRequestEditor(selectedRequest)}
+                type="button"
+              >
+                Edit request
+              </button>
+            ) : null}
             <button
               aria-label="Close detail pane"
               className="grid size-11 shrink-0 place-items-center rounded-control text-xl text-muted transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none motion-reduce:transition-none"
@@ -1033,7 +1294,19 @@ export function ArtifactWorkbench({
           <div
             className={`min-h-0 flex-1 p-[18px] ${selectedHtmlArtifact ? "overflow-hidden" : "overflow-auto"}`}
           >
-            {selectedEntry ? (
+            {requestEditorMode ? (
+              <RequestDocumentEditor
+                key={
+                  requestEditorMode.type === "create"
+                    ? "new-request"
+                    : `request-${requestEditorMode.requestId}`
+                }
+                onCancel={() => setRequestEditorMode(null)}
+                onSaved={saveRequestRecord}
+                projectId={context.id}
+                request={editorRequest}
+              />
+            ) : selectedEntry ? (
               <section
                 aria-label="Record details"
                 className={
@@ -1132,10 +1405,18 @@ export function ArtifactWorkbench({
                   </div>
                 )}
               </section>
+            ) : isRequestView ? (
+              <section aria-label="Request empty state" className="py-10 text-center">
+                <h3 className="m-0 text-base font-semibold text-ink">
+                  No Request selected
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  Select an existing record or create a new Request document.
+                </p>
+              </section>
             ) : null}
           </div>
-        </aside>
-      </main>
+      </aside>
     </div>
   );
 }

@@ -3,7 +3,6 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
 
@@ -14,16 +13,13 @@ export class PlansService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  /** 호출자가 지정한 정렬 옵션으로 프로젝트 계획 목록을 조회한다. */
-  async list(
-    { projectId }: { projectId: number },
-    options?: Pick<Prisma.PlanFindManyArgs, "orderBy">,
-  ) {
+  /** 프로젝트 계획 목록을 최근 수정순으로 조회한다. */
+  async list({ projectId }: { projectId: number }) {
     await this.projectsService.ensureProject(projectId);
 
     return this.prisma.plan.findMany({
       where: { projectId },
-      ...options,
+      orderBy: { updatedAt: "desc" },
       include: {
         tasks: {
           orderBy: { createdAt: "asc" },
@@ -32,7 +28,7 @@ export class PlansService {
     });
   }
 
-  /** 다음 version의 plan만 transaction으로 생성한다. */
+  /** 프로젝트에 초기 PENDING 상태의 계획을 생성한다. */
   async create({
     projectId,
     title,
@@ -44,36 +40,9 @@ export class PlansService {
   }) {
     await this.projectsService.ensureProject(projectId);
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        return await this.prisma.$transaction(async (transaction) => {
-          const latestPlan = await transaction.plan.findFirst({
-            where: { projectId },
-            orderBy: { version: "desc" },
-            select: { version: true },
-          });
-
-          return transaction.plan.create({
-            data: {
-              projectId,
-              title,
-              content,
-              version: (latestPlan?.version ?? 0) + 1,
-            },
-          });
-        });
-      } catch (error: unknown) {
-        const isVersionConflict =
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002";
-
-        if (!isVersionConflict || attempt === 2) {
-          throw error;
-        }
-      }
-    }
-
-    throw new Error("Failed to allocate the next plan version");
+    return this.prisma.plan.create({
+      data: { projectId, title, content },
+    });
   }
 
   async ensurePlan(projectId: number, planId: number) {

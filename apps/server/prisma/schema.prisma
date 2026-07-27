@@ -19,6 +19,12 @@ enum TaskStatus {
   COMPLETED
 }
 
+enum PlanStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 enum RequestStatus {
   PENDING
   IN_PROGRESS
@@ -42,6 +48,9 @@ model Project {
   reviews           Review[]
   requests          Request[]
   workLogs          WorkLog[]
+  databases         DB[]
+  erds              ERD[]
+  files             File[]
 }
 
 model ProjectRepository {
@@ -56,17 +65,16 @@ model ProjectRepository {
 }
 
 model Plan {
-  id        Int      @id @default(autoincrement())
+  id        Int        @id @default(autoincrement())
   projectId Int
-  project   Project  @relation(fields: [projectId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  version   Int      @default(1)
+  project   Project    @relation(fields: [projectId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  status    PlanStatus @default(PENDING)
   content   String
   title     String
   tasks     Task[]
 
-  @@unique([projectId, version])
   @@index([projectId])
 }
 
@@ -112,6 +120,7 @@ model Architecture {
   updatedAt DateTime @updatedAt
   title     String
   content   String
+  html      String   @default("")
 
   @@index([projectId])
 }
@@ -119,14 +128,13 @@ model Architecture {
 // 구현 전 아키텍처 설계 계획을 HTML 구조도로 저장한다.
 model ArchitecturePlan {
   id        Int      @id @default(autoincrement())
-  projectId Int
+  projectId Int      @unique
   project   Project  @relation(fields: [projectId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   title     String
   content   String
-
-  @@index([projectId])
+  html      String   @default("")
 }
 
 // 프로젝트에 요청된 작업과 진행 상태를 저장한다.
@@ -226,6 +234,50 @@ model Review {
   updatedAt DateTime @updatedAt
   title     String
   content   String
+
+  @@index([projectId])
+}
+
+// 프로젝트의 현행 DB 스키마를 테이블 단위 Markdown으로 저장한다.
+model DB {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title     String
+  content   String
+
+  @@index([projectId])
+}
+
+// 프로젝트의 현행 DB 스키마 ERD를 HTML로 저장한다.
+model ERD {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  title     String
+  html      String
+
+  @@index([projectId])
+}
+
+// 프로젝트 파일을 원격 저장소로 옮기기 전까지 바이너리 데이터와 업로드 상태를 임시 저장한다.
+// 원격 업로드가 끝나면 content를 비우고 isUploaded와 uploadUrl을 갱신한다.
+model File {
+  id         Int      @id @default(autoincrement())
+  projectId  Int
+  project    Project  @relation(fields: [projectId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  title      String
+  mimeType   String
+  size       Int
+  content    Bytes?
+  isUploaded Boolean  @default(false)
+  uploadUrl  String?
 
   @@index([projectId])
 }

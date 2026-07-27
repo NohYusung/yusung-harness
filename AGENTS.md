@@ -7,27 +7,48 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 ```markdown
 . 📂 .codex
 └── 📂 agents/
+│ └── 📂 architect/
 │ ├── 📄 architect.md
 │ ├── 📄 architect.toml
+│ └── 📂 coder/
 │ ├── 📄 coder.md
 │ ├── 📄 coder.toml
+│ └── 📂 designer/
 │ ├── 📄 designer.md
 │ ├── 📄 designer.toml
+│ └── 📂 doc-curator/
 │ ├── 📄 doc-curator.md
 │ ├── 📄 doc-curator.toml
+│ └── 📂 planner/
 │ ├── 📄 planner.md
 │ ├── 📄 planner.toml
+│ └── 📂 researcher/
 │ ├── 📄 researcher.md
 │ ├── 📄 researcher.toml
+│ └── 📂 reviewer/
 │ ├── 📄 reviewer.md
 │ ├── 📄 reviewer.toml
+│ └── 📂 tester/
 │ ├── 📄 tester.md
 │ ├── 📄 tester.toml
 ├── 📄 config.toml
 └── 📂 hooks/
 └── 📂 rules/
 └── 📂 skills/
+│ └── 📂 asset/
+│ ├── 📄 SKILL.md
+│ └── 📂 assets/
+│ └── 📂 references/
+│ ├── 📄 asset-example1.html
+│ ├── 📄 asset-example2.html
+│ ├── 📄 asset-example3.html
+│ └── 📂 scripts/
 │ └── 📂 code/
+│ ├── 📄 SKILL.md
+│ └── 📂 assets/
+│ └── 📂 references/
+│ └── 📂 scripts/
+│ └── 📂 curate/
 │ ├── 📄 SKILL.md
 │ └── 📂 assets/
 │ └── 📂 references/
@@ -47,6 +68,11 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 │ └── 📂 assets/
 │ └── 📂 references/
 │ └── 📂 scripts/
+│ └── 📂 integration/
+│ ├── 📄 SKILL.md
+│ └── 📂 assets/
+│ └── 📂 references/
+│ └── 📂 scripts/
 │ └── 📂 plan/
 │ ├── 📄 SKILL.md
 │ └── 📂 assets/
@@ -58,6 +84,11 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 │ └── 📂 references/
 │ └── 📂 scripts/
 │ └── 📂 test/
+│ ├── 📄 SKILL.md
+│ └── 📂 assets/
+│ └── 📂 references/
+│ └── 📂 scripts/
+│ └── 📂 wireframe/
 │ ├── 📄 SKILL.md
 │ └── 📂 assets/
 │ └── 📂 references/
@@ -91,7 +122,7 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
     > | coder       | 코드 검색, 코드 작성, 코드 수정       |
     > | designer    | 디자인 생성, 디자인 수정, 디자인 검증 |
     > | doc-curator | 문서 작성, 문서 수정, 문서 보관       |
-    > | planner     | 계획 수립, 계획 수정, 계획 검증       |
+    > | planner     | 계획 및 기획 수립, 수정, 검증         |
     > | researcher  | 웹 검색, 레퍼런스 체크 등             |
     > | reviewer    | 프로젝트 전체에 대한 통합적인 평가    |
     > | tester      | 테스트 작성, 테스트 수정, 테스트 검증 |

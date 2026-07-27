@@ -21,6 +21,8 @@ const domains = [
   ["drafts", "DraftsService", "create"],
   ["domains", "DomainsService", "create"],
   ["domains", "DomainsService", "update"],
+  ["db", "DbService", "create"],
+  ["erd", "ErdService", "create"],
   ["architectures", "ArchitecturesService", "create"],
   ["wireframes", "WireframesService", "create"],
   ["reviews", "ReviewsService", "create"],
@@ -88,8 +90,10 @@ test("Nest HTTP controller는 MCP transport와 읽기 전용 목록 API만 노�
       join("services", "architectures", "architectures.controller.ts"),
       join("services", "assets", "assets.controller.ts"),
       join("services", "designs", "designs.controller.ts"),
+      join("services", "db", "db.controller.ts"),
       join("services", "domains", "domains.controller.ts"),
       join("services", "drafts", "drafts.controller.ts"),
+      join("services", "erd", "erd.controller.ts"),
       join("services", "plans", "plans.controller.ts"),
       join("services", "projects", "project.controller.ts"),
       join("services", "requests", "requests.controller.ts"),
@@ -166,6 +170,8 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
     "tasks",
     "drafts",
     "domains",
+    "db",
+    "erd",
     "architectures",
     "wireframes",
     "assets",
@@ -180,7 +186,7 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
   );
 });
 
-test("MCP의 17개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
+test("MCP의 21개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const mutationTools = [
     "create_project",
@@ -188,6 +194,10 @@ test("MCP의 17개 mutation tool은 공통 execute 경계로 결과를 직렬화
     "create_draft",
     "create_domain",
     "update_domain",
+    "create_db",
+    "update_db",
+    "create_erd",
+    "update_erd",
     "create_task",
     "create_design",
     "update_design",
@@ -218,7 +228,7 @@ test("MCP의 17개 mutation tool은 공통 execute 경계로 결과를 직렬화
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 19);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 23);
   assert.doesNotMatch(mcpService, /\bAGENT\b/);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
 });
@@ -294,6 +304,8 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
     ["DraftsService", "draftsService", ["list", "create"]],
     ["TasksService", "tasksService", ["list", "create"]],
     ["DomainsService", "domainsService", ["list", "create", "update"]],
+    ["DbService", "dbService", ["list", "create", "update"]],
+    ["ErdService", "erdService", ["list", "create", "update"]],
     ["ArchitecturesService", "architecturesService", ["list"]],
     ["DesignsService", "designsService", ["list", "create", "update"]],
     ["WireframesService", "wireframesService", ["list", "create", "update"]],

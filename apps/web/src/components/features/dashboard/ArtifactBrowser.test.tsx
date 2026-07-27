@@ -53,7 +53,7 @@ describe("ArtifactBrowser", () => {
     const context = createProjectContext({
       plans: [
         createPlan({
-          version: 3,
+          status: "IN_PROGRESS",
           tasks: [completedTask, pendingTask],
         }),
       ],
@@ -71,7 +71,7 @@ describe("ArtifactBrowser", () => {
     expect(
       screen.getByRole("heading", { name: "Plan 1" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("v3 · 1/2 Tasks completed")).toBeInTheDocument();
+    expect(screen.getByText("1/2 Tasks completed")).toBeInTheDocument();
   });
 
   it("Wireframe과 Asset relation은 각 목록과 project-scoped URL을 사용한다", () => {
@@ -363,8 +363,9 @@ describe("ArtifactBrowser", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Plan hierarchy" })).toBeInTheDocument();
-    expect(screen.getByText("Pending")).toBeInTheDocument();
+    const planHeading = screen.getByRole("heading", { name: "Plan hierarchy" });
+    expect(planHeading).toBeInTheDocument();
+    expect(planHeading.closest("article")).toHaveTextContent("Pending");
     fireEvent.click(screen.getByRole("button", { name: /Build dashboard/ }));
     expect(routerReplace).toHaveBeenCalledWith(
       "/projects/1?type=plans&id=3&taskId=2",
@@ -376,12 +377,12 @@ describe("ArtifactBrowser", () => {
     const current = createPlan({
       id: 11,
       title: "Current pipeline",
-      version: 4,
+      status: "IN_PROGRESS",
     });
     const previous = createPlan({
       id: 12,
       title: "Previous pipeline",
-      version: 3,
+      status: "PENDING",
     });
     const context = createProjectContext({ plans: [current, previous] });
 
@@ -414,7 +415,7 @@ describe("ArtifactBrowser", () => {
       { target: { value: "" } },
     );
     fireEvent.change(screen.getByRole("combobox", { name: "Record status" }), {
-      target: { value: "Current" },
+      target: { value: "In progress" },
     });
 
     expect(

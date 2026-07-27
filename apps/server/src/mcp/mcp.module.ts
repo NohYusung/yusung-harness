@@ -3,9 +3,11 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { ArchitecturePlansModule } from "../services/architecture-plans/architecture-plans.module";
 import { ArchitecturesModule } from "../services/architectures/architectures.module";
 import { AssetsModule } from "../services/assets/assets.module";
+import { DbModule } from "../services/db/db.module";
 import { DesignsModule } from "../services/designs/designs.module";
 import { DomainsModule } from "../services/domains/domains.module";
 import { DraftsModule } from "../services/drafts/drafts.module";
+import { ErdModule } from "../services/erd/erd.module";
 import { PlansModule } from "../services/plans/plans.module";
 import { ProjectsModule } from "../services/projects/projects.module";
 import { RequestsModule } from "../services/requests/requests.module";
@@ -29,6 +31,8 @@ import { McpService } from "./mcp.service";
     ArchitecturePlansModule,
     WireframesModule,
     DesignsModule,
+    DbModule,
+    ErdModule,
     ReviewsModule,
     RequestsModule,
     WorklogsModule,

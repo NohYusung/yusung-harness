@@ -19,7 +19,6 @@ test("Prisma Client는 legacy prisma-client-js 기본 출력 경로를 사용한
 test("서버는 node_modules의 @prisma/client 공개 진입점을 사용한다", () => {
   const sourceFiles = [
     ["src", "prisma", "prisma.service.ts"],
-    ["src", "services", "plans", "plans.service.ts"],
     ["src", "services", "projects", "projects.service.ts"],
     ["src", "services", "tasks", "tasks.service.ts"],
   ];

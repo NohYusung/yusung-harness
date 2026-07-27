@@ -1,18 +1,5 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseEnumPipe,
-  ParseIntPipe,
-  Query,
-} from "@nestjs/common";
+import { Controller, Get, Param, ParseIntPipe } from "@nestjs/common";
 import { PlansService } from "./plans.service";
-
-/** HTTP caller가 선택할 수 있는 Plan version 정렬 방향. */
-enum PlanVersionOrder {
-  ASC = "asc",
-  DESC = "desc",
-}
 
 @Controller("plans/:projectId")
 export class PlansController {
@@ -22,23 +9,13 @@ export class PlansController {
    * 프로젝트 계획 목록 조회
    */
   @Get()
-  async list(
-    @Param("projectId", ParseIntPipe) projectId: number,
-    @Query(
-      "versionOrder",
-      new ParseEnumPipe(PlanVersionOrder, { optional: true }),
-    )
-    versionOrder?: PlanVersionOrder,
-  ) {
+  async list(@Param("projectId", ParseIntPipe) projectId: number) {
     // 1. Destructure body, params, query
-    const options = versionOrder
-      ? { orderBy: { version: versionOrder } }
-      : undefined;
 
     // 2. Get context
 
     // 3. Get result
-    const data = await this.plansService.list({ projectId }, options);
+    const data = await this.plansService.list({ projectId });
 
     // 4. Send response
     return { data };
