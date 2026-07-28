@@ -137,13 +137,17 @@ test("dashboard mock 산출물은 ASCII 설명이 아닌 실제 UI HTML 화면�
   );
 });
 
-test("Plan은 Task 관계만 유지하고 산출물과 Review 역방향 relation을 제거한다", () => {
+test("Plan은 Task와 PlanWireframes 관계를 유지하고 나머지 산출물·Review relation을 제거한다", () => {
   const schema = prismaSource("schema.prisma");
   const plan = schema.match(/model Plan\s*\{([\s\S]*?)\n\}/)?.[1];
 
   assert.ok(plan, "Plan 모델이 존재해야 한다");
   assert.match(plan, /^\s*tasks\s+Task\[\]/m);
-  assert.doesNotMatch(plan, /^\s*(?:assets|wireframes|designs|reviews)\s+/m);
+  assert.match(
+    plan,
+    /^\s*wireframes\s+Wireframe\[\]\s+@relation\("PlanWireframes"\)\s*$/m,
+  );
+  assert.doesNotMatch(plan, /^\s*(?:assets|designs|reviews)\s+/m);
 
   for (const model of ["Asset", "Wireframe", "Design", "Review"]) {
     const modelBlock = schema.match(

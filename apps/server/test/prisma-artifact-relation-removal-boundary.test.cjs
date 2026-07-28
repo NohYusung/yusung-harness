@@ -59,12 +59,26 @@ test("Review는 Plan 필드와 index를 제거한다", () => {
   assert.doesNotMatch(review, /@@index\(\[planId\]\)/);
 });
 
-test("Plan과 Task는 제거된 산출물·Review 역방향 relation을 노출하지 않는다", () => {
+test("Plan과 Wireframe은 PlanWireframes implicit M:N relation을 노출한다", () => {
+  const plan = modelBody("Plan");
+  const wireframe = modelBody("Wireframe");
+
+  assert.match(
+    plan,
+    /^\s*wireframes\s+Wireframe\[\]\s+@relation\("PlanWireframes"\)\s*$/m,
+  );
+  assert.match(
+    wireframe,
+    /^\s*plans\s+Plan\[\]\s+@relation\("PlanWireframes"\)\s*$/m,
+  );
+});
+
+test("Plan과 Task는 연결 대상 외 산출물·Review 역방향 relation을 노출하지 않는다", () => {
   const plan = modelBody("Plan");
   const task = modelBody("Task");
 
   assert.match(plan, /^\s*tasks\s+Task\[\]/m);
-  assert.doesNotMatch(plan, /^\s*(?:assets|wireframes|designs|reviews)\s+/m);
+  assert.doesNotMatch(plan, /^\s*(?:assets|designs|reviews)\s+/m);
   assert.doesNotMatch(task, /^\s*(?:assets|wireframes|designs)\s+/m);
 });
 

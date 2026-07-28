@@ -65,17 +65,18 @@ model ProjectRepository {
 }
 
 model Plan {
-  id        Int        @id @default(autoincrement())
-  projectId Int
-  project   Project    @relation(fields: [projectId], references: [id])
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  status    PlanStatus @default(PENDING)
-  content   String
-  title     String
-  requestId Int?       @unique
-  request   Request?   @relation(fields: [requestId], references: [id], onDelete: SetNull)
-  tasks     Task[]
+  id         Int         @id @default(autoincrement())
+  projectId  Int
+  project    Project     @relation(fields: [projectId], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  status     PlanStatus  @default(PENDING)
+  content    String
+  title      String
+  requestId  Int?        @unique
+  request    Request?    @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  tasks      Task[]
+  wireframes Wireframe[] @relation("PlanWireframes")
 
   @@index([projectId])
 }
@@ -215,6 +216,7 @@ model Wireframe {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   designs   Design[]
+  plans     Plan[]      @relation("PlanWireframes")
   title     String
   html      String
   page      String      @default(cuid())
