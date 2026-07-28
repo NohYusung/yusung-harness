@@ -70,6 +70,8 @@ type StatusFilter = "All" | RecordStatus;
 type RequestEditorMode =
   | { type: "create" }
   | { type: "update"; requestId: number };
+/** Architecture Plan detail이 배타적으로 표시하는 문서와 구조도 뷰. */
+type ArchitecturePlanView = "content" | "diagram";
 
 interface RelationConfig {
   code: string;
@@ -217,9 +219,11 @@ function getEntries(
   context: ProjectContext,
   requests: readonly Request[] = context.requests,
 ): WorkbenchEntry[] {
+  /** Plan deep link가 context.tasks를 좁혀도 계층 목록은 모든 Plan의 Task를 보존한다. */
+  const planTasks = context.plans.flatMap((plan) => plan.tasks);
   const entriesByRelation: Record<WorkbenchRelation, WorkbenchRecord[]> = {
     plans: context.plans,
-    tasks: context.tasks,
+    tasks: planTasks,
     drafts: context.drafts,
     domains: context.domains,
     architectures: context.architectures,
@@ -237,6 +241,36 @@ function getEntries(
   return relationOrder.flatMap((relation) =>
     entriesByRelation[relation].map((record) => ({ record, relation })),
   );
+}
+
+/** 직접 연 Plan 또는 Task deep link의 부모 Plan을 초기 펼침 상태로 복원한다. */
+function getInitialExpandedPlanIds(
+  activeRelation: WorkspaceRelation,
+  context: ProjectContext,
+  selectedArtifactId: number | null,
+  selectedTaskId: number | null,
+): ReadonlySet<number> {
+  if (activeRelation !== "plans") {
+    return new Set();
+  }
+
+  /** Task deep link에서는 Task를 소유한 Plan을 artifact id보다 우선한다. */
+  const selectedTaskPlan =
+    selectedTaskId === null
+      ? undefined
+      : context.plans.find((plan) =>
+          plan.tasks.some((task) => task.id === selectedTaskId),
+        );
+  const selectedPlanId = selectedTaskPlan?.id ?? selectedArtifactId;
+
+  if (
+    selectedPlanId === null ||
+    !context.plans.some((plan) => plan.id === selectedPlanId)
+  ) {
+    return new Set();
+  }
+
+  return new Set([selectedPlanId]);
 }
 
 /** parentId와 index가 일치하는 Wireframe만 child로 표시하고 비정상 관계는 root로 되돌린다. */
@@ -353,9 +387,7 @@ function getRelations(
 ): WorkbenchEntry[] {
   if (entry.relation === "plans") {
     const plan = entry.record as Plan;
-    return context.tasks
-      .filter((task) => task.planId === plan.id)
-      .map((record) => ({ record, relation: "tasks" }));
+    return plan.tasks.map((record) => ({ record, relation: "tasks" }));
   }
 
   if (entry.relation === "tasks") {
@@ -391,14 +423,14 @@ function getRelations(
 }
 
 function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
-  /** Architecture Plan은 service가 보존하는 HTML content를 preview record로 정규화한다. */
+  /** Architecture Plan의 문서 content만 기본 preview record로 정규화한다. */
   if (entry.relation === "architecturePlans") {
     const architecturePlan = entry.record as ArchitecturePlan;
     return {
       kind: "Architecture Plan",
       record: {
         ...architecturePlan,
-        html: architecturePlan.html || architecturePlan.content,
+        html: architecturePlan.content,
       },
     };
   }
@@ -435,6 +467,130 @@ function WorkbenchHtmlPreview({
         onScrollStateChange={onScrollStateChange}
         record={record}
       />
+    </div>
+  );
+}
+
+/** Architecture Plan의 문서 content와 별도 html 구조도를 접근 가능한 탭으로 분리한다. */
+function ArchitecturePlanPreview({
+  onNavigateWireframe,
+  onScrollStateChange,
+  record,
+}: {
+  onNavigateWireframe: (target: HtmlPreviewWireframeNavigation) => void;
+  onScrollStateChange: (scrollTop: number) => void;
+  record: ArchitecturePlan;
+}) {
+  const [activeView, setActiveView] =
+    useState<ArchitecturePlanView>("content");
+  const contentTabRef = useRef<HTMLButtonElement>(null);
+  const diagramTabRef = useRef<HTMLButtonElement>(null);
+  const contentTabId = `architecture-plan-${record.id}-content-tab`;
+  const diagramTabId = `architecture-plan-${record.id}-diagram-tab`;
+  const panelId = `architecture-plan-${record.id}-view-panel`;
+  const activeTabId =
+    activeView === "content" ? contentTabId : diagramTabId;
+  const activeRecord: HtmlArtifactDocument = {
+    ...record,
+    html: activeView === "content" ? record.content : record.html,
+  };
+
+  /** 탭 전환 시 새 iframe의 최상단 상태에 맞춰 접힌 metadata를 복원한다. */
+  function selectView(view: ArchitecturePlanView) {
+    setActiveView(view);
+    onScrollStateChange(0);
+  }
+
+  /** 수평 tablist의 방향키와 Home/End 키로 선택과 focus를 함께 이동한다. */
+  function handleTabKeyDown(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    view: ArchitecturePlanView,
+  ) {
+    let nextView: ArchitecturePlanView | null = null;
+
+    /** 두 탭은 좌우 이동 시 서로 순환한다. */
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      nextView = view === "content" ? "diagram" : "content";
+    } else if (event.key === "Home") {
+      nextView = "content";
+    } else if (event.key === "End") {
+      nextView = "diagram";
+    }
+
+    /** tablist 이동 키가 아니면 button의 기본 입력을 그대로 유지한다. */
+    if (!nextView) {
+      return;
+    }
+
+    event.preventDefault();
+    selectView(nextView);
+    (nextView === "content" ? contentTabRef : diagramTabRef).current?.focus();
+  }
+
+  return (
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+      <div
+        aria-label="Architecture Plan views"
+        className="flex min-h-11 items-end gap-1 border-b border-line"
+        role="tablist"
+      >
+        <button
+          ref={contentTabRef}
+          aria-controls={panelId}
+          aria-selected={activeView === "content"}
+          className="min-h-11 border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold text-muted hover:text-ink aria-selected:border-violet aria-selected:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+          id={contentTabId}
+          onClick={() => selectView("content")}
+          onKeyDown={(event) => handleTabKeyDown(event, "content")}
+          role="tab"
+          tabIndex={activeView === "content" ? 0 : -1}
+          type="button"
+        >
+          Content
+        </button>
+        <button
+          ref={diagramTabRef}
+          aria-controls={panelId}
+          aria-selected={activeView === "diagram"}
+          className="min-h-11 border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold text-muted hover:text-ink aria-selected:border-violet aria-selected:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+          id={diagramTabId}
+          onClick={() => selectView("diagram")}
+          onKeyDown={(event) => handleTabKeyDown(event, "diagram")}
+          role="tab"
+          tabIndex={activeView === "diagram" ? 0 : -1}
+          type="button"
+        >
+          구조도
+        </button>
+      </div>
+
+      <div
+        aria-labelledby={activeTabId}
+        className="min-h-0"
+        id={panelId}
+        role="tabpanel"
+        tabIndex={0}
+      >
+        {activeView === "diagram" && record.html.trim().length === 0 ? (
+          <div className="grid h-full min-h-48 place-items-center rounded-card border border-line bg-surface-muted px-6 text-center">
+            <div>
+              <p className="m-0 text-sm font-semibold text-ink">
+                저장된 구조도가 없습니다
+              </p>
+              <p className="mt-2 mb-0 text-xs leading-5 text-muted">
+                Architecture Plan의 html 칼럼에 구조도가 저장되면 여기에
+                표시됩니다.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <WorkbenchHtmlPreview
+            onNavigateWireframe={onNavigateWireframe}
+            onScrollStateChange={onScrollStateChange}
+            record={activeRecord}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -500,6 +656,11 @@ export function ArtifactWorkbench({
       ),
     [context.wireframes],
   );
+  /** 펼친 Task 행의 부모 설명을 반복 탐색 없이 연결할 Plan lookup을 만든다. */
+  const plansById = useMemo(
+    () => new Map(context.plans.map((plan) => [plan.id, plan])),
+    [context.plans],
+  );
   const initialEntry = useMemo(() => {
     if (selectedTaskId) {
       return allEntries.find(
@@ -533,6 +694,15 @@ export function ArtifactWorkbench({
   const [selectedKey, setSelectedKey] = useState<string | null>(
     initialEntry ? getEntryKey(initialEntry) : null,
   );
+  const [expandedPlanIds, setExpandedPlanIds] = useState<ReadonlySet<number>>(
+    () =>
+      getInitialExpandedPlanIds(
+        activeRelation,
+        context,
+        selectedArtifactId,
+        selectedTaskId,
+      ),
+  );
   const [mobilePane, setMobilePane] = useState<MobilePane>("records");
   const [isDetailPaneOpen, setIsDetailPaneOpen] = useState(true);
   const [detailPaneRatio, setDetailPaneRatio] = useState(
@@ -553,6 +723,11 @@ export function ArtifactWorkbench({
   const selectedHtmlArtifact = selectedEntry
     ? getHtmlSelection(selectedEntry)
     : null;
+  /** Architecture Plan에서만 content/html 탭 preview에 원본 레코드를 제공한다. */
+  const selectedArchitecturePlan =
+    selectedEntry?.relation === "architecturePlans"
+      ? (selectedEntry.record as ArchitecturePlan)
+      : null;
   /** Wireframe 전용 metadata만 노출하도록 relation을 확인한 뒤 record를 좁힌다. */
   const selectedWireframe =
     selectedEntry?.relation === "wireframes"
@@ -568,10 +743,6 @@ export function ArtifactWorkbench({
     selectedEntry?.relation === "requests"
       ? (selectedEntry.record as Request)
       : null;
-  const selectedPlan =
-    typeFilter === "plans" && selectedArtifactId
-      ? (context.plans.find((plan) => plan.id === selectedArtifactId) ?? null)
-      : null;
   /** Wireframe filter에는 context에 실제 존재하는 고유 version만 최신순으로 제공한다. */
   const wireframeVersions = useMemo(
     () =>
@@ -580,8 +751,8 @@ export function ArtifactWorkbench({
       ),
     [context.wireframes],
   );
-  const isWireframeView = selectedPlan === null && typeFilter === "wireframes";
-  const isRequestView = selectedPlan === null && typeFilter === "requests";
+  const isWireframeView = typeFilter === "wireframes";
+  const isRequestView = typeFilter === "requests";
   /** 수정 중인 record는 성공 응답으로 교체된 로컬 Request 목록에서 읽는다. */
   const editorRequest =
     requestEditorMode?.type === "update"
@@ -589,13 +760,11 @@ export function ArtifactWorkbench({
           (request) => request.id === requestEditorMode.requestId,
         ) ?? null)
       : null;
-  const visibleEntries = allEntries.filter((entry) => {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  /** 현재 status/version/query 조합에 단일 record가 일치하는지 판별한다. */
+  function matchesVisibleFilters(entry: WorkbenchEntry): boolean {
     const config = relationConfig[entry.relation];
-    const normalizedQuery = query.trim().toLocaleLowerCase();
-    const matchesType = selectedPlan
-      ? entry.relation === "tasks" &&
-        (entry.record as Task).planId === selectedPlan.id
-      : entry.relation === typeFilter;
     /** Wireframe에는 숨겨진 status filter를 적용하지 않고 선택한 version만 적용한다. */
     const matchesRecordFilter =
       entry.relation === "wireframes"
@@ -616,20 +785,59 @@ export function ArtifactWorkbench({
         .toLocaleLowerCase()
         .includes(normalizedQuery);
 
-    return matchesType && matchesRecordFilter && matchesQuery;
-  });
+    return matchesRecordFilter && matchesQuery;
+  }
+
+  /** Plan 목록에는 펼친 Plan의 필터 일치 Task를 부모 바로 다음 행으로 삽입한다. */
+  const visibleEntries = allEntries
+    .filter((entry) => entry.relation === typeFilter)
+    .flatMap((entry) => {
+      if (entry.relation !== "plans") {
+        return matchesVisibleFilters(entry) ? [entry] : [];
+      }
+
+      const plan = entry.record as Plan;
+      const isExpanded = expandedPlanIds.has(plan.id);
+      const visibleTasks = isExpanded
+        ? plan.tasks
+            .map(
+              (record): WorkbenchEntry => ({ record, relation: "tasks" }),
+            )
+            .filter(matchesVisibleFilters)
+        : [];
+      const isPlanVisible =
+        matchesVisibleFilters(entry) || visibleTasks.length > 0;
+
+      return isPlanVisible ? [entry, ...visibleTasks] : [];
+    });
   const currentProject =
     projects.find((project) => project.id === context.id) ?? projects[0];
   const currentRepository = context.repoPaths[0];
   const repositoryPath = currentRepository?.path ?? "No repository connected";
 
-  /** 선택 record와 deep link를 유지하면서 닫힌 detail pane을 다시 연다. */
+  /** Plan은 계층을 토글하고, 모든 record는 선택 deep link와 detail pane을 갱신한다. */
   function selectEntry(entry: WorkbenchEntry) {
     setRequestEditorMode(null);
     setIsHtmlMetadataCollapsed(false);
     setSelectedKey(getEntryKey(entry));
     setIsDetailPaneOpen(true);
     setMobilePane("detail");
+
+    /** Plan 재선택은 같은 목록에서 해당 Task 행만 펼치거나 접는다. */
+    if (entry.relation === "plans") {
+      setExpandedPlanIds((currentPlanIds) => {
+        const nextPlanIds = new Set(currentPlanIds);
+
+        if (nextPlanIds.has(entry.record.id)) {
+          nextPlanIds.delete(entry.record.id);
+        } else {
+          nextPlanIds.add(entry.record.id);
+        }
+
+        return nextPlanIds;
+      });
+    }
+
     router.replace(getRelationHref(entry, context.id), { scroll: false });
   }
 
@@ -932,7 +1140,7 @@ export function ArtifactWorkbench({
                     <div key={relation}>
                       <button
                         aria-pressed={
-                          typeFilter === relation && selectedPlan === null
+                          typeFilter === relation
                         }
                         className="flex min-h-9 w-full items-center gap-[9px] rounded-control border-0 bg-transparent px-[9px] py-[7px] text-left text-[13px] text-muted hover:bg-surface-muted hover:text-ink aria-pressed:bg-primary-soft aria-pressed:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
                         onClick={() => {
@@ -1016,11 +1224,7 @@ export function ArtifactWorkbench({
           <div className="flex items-center gap-2 border-b border-line px-3.5 py-2.5">
             <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">
               {context.title} /{" "}
-              <strong>
-                {selectedPlan
-                  ? `${selectedPlan.title} · Tasks`
-                  : relationConfig[typeFilter].plural}
-              </strong>
+              <strong>{relationConfig[typeFilter].plural}</strong>
             </span>
             {isWireframeView ? (
               <label>
@@ -1098,6 +1302,15 @@ export function ArtifactWorkbench({
                   entry.relation === "wireframes"
                     ? (entry.record as Wireframe)
                     : null;
+                const plan =
+                  entry.relation === "plans" ? (entry.record as Plan) : null;
+                const isPlanExpanded = plan
+                  ? expandedPlanIds.has(plan.id)
+                  : null;
+                const parentPlan =
+                  entry.relation === "tasks"
+                    ? (plansById.get((entry.record as Task).planId) ?? null)
+                    : null;
                 /** 시각적 header가 숨겨져도 각 option에서 전체 칼럼 의미를 전달한다. */
                 const accessibleName = wireframe
                   ? [
@@ -1114,6 +1327,11 @@ export function ArtifactWorkbench({
                       `Status ${status ?? "None"}`,
                       `Links ${entryRelations.length}`,
                       `Updated ${updatedAt}`,
+                      ...(isPlanExpanded === null
+                        ? []
+                        : [
+                            `Tasks ${isPlanExpanded ? "expanded" : "collapsed"}`,
+                          ]),
                     ].join(", ");
                 const wireframeHierarchy = getWireframeHierarchy(
                   entry,
@@ -1124,7 +1342,9 @@ export function ArtifactWorkbench({
                   <button
                     key={getEntryKey(entry)}
                     aria-describedby={
-                      wireframeHierarchy?.parent
+                      parentPlan
+                        ? `plan-task-parent-${entry.record.id}`
+                        : wireframeHierarchy?.parent
                         ? `wireframe-parent-${entry.record.id}`
                         : undefined
                     }
@@ -1132,6 +1352,11 @@ export function ArtifactWorkbench({
                     aria-selected={isSelected}
                     className={`grid min-h-14 w-full items-center gap-3 border-0 border-b border-line bg-transparent px-4 text-left text-ink hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_2px_0_var(--color-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none ${wireframe ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
                     onClick={() => selectEntry(entry)}
+                    data-plan-expanded={
+                      isPlanExpanded === null
+                        ? undefined
+                        : String(isPlanExpanded)
+                    }
                     role="option"
                     type="button"
                   >
@@ -1152,12 +1377,32 @@ export function ArtifactWorkbench({
                     ) : null}
                     <span
                       className={
-                        wireframeHierarchy?.depth === 1
+                        parentPlan
+                          ? "relative min-w-0 pl-6"
+                          : wireframeHierarchy?.depth === 1
                           ? "relative min-w-0 pl-4"
                           : "min-w-0"
                       }
+                      data-plan-task-depth={parentPlan ? "1" : undefined}
                       data-wireframe-depth={wireframeHierarchy?.depth}
                     >
+                      {parentPlan ? (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="absolute top-0 left-0 text-subtle"
+                            data-plan-task-branch
+                          >
+                            └
+                          </span>
+                          <span
+                            id={`plan-task-parent-${entry.record.id}`}
+                            className="sr-only"
+                          >
+                            Parent Plan: {parentPlan.title}
+                          </span>
+                        </>
+                      ) : null}
                       {wireframeHierarchy?.parent ? (
                         <>
                           <span
@@ -1390,11 +1635,20 @@ export function ArtifactWorkbench({
                     data-preview-expanded={isHtmlMetadataCollapsed}
                     data-record-preview
                   >
-                    <WorkbenchHtmlPreview
-                      onNavigateWireframe={navigateToWireframe}
-                      onScrollStateChange={updateHtmlPreviewScrollState}
-                      record={selectedHtmlArtifact.record}
-                    />
+                    {selectedArchitecturePlan ? (
+                      <ArchitecturePlanPreview
+                        key={selectedArchitecturePlan.id}
+                        onNavigateWireframe={navigateToWireframe}
+                        onScrollStateChange={updateHtmlPreviewScrollState}
+                        record={selectedArchitecturePlan}
+                      />
+                    ) : (
+                      <WorkbenchHtmlPreview
+                        onNavigateWireframe={navigateToWireframe}
+                        onScrollStateChange={updateHtmlPreviewScrollState}
+                        record={selectedHtmlArtifact.record}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div className="mt-[18px] border-t border-line pt-4">

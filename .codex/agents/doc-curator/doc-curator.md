@@ -53,21 +53,21 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 **_생성용 tool 목록_**
 
 > 문서를 생성할 때 사용하는 tool 목록
-> | tool 목록 | 목적 |
-> | ---------------- | ---------------- |
-> | create_project | 프로젝트 생성 |
-> | create_plan | 계획 문서 생성 |
-> | create_draft | 드래프트 문서 생성 |
-> | create_task | 태스크 문서 생성 |
-> | create_design | 디자인 문서 생성 |
-> | create_wireframe | 와이어 문서 프레임 |
-> | create_asset | 디자인 에셋 문서 생성 |
-> | create_domain | 도메인 문서 생성 |
-> | create_architecturePlan | 아키텍처 계획 문서 생성 |
-> | create_workLog | 작업 로그 문서 생성 |
-> | create_request | 요구사항 문서 생성 |
-> | create_db | 타겟 프로젝트의 db 스키마(테이블별) 정리 문서 생성 |
-> | create_erd | 타겟 프로젝트의 db 스키마 관계 erd 생성|
+> | tool 목록 | 목적 | 문서 작성 정책 |
+> | ---------------- | ---------------- | --- |
+> | create_project | 프로젝트 생성 | |
+> | create_plan | 계획 문서 생성 ||
+> | create_draft | 드래프트 문서 생성 ||
+> | create_task | 태스크 문서 생성 ||
+> | create_design | 디자인 문서 생성 ||
+> | create_wireframe | 와이어 문서 프레임 ||
+> | create_asset | 디자인 에셋 문서 생성 ||
+> | create_domain | 도메인 문서 생성 ||
+> | create_architecturePlan | 아키텍처 계획 문서 생성 |[아키텍쳐 계획 문서 생성 정책](./references/yusung-harness-doc-ArchitecturePlan.md) |
+> | create_workLog | 작업 로그 문서 생성 ||
+> | create_request | 요구사항 문서 생성 ||
+> | create_db | 타겟 프로젝트의 db 스키마(테이블별) 정리 문서 생성 ||
+> | create_erd | 타겟 프로젝트의 db 스키마 관계 erd 생성||
 
 **_업데이트용 tool 목록_**
 

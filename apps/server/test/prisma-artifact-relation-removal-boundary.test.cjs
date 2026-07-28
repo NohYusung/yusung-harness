@@ -91,7 +91,7 @@ test("Project 소유권과 산출물 간 핵심 relation은 유지한다", () =>
   assert.match(task, /^\s*planId\s+Int\b/m);
   assert.match(
     task,
-    /^\s*plan\s+Plan\s+@relation\(fields:\s*\[planId\],\s*references:\s*\[id\]\)/m,
+    /^\s*plan\s+Plan\s+@relation\(fields:\s*\[planId\],\s*references:\s*\[id\],\s*onDelete:\s*Cascade\)/m,
   );
   assert.match(asset, /^\s*designs\s+Design\[\]/m);
   assert.match(wireframe, /^\s*designs\s+Design\[\]/m);

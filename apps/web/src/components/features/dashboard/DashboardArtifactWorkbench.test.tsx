@@ -334,7 +334,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       name: /MCP-only document pipeline/,
     });
     expect(currentPlanRow).toHaveAccessibleName(
-      "Type Plan, No 10, Title MCP-only document pipeline, Status In progress, Links 2, Updated 2026년 7월 18일 오전 11:00",
+      "Type Plan, No 10, Title MCP-only document pipeline, Status In progress, Links 2, Updated 2026년 7월 18일 오전 11:00, Tasks collapsed",
     );
     const rowColumns = Array.from(currentPlanRow.children);
     expect(rowColumns).toHaveLength(6);
@@ -565,7 +565,20 @@ describe("Dashboard artifact workbench visual contract", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Status" }), {
       target: { value: "Pending" },
     });
-    expect(within(records).getAllByRole("option")).toHaveLength(1);
+    expect(within(records).getAllByRole("option")).toHaveLength(2);
+    expect(
+      within(records).getByRole("option", { name: /Plan/ }),
+    ).toHaveAttribute("data-plan-expanded", "true");
+    expect(
+      within(records).getByRole("option", {
+        name: /Pending delivery task/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(records).queryByRole("option", {
+        name: /Completed delivery task/,
+      }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
     rerender(
@@ -946,7 +959,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
   });
 
-  it("Explorer는 독립 Task 메뉴 없이 Plan 선택 범위의 Task만 표시하고 deep link를 유지한다", () => {
+  it("Plan 행을 같은 목록에서 펼쳐 Task 계층을 표시하고 다시 접으며 Task deep link를 유지한다", () => {
     const { context, projects, rerender } = renderWorkbench();
 
     const tree = screen.getByRole("navigation", { name: "Artifact types" });
@@ -975,24 +988,67 @@ describe("Dashboard artifact workbench visual contract", () => {
       ).toBeInTheDocument();
     }
 
-    expect(within(records).getAllByRole("option")).toHaveLength(2);
+    const currentPlanRow = within(records).getByRole("option", {
+      name: /MCP-only document pipeline/,
+    });
+    const otherPlanRow = within(records).getByRole("option", {
+      name: /Previous delivery plan/,
+    });
+    expect(within(records).getAllByRole("option")).toEqual([
+      currentPlanRow,
+      otherPlanRow,
+    ]);
+    expect(currentPlanRow).toHaveAttribute("data-plan-expanded", "false");
+    expect(currentPlanRow).toHaveAccessibleName(/Tasks collapsed$/);
+    expect(otherPlanRow).toHaveAttribute("data-plan-expanded", "false");
+    expect(otherPlanRow).toHaveAccessibleName(/Tasks collapsed$/);
     expect(
-      within(records).getByRole("option", {
-        name: /MCP-only document pipeline/,
-      }),
-    ).toBeInTheDocument();
+      within(records).queryByRole("option", { name: /API boundary/ }),
+    ).not.toBeInTheDocument();
     expect(
-      within(records).getByRole("option", { name: /Previous delivery plan/ }),
-    ).toBeInTheDocument();
+      within(records).queryByRole("option", { name: /Browser QA/ }),
+    ).not.toBeInTheDocument();
 
-    fireEvent.click(
-      within(records).getByRole("option", {
-        name: /MCP-only document pipeline/,
-      }),
-    );
+    fireEvent.click(currentPlanRow);
 
     expect(routerReplace).toHaveBeenLastCalledWith(
       "/projects/1?type=plans&id=10",
+      { scroll: false },
+    );
+    const completedTaskRow = within(records).getByRole("option", {
+      name: /API boundary/,
+    });
+    const pendingTaskRow = within(records).getByRole("option", {
+      name: /Browser QA/,
+    });
+    expect(currentPlanRow).toHaveAttribute("data-plan-expanded", "true");
+    expect(currentPlanRow).toHaveAccessibleName(/Tasks expanded$/);
+    expect(otherPlanRow).toHaveAttribute("data-plan-expanded", "false");
+    expect(otherPlanRow).toHaveAccessibleName(/Tasks collapsed$/);
+    expect(within(records).getAllByRole("option")).toEqual([
+      currentPlanRow,
+      completedTaskRow,
+      pendingTaskRow,
+      otherPlanRow,
+    ]);
+    expect(
+      within(records).queryByRole("option", { name: /Unrelated plan task/ }),
+    ).not.toBeInTheDocument();
+    for (const taskRow of [completedTaskRow, pendingTaskRow]) {
+      expect(
+        taskRow.querySelector('[data-plan-task-depth="1"]'),
+      ).not.toBeNull();
+      expect(
+        taskRow.querySelector("[data-plan-task-branch]"),
+      ).not.toBeNull();
+      expect(taskRow).toHaveAccessibleDescription(
+        "Parent Plan: MCP-only document pipeline",
+      );
+    }
+
+    fireEvent.click(completedTaskRow);
+    expect(routerReplace).toHaveBeenLastCalledWith(
+      "/projects/1?type=plans&id=10&taskId=20",
       { scroll: false },
     );
     rerender(
@@ -1001,27 +1057,29 @@ describe("Dashboard artifact workbench visual contract", () => {
         context={context}
         projects={projects}
         selectedArtifactId={10}
-        selectedTaskId={null}
+        selectedTaskId={20}
       />,
     );
-    expect(within(records).getAllByRole("option")).toHaveLength(2);
-    expect(
-      within(records).getByRole("option", { name: /API boundary/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(records).getByRole("option", { name: /Browser QA/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(records).queryByRole("option", { name: /Unrelated plan task/ }),
-    ).not.toBeInTheDocument();
+    expect(within(records).getAllByRole("option")).toEqual([
+      currentPlanRow,
+      completedTaskRow,
+      pendingTaskRow,
+      otherPlanRow,
+    ]);
 
-    fireEvent.click(
-      within(records).getByRole("option", { name: /API boundary/ }),
-    );
-    expect(routerReplace).toHaveBeenLastCalledWith(
-      "/projects/1?type=plans&id=10&taskId=20",
-      { scroll: false },
-    );
+    fireEvent.click(currentPlanRow);
+    expect(currentPlanRow).toHaveAttribute("data-plan-expanded", "false");
+    expect(currentPlanRow).toHaveAccessibleName(/Tasks collapsed$/);
+    expect(within(records).getAllByRole("option")).toEqual([
+      currentPlanRow,
+      otherPlanRow,
+    ]);
+    expect(
+      within(records).queryByRole("option", { name: /API boundary/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(records).queryByRole("option", { name: /Browser QA/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("preview navigation은 source를 검증해 wireframe id를 우선하고 index로 fallback한다", () => {
@@ -1167,7 +1225,7 @@ describe("Dashboard artifact workbench visual contract", () => {
   });
 
   it("Cmd/Ctrl+K, Escape, relation/status filter로 현재 목록을 좁힌다", () => {
-    const { context, projects, rerender } = renderWorkbench();
+    renderWorkbench();
 
     const search = screen.getByRole("searchbox", { name: /Search records/ });
     const records = screen.getByRole("listbox", { name: "Artifact records" });
@@ -1202,22 +1260,24 @@ describe("Dashboard artifact workbench visual contract", () => {
         name: /MCP-only document pipeline/,
       }),
     );
-    rerender(
-      <Dashboard
-        activeRelation="plans"
-        context={context}
-        projects={projects}
-        selectedArtifactId={10}
-        selectedTaskId={null}
-      />,
-    );
     fireEvent.change(screen.getByRole("combobox", { name: "Status" }), {
       target: { value: "Pending" },
     });
-    expect(within(records).getAllByRole("option")).toHaveLength(1);
+    expect(within(records).getAllByRole("option")).toHaveLength(3);
+    expect(
+      within(records).getByRole("option", {
+        name: /MCP-only document pipeline/,
+      }),
+    ).toHaveAttribute("data-plan-expanded", "true");
     expect(
       within(records).getByRole("option", { name: /Browser QA/ }),
     ).toBeInTheDocument();
+    expect(
+      within(records).getByRole("option", { name: /Previous delivery plan/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(records).queryByRole("option", { name: /API boundary/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("record 선택 시 Metadata inspector 콘텐츠를 유지한다", () => {

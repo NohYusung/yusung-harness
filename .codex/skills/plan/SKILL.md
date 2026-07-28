@@ -48,11 +48,15 @@ description: 작업 계획을 세우는 스킬
     |2|1|공지사항 기능 구현|1|...|
     |3|1|관리자 대시보드 기능 구현|2|...|
 
-## ArchitecturePlan 생성 규칙
+  <OPTIONAL>
+
+## ArchitecturePlan 생성 및 수정 규칙
 
 - ArchitecturePlan은 인프라, 아키텍쳐, 기술스택, 배포전략, 로그관리 등등에 대한 레포 scope의 문서이다.
 - projectId당 하나의 ArchitecturePlan만 존재한다.
 - 매 plan 생성시마다, 해당 plan 예상 결과를 포함한 architecturePlan의 내용이 맞는지를 확인하고, 어긋난 부분이 있을 경우 업데이트한다.
+- plan을 적용해도, ArchitecturePlan의 내용과 불일치하는 부분이 없으면, 굳이 수정하지 않아도 상관없다.  
+  </OPTIONAL>
 
 </RULE>
 
