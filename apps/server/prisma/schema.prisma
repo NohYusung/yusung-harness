@@ -73,6 +73,8 @@ model Plan {
   status    PlanStatus @default(PENDING)
   content   String
   title     String
+  requestId Int?       @unique
+  request   Request?   @relation(fields: [requestId], references: [id], onDelete: SetNull)
   tasks     Task[]
 
   @@index([projectId])
@@ -147,6 +149,7 @@ model Request {
   title     String
   content   String
   status    RequestStatus @default(PENDING)
+  plan      Plan?
 
   @@index([projectId])
 }

@@ -56,7 +56,7 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | tool 목록 | 목적 | 문서 작성 정책 |
 > | ---------------- | ---------------- | --- |
 > | create_project | 프로젝트 생성 | |
-> | create_plan | 계획 문서 생성 ||
+> | create_plan | 계획 문서 생성 |[계획 문서 생성 정책](./references/yusung-harness-doc-Plan.md)|
 > | create_draft | 드래프트 문서 생성 ||
 > | create_task | 태스크 문서 생성 ||
 > | create_design | 디자인 문서 생성 ||
