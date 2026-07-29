@@ -739,6 +739,7 @@ const createToolCases = [
       assetId: 5,
       title: "Design",
       html: "<!doctype html><html><head></head><body>Design</body></html>",
+      version: 1,
     },
   },
   {
@@ -751,6 +752,7 @@ const createToolCases = [
       index: "2",
       title: "Wireframe",
       html: "<!doctype html><html><head></head><body>Wireframe</body></html>",
+      version: 1,
     },
   },
   {
@@ -796,13 +798,21 @@ test("project 산출물 MCP 입력 schema는 제거된 taskId와 planId를 노�
   const { tools } = createHarness();
   const expectedFields = {
     create_asset: ["projectId", "title", "html"],
-    create_wireframe: ["projectId", "parentId", "index", "title", "html"],
+    create_wireframe: [
+      "projectId",
+      "parentId",
+      "index",
+      "title",
+      "html",
+      "version",
+    ],
     create_design: [
       "projectId",
       "wireframeId",
       "assetId",
       "title",
       "html",
+      "version",
     ],
   };
 
@@ -815,7 +825,7 @@ test("project 산출물 MCP 입력 schema는 제거된 taskId와 planId를 노�
   }
 });
 
-test("Wireframe 생성 도구는 nullable parentId와 계층 index path만 위임한다", async () => {
+test("Wireframe 생성 도구는 nullable parentId, 계층 index, 필수 version만 위임한다", async () => {
   const harness = createHarness();
   const createInput = createToolCases.find(
     ({ name }) => name === "create_wireframe",
@@ -865,6 +875,31 @@ test("Wireframe 생성 도구는 nullable parentId와 계층 index path만 위�
       false,
     );
   }
+  for (const invalidVersion of [0, -1, 1.5, "2"]) {
+    assert.equal(
+      createTool.definition.inputSchema.safeParse({
+        ...createInput,
+        version: invalidVersion,
+      }).success,
+      false,
+    );
+  }
+  const { version: _version, ...missingVersionInput } = createInput;
+  assert.equal(
+    createTool.definition.inputSchema.safeParse(missingVersionInput).success,
+    false,
+  );
+  assert.equal(
+    createTool.definition.inputSchema.parse(createInput).version,
+    1,
+  );
+  assert.equal(
+    createTool.definition.inputSchema.parse({
+      ...createInput,
+      version: 2,
+    }).version,
+    2,
+  );
   assert.equal(
     createTool.definition.inputSchema.parse({
       ...createInput,
@@ -878,6 +913,131 @@ test("Wireframe 생성 도구는 nullable parentId와 계층 index path만 위�
     ["wireframesService", "create", createInput],
   ]);
   assert.deepEqual(created.input, createInput);
+});
+
+test("실제 MCP create_wireframe은 필수 version 1과 2만 service에 전달한다", async (t) => {
+  const harness = await createSdkHarness();
+  t.after(() => harness.close());
+  const baseInput = {
+    projectId: 17,
+    parentId: null,
+    title: "Portfolio wireframe",
+    html: "<!doctype html><html><head></head><body>Portfolio</body></html>",
+  };
+  const versionTwoInput = {
+    ...baseInput,
+    index: "1",
+    version: 2,
+  };
+  const versionOneInput = {
+    ...baseInput,
+    index: "2",
+    version: 1,
+  };
+  const missingVersionInput = {
+    ...baseInput,
+    index: "3",
+  };
+
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "create_wireframe",
+      arguments: versionTwoInput,
+    }),
+  );
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "create_wireframe",
+      arguments: versionOneInput,
+    }),
+  );
+  const missingVersionResult = await harness.client.callTool({
+    name: "create_wireframe",
+    arguments: missingVersionInput,
+  });
+
+  assert.deepEqual(harness.calls, [
+    ["wireframesService", "create", versionTwoInput],
+    ["wireframesService", "create", versionOneInput],
+  ]);
+  assert.equal(missingVersionResult.isError, true);
+  assert.match(missingVersionResult.content[0].text, /invalid/i);
+});
+
+test("Design 생성 도구는 필수 positive integer version만 그대로 위임한다", async () => {
+  const harness = createHarness();
+  const createInput = createToolCases.find(
+    ({ name }) => name === "create_design",
+  ).input;
+  const createTool = harness.tools.get("create_design");
+
+  for (const invalidVersion of [0, -1, 1.5, "2"]) {
+    assert.equal(
+      createTool.definition.inputSchema.safeParse({
+        ...createInput,
+        version: invalidVersion,
+      }).success,
+      false,
+    );
+  }
+
+  const { version: _version, ...missingVersionInput } = createInput;
+  assert.equal(
+    createTool.definition.inputSchema.safeParse(missingVersionInput).success,
+    false,
+  );
+  assert.equal(createTool.definition.inputSchema.parse(createInput).version, 1);
+  assert.equal(
+    createTool.definition.inputSchema.parse({ ...createInput, version: 2 })
+      .version,
+    2,
+  );
+
+  const versionTwoInput = { ...createInput, version: 2 };
+  const created = await harness.invoke("create_design", versionTwoInput);
+
+  assert.deepEqual(harness.calls, [
+    ["designsService", "create", versionTwoInput],
+  ]);
+  assert.deepEqual(created.input, versionTwoInput);
+});
+
+test("실제 MCP create_design은 explicit version만 service에 전달한다", async (t) => {
+  const harness = await createSdkHarness();
+  t.after(() => harness.close());
+  const baseInput = {
+    projectId: 17,
+    wireframeId: 41,
+    assetId: 42,
+    title: "Portfolio design",
+    html: "<!doctype html><html><head></head><body>Portfolio</body></html>",
+  };
+  const versionOneInput = { ...baseInput, version: 1 };
+  const versionTwoInput = { ...baseInput, version: 2 };
+
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "create_design",
+      arguments: versionOneInput,
+    }),
+  );
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "create_design",
+      arguments: versionTwoInput,
+    }),
+  );
+  const missingVersionResult = await harness.client.callTool({
+    name: "create_design",
+    arguments: baseInput,
+  });
+
+  assert.deepEqual(harness.calls, [
+    ["designsService", "create", versionOneInput],
+    ["designsService", "create", versionTwoInput],
+  ]);
+  assert.equal(missingVersionResult.isError, true);
+  assert.match(missingVersionResult.content[0].text, /invalid/i);
 });
 
 test("Domain 생성·수정 도구는 입력, annotations, service 위임 계약을 지킨다", async () => {

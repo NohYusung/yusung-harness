@@ -3,9 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { z } from "zod/v4";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
+
+/** Design create 경계에서 허용할 explicit version 형식. */
+const designVersionSchema = z.number().int().positive();
 
 @Injectable()
 export class DesignsService {
@@ -32,59 +35,43 @@ export class DesignsService {
     assetId,
     title,
     html,
+    version,
   }: {
     projectId: number;
     wireframeId: number;
     assetId: number;
     title: string;
     html: string;
+    version: number;
   }) {
     await this.projectsService.ensureProject(projectId);
+    const parsedVersion = this.parseVersion(version);
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        return await this.prisma.$transaction(async (transaction) => {
-          const [wireframe, asset, latestDesign] = await Promise.all([
-            transaction.wireframe.findUnique({ where: { id: wireframeId } }),
-            transaction.asset.findUnique({ where: { id: assetId } }),
-            transaction.design.findFirst({
-              where: { projectId, assetId },
-              orderBy: { version: "desc" },
-              select: { version: true },
-            }),
-          ]);
+    return this.prisma.$transaction(async (transaction) => {
+      const [wireframe, asset] = await Promise.all([
+        transaction.wireframe.findUnique({ where: { id: wireframeId } }),
+        transaction.asset.findUnique({ where: { id: assetId } }),
+      ]);
 
-          this.assertRelatedProject(
-            wireframe,
-            projectId,
-            "Wireframe",
-            wireframeId,
-          );
-          this.assertRelatedProject(asset, projectId, "Asset", assetId);
+      this.assertRelatedProject(
+        wireframe,
+        projectId,
+        "Wireframe",
+        wireframeId,
+      );
+      this.assertRelatedProject(asset, projectId, "Asset", assetId);
 
-          return transaction.design.create({
-            data: {
-              projectId,
-              wireframeId,
-              assetId,
-              title,
-              html,
-              version: (latestDesign?.version ?? 0) + 1,
-            },
-          });
-        });
-      } catch (error: unknown) {
-        const isVersionConflict =
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002";
-
-        if (!isVersionConflict || attempt === 2) {
-          throw error;
-        }
-      }
-    }
-
-    throw new Error("Failed to allocate the next design version");
+      return transaction.design.create({
+        data: {
+          projectId,
+          wireframeId,
+          assetId,
+          title,
+          html,
+          version: parsedVersion,
+        },
+      });
+    });
   }
 
   /** 같은 프로젝트가 소유한 design의 제목과 HTML을 갱신한다. */
@@ -118,6 +105,20 @@ export class DesignsService {
       where: { id: designId },
       data: { title, html },
     });
+  }
+
+  /** Design version을 누락 없는 양의 정수로 제한한다. */
+  private parseVersion(version: number): number {
+    const parsed = designVersionSchema.safeParse(version);
+
+    /** create 경계 밖의 직접 호출도 동일한 version 계약으로 거부한다. */
+    if (!parsed.success) {
+      throw new BadRequestException(
+        "Design version must be a positive integer",
+      );
+    }
+
+    return parsed.data;
   }
 
   /** 관련 산출물이 요청한 프로젝트에 속하는지 검증한다. */

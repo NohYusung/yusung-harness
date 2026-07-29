@@ -36,8 +36,18 @@ const architecturePlanIdSchema = z
   .describe("Architecture Plan ID");
 const requestIdSchema = z.number().int().positive().describe("Request ID");
 const wireframeIdSchema = z.number().int().positive().describe("Wireframe ID");
+const wireframeVersionSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("Wireframe version set");
 const assetIdSchema = z.number().int().positive().describe("Asset ID");
 const designIdSchema = z.number().int().positive().describe("Design ID");
+const designVersionSchema = z
+  .number()
+  .int()
+  .positive()
+  .describe("Explicit Design version");
 const wireframeIndexSchema = z
   .string()
   .trim()
@@ -439,6 +449,7 @@ export class McpService {
           assetId: z.number().int().positive(),
           title: z.string().trim().min(1),
           html: htmlSchema,
+          version: designVersionSchema,
         }),
         annotations: {
           readOnlyHint: false,
@@ -485,6 +496,7 @@ export class McpService {
           index: wireframeIndexSchema,
           title: z.string().trim().min(1),
           html: htmlSchema,
+          version: wireframeVersionSchema,
         }),
         annotations: {
           readOnlyHint: false,

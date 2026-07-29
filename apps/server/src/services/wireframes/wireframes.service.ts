@@ -13,6 +13,7 @@ const wireframeIndexSchema = z
   .trim()
   .max(255)
   .regex(/^[1-9]\d*(?:\.[1-9]\d*)*$/);
+const wireframeVersionSchema = z.number().int().positive();
 
 interface WireframeJourneyRecord {
   id: number;
@@ -72,26 +73,37 @@ export class WireframesService {
     index,
     title,
     html,
+    version,
   }: {
     projectId: number;
     parentId: number | null;
     index: string;
     title: string;
     html: string;
+    version: number;
   }) {
     await this.projectsService.ensureProject(projectId);
 
     return this.prisma.$transaction(async (transaction) => {
       const parsedIndex = this.parseIndex(index);
+      const parsedVersion = this.parseVersion(version);
       const parent = await this.validateParent({
         transaction,
         projectId,
         parentId,
+        version: parsedVersion,
       });
       this.validateJourneyPath(parent, parsedIndex);
 
       return transaction.wireframe.create({
-        data: { projectId, parentId, index: parsedIndex, title, html },
+        data: {
+          projectId,
+          parentId,
+          index: parsedIndex,
+          title,
+          html,
+          version: parsedVersion,
+        },
       });
     });
   }
@@ -177,17 +189,32 @@ export class WireframesService {
     return parsed.data;
   }
 
-  /** 부모의 존재, 소유권, self/cycle 관계를 transaction 안에서 검증한다. */
+  /** Wireframe set version을 양의 정수로 제한한다. */
+  private parseVersion(version: number): number {
+    const parsed = wireframeVersionSchema.safeParse(version);
+
+    if (!parsed.success) {
+      throw new BadRequestException(
+        "Wireframe version must be a positive integer",
+      );
+    }
+
+    return parsed.data;
+  }
+
+  /** 부모의 존재, 소유권, version, self/cycle 관계를 transaction 안에서 검증한다. */
   private async validateParent({
     transaction,
     projectId,
     parentId,
     wireframeId,
+    version,
   }: {
     transaction: Prisma.TransactionClient;
     projectId: number;
     parentId: number | null;
     wireframeId?: number;
+    version?: number;
   }) {
     if (parentId === null) {
       return null;
@@ -212,6 +239,13 @@ export class WireframesService {
     if (parent.projectId !== projectId) {
       throw new BadRequestException(
         `Wireframe parent ${parentId} does not belong to project ${projectId}`,
+      );
+    }
+
+    /** 새 Wireframe은 같은 version set의 부모에만 연결한다. */
+    if (version !== undefined && parent.version !== version) {
+      throw new BadRequestException(
+        `Wireframe parent ${parentId} does not belong to version ${version}`,
       );
     }
 

@@ -21,6 +21,7 @@ class PrismaClientKnownRequestError extends Error {
   }
 }
 
+/** TypeScript service를 현재 Node test process에서 실행 가능한 모듈로 적재한다. */
 function loadDesignsService() {
   const output = ts.transpileModule(readFileSync(servicePath, "utf8"), {
     compilerOptions: {
@@ -52,7 +53,7 @@ function loadDesignsService() {
   return loadedModule.exports.DesignsService;
 }
 
-const input = {
+const baseInput = {
   projectId: 7,
   wireframeId: 21,
   assetId: 22,
@@ -60,63 +61,65 @@ const input = {
   html: "<!doctype html><html><body>Design</body></html>",
 };
 
-test("DesignsService.create는 P2002 뒤 최신 version을 다시 계산해 최대 3회 시도한다", async () => {
-  let transactionAttempts = 0;
-  const created = { id: 31, ...input, version: 3 };
-  const prisma = {
-    $transaction: async (operation) => {
-      transactionAttempts += 1;
-      const attempt = transactionAttempts;
-
-      return operation({
-        wireframe: {
-          findUnique: async () => ({ id: 21, projectId: 7 }),
-        },
-        asset: {
-          findUnique: async () => ({ id: 22, projectId: 7 }),
-        },
-        design: {
-          findFirst: async () => ({ version: attempt - 1 }),
-          create: async ({ data }) => {
-            if (attempt < 3) {
-              throw new PrismaClientKnownRequestError("P2002");
-            }
-
-            assert.equal(data.version, 3);
-            return created;
-          },
-        },
+test("DesignsService.create는 explicit version 1과 2를 그대로 저장한다", async (t) => {
+  for (const version of [1, 2]) {
+    await t.test(`version ${version}`, async () => {
+      const createCalls = [];
+      const input = { ...baseInput, version };
+      const created = { id: 31, ...input };
+      const prisma = {
+        $transaction: async (operation) =>
+          operation({
+            wireframe: {
+              findUnique: async () => ({ id: 21, projectId: 7 }),
+            },
+            asset: {
+              findUnique: async () => ({ id: 22, projectId: 7 }),
+            },
+            design: {
+              create: async ({ data }) => {
+                createCalls.push(data);
+                return created;
+              },
+            },
+          }),
+      };
+      const DesignsService = loadDesignsService();
+      const service = new DesignsService(prisma, {
+        ensureProject: async () => undefined,
       });
-    },
-  };
-  const DesignsService = loadDesignsService();
-  const service = new DesignsService(prisma, {
-    ensureProject: async () => undefined,
-  });
 
-  await assert.doesNotReject(service.create(input));
-  assert.equal(transactionAttempts, 3);
+      assert.deepEqual(await service.create(input), created);
+      assert.deepEqual(createCalls, [input]);
+    });
+  }
 });
 
-test("DesignsService.create는 P2002가 아닌 오류를 재시도하지 않는다", async () => {
-  let transactionAttempts = 0;
-  const failure = new Error("database unavailable");
-  const prisma = {
-    $transaction: async () => {
-      transactionAttempts += 1;
-      throw failure;
-    },
-  };
-  const DesignsService = loadDesignsService();
-  const service = new DesignsService(prisma, {
-    ensureProject: async () => undefined,
-  });
+test("DesignsService.create는 누락되거나 양의 정수가 아닌 version을 거부한다", async (t) => {
+  for (const invalidVersion of [undefined, 0, -1, 1.5]) {
+    await t.test(`version ${String(invalidVersion)}`, async () => {
+      let transactionCalled = false;
+      const prisma = {
+        $transaction: async () => {
+          transactionCalled = true;
+          throw new Error("transaction must not start");
+        },
+      };
+      const DesignsService = loadDesignsService();
+      const service = new DesignsService(prisma, {
+        ensureProject: async () => undefined,
+      });
 
-  await assert.rejects(service.create(input), failure);
-  assert.equal(transactionAttempts, 1);
+      await assert.rejects(
+        service.create({ ...baseInput, version: invalidVersion }),
+        /positive integer/,
+      );
+      assert.equal(transactionCalled, false);
+    });
+  }
 });
 
-test("DesignsService.create는 세 번째 P2002를 그대로 전달한다", async () => {
+test("DesignsService.create는 version 충돌을 자동 재시도하지 않는다", async () => {
   let transactionAttempts = 0;
   const failure = new PrismaClientKnownRequestError("P2002");
   const prisma = {
@@ -130,6 +133,6 @@ test("DesignsService.create는 세 번째 P2002를 그대로 전달한다", asyn
     ensureProject: async () => undefined,
   });
 
-  await assert.rejects(service.create(input), failure);
-  assert.equal(transactionAttempts, 3);
+  await assert.rejects(service.create({ ...baseInput, version: 2 }), failure);
+  assert.equal(transactionAttempts, 1);
 });

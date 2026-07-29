@@ -48,6 +48,7 @@ const loadWireframesService = () => {
 };
 
 const html = "<!doctype html><html><head></head><body>Wireframe</body></html>";
+const generatedPageCuid = "cmnewwireframepage000000000001";
 
 function createTransactionalHarness({ records = [] } = {}) {
   const calls = [];
@@ -81,7 +82,7 @@ function createTransactionalHarness({ records = [] } = {}) {
     create: async (args) => {
       calls.push(["transaction.wireframe.create", args]);
       writes.push(["create", args]);
-      return { id: 99, page: "generated", ...args.data };
+      return { id: 99, page: generatedPageCuid, ...args.data };
     },
     update: async (args) => {
       calls.push(["transaction.wireframe.update", args]);
@@ -187,6 +188,7 @@ test("WireframesService.create는 transaction에서 valid root와 direct child�
       index: "1",
       title: "Home",
       html,
+      version: 1,
     };
 
     const created = await service.create(input);
@@ -195,6 +197,7 @@ test("WireframesService.create는 transaction에서 valid root와 direct child�
     assert.deepEqual(harness.writes, [
       ["create", { data: input }],
     ]);
+    assert.equal(Object.hasOwn(harness.writes[0][1].data, "page"), false);
     assert.equal(
       harness.calls.some(([name]) => name === "outside-transaction.wireframe"),
       false,
@@ -204,7 +207,9 @@ test("WireframesService.create는 transaction에서 valid root와 direct child�
 
   await t.test("direct child", async () => {
     const harness = createTransactionalHarness({
-      records: [{ id: 21, projectId: 7, parentId: null, index: "1" }],
+      records: [
+        { id: 21, projectId: 7, parentId: null, index: "1", version: 1 },
+      ],
     });
     const WireframesService = loadWireframesService();
     const service = new WireframesService(
@@ -217,6 +222,7 @@ test("WireframesService.create는 transaction에서 valid root와 direct child�
       index: "1.1",
       title: "Login error modal",
       html,
+      version: 1,
     };
 
     await service.create(input);
@@ -225,6 +231,154 @@ test("WireframesService.create는 transaction에서 valid root와 direct child�
       ["create", { data: input }],
     ]);
     assert.equal(harness.calls.at(-1)[0], "transaction.commit");
+  });
+});
+
+test("WireframesService.create는 version별 독립 set과 새 page CUID를 생성한다", async (t) => {
+  await t.test("version 2 root는 기존 version 1을 수정하지 않는다", async () => {
+    const legacyWireframe = {
+      id: 21,
+      projectId: 7,
+      parentId: null,
+      index: "1",
+      page: "cmlegacywireframepage00000001",
+      title: "Legacy home",
+      version: 1,
+    };
+    const legacySnapshot = { ...legacyWireframe };
+    const harness = createTransactionalHarness({
+      records: [legacyWireframe],
+    });
+    const WireframesService = loadWireframesService();
+    const service = new WireframesService(
+      harness.prisma,
+      harness.projectsService,
+    );
+    const input = {
+      projectId: 7,
+      parentId: null,
+      index: "1",
+      title: "Version 2 home",
+      html,
+      version: 2,
+    };
+
+    const created = await service.create(input);
+
+    assert.equal(created.page, generatedPageCuid);
+    assert.equal(created.version, 2);
+    assert.deepEqual(harness.writes, [["create", { data: input }]]);
+    assert.equal(Object.hasOwn(harness.writes[0][1].data, "page"), false);
+    assert.equal(
+      harness.writes.some(([operation]) => operation === "update"),
+      false,
+    );
+    assert.deepEqual(legacyWireframe, legacySnapshot);
+    assert.equal(harness.calls.at(-1)[0], "transaction.commit");
+  });
+
+  await t.test("version 2 child는 같은 version 2 parent에 연결된다", async () => {
+    const input = {
+      projectId: 7,
+      parentId: 22,
+      index: "1.1",
+      title: "Version 2 child",
+      html,
+      version: 2,
+    };
+    const sameVersionHarness = createTransactionalHarness({
+      records: [
+        { id: 22, projectId: 7, parentId: null, index: "1", version: 2 },
+      ],
+    });
+    const WireframesService = loadWireframesService();
+    const sameVersionService = new WireframesService(
+      sameVersionHarness.prisma,
+      sameVersionHarness.projectsService,
+    );
+
+    await sameVersionService.create(input);
+
+    assert.deepEqual(sameVersionHarness.writes, [
+      ["create", { data: input }],
+    ]);
+    assert.equal(sameVersionHarness.calls.at(-1)[0], "transaction.commit");
+  });
+
+  await t.test("version 2 child는 version 1 parent 연결을 거부한다", async () => {
+    const input = {
+      projectId: 7,
+      parentId: 22,
+      index: "1.1",
+      title: "Cross-version child",
+      html,
+      version: 2,
+    };
+    const WireframesService = loadWireframesService();
+
+    const crossVersionHarness = createTransactionalHarness({
+      records: [
+        { id: 22, projectId: 7, parentId: null, index: "1", version: 1 },
+      ],
+    });
+    const crossVersionService = new WireframesService(
+      crossVersionHarness.prisma,
+      crossVersionHarness.projectsService,
+    );
+
+    await assert.rejects(
+      crossVersionService.create(input),
+      (error) => error instanceof BadRequestException,
+    );
+    assert.deepEqual(crossVersionHarness.writes, []);
+    assert.equal(crossVersionHarness.calls.at(-1)[0], "transaction.rollback");
+  });
+
+  await t.test("version 누락은 runtime BadRequest로 거부한다", async () => {
+    const harness = createTransactionalHarness();
+    const WireframesService = loadWireframesService();
+    const service = new WireframesService(
+      harness.prisma,
+      harness.projectsService,
+    );
+
+    await assert.rejects(
+      service.create({
+        projectId: 7,
+        parentId: null,
+        index: "1",
+        title: "Missing version",
+        html,
+      }),
+      (error) => error instanceof BadRequestException,
+    );
+    assert.deepEqual(harness.writes, []);
+    assert.equal(harness.calls.at(-1)[0], "transaction.rollback");
+  });
+
+  await t.test("version은 양의 정수여야 한다", async () => {
+    for (const invalidVersion of [0, -1, 1.5, "2"]) {
+      const harness = createTransactionalHarness();
+      const WireframesService = loadWireframesService();
+      const service = new WireframesService(
+        harness.prisma,
+        harness.projectsService,
+      );
+
+      await assert.rejects(
+        service.create({
+          projectId: 7,
+          parentId: null,
+          index: "1",
+          title: "Invalid version",
+          html,
+          version: invalidVersion,
+        }),
+        (error) => error instanceof BadRequestException,
+      );
+      assert.deepEqual(harness.writes, []);
+      assert.equal(harness.calls.at(-1)[0], "transaction.rollback");
+    }
   });
 });
 
@@ -285,6 +439,7 @@ test("WireframesService.create는 invalid root, parent, path를 transaction에�
           index: serviceCase.index,
           title: "Invalid",
           html,
+          version: 1,
         }),
         (error) => error instanceof serviceCase.errorType,
       );
@@ -462,6 +617,7 @@ test("WireframesService는 존재하지 않는 project에서 transaction을 시�
       index: "1",
       title: "Missing project",
       html,
+      version: 1,
     }),
     (error) => error instanceof NotFoundException,
   );
