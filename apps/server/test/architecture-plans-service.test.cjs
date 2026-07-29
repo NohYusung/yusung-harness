@@ -38,6 +38,28 @@ const modulePath = join(
   "architecture-plans",
   "architecture-plans.module.ts",
 );
+const architecturePlanContent = [
+  "# 기술 스택",
+  "",
+  "| 영역 | 선택 |",
+  "| --- | --- |",
+  "| 배포 | GitHub Pages |",
+  "",
+  "# 네트워크",
+  "",
+  "```text",
+  "GitHub Actions -> GitHub Pages -> Browser",
+  "```",
+  "",
+  "# 배포 전략",
+  "",
+  "검증된 정적 산출물만 배포한다.",
+].join("\n");
+const architecturePlanHtml = [
+  "<!doctype html>",
+  '<html lang="ko"><head><meta charset="utf-8"><title>배포 인프라 구조도</title></head>',
+  '<body><main><h1>배포 인프라 구조도</h1><svg role="img" aria-label="GitHub Pages 리소스 아이콘" viewBox="0 0 24 24"><title>GitHub Pages</title><path d="M4 4h16v16H4z"></path></svg><p>Repository → Actions → Pages</p></main></body></html>',
+].join("");
 
 const loadArchitecturePlansService = () => {
   const output = ts.transpileModule(readFileSync(servicePath, "utf8"), {
@@ -102,8 +124,8 @@ test("ArchitecturePlans 목록은 project 검증 후 최신 수정 순으로 조
       id: 31,
       projectId: 17,
       title: "Deployment architecture plan",
-      content:
-        "<!doctype html><html><head></head><body>Architecture</body></html>",
+      content: architecturePlanContent,
+      html: architecturePlanHtml,
     },
   ];
   const prisma = {
@@ -152,13 +174,13 @@ test("ArchitecturePlans 목록은 project 검증 후 최신 수정 순으로 조
   assert.doesNotMatch(readFileSync(controllerPath, "utf8"), /\bAGENT\b/);
 });
 
-test("ArchitecturePlansService.create는 project 검증 후 HTML 계획을 저장한다", async () => {
+test("ArchitecturePlansService.create는 project 검증 후 Markdown과 HTML 구조도를 함께 저장한다", async () => {
   const calls = [];
   const input = {
     projectId: 17,
     title: "Deployment architecture plan",
-    content:
-      "<!doctype html><html><head></head><body>Architecture</body></html>",
+    content: architecturePlanContent,
+    html: architecturePlanHtml,
   };
   const created = { id: 31, ...input };
   const prisma = {
@@ -206,7 +228,8 @@ test("ArchitecturePlansService.create는 projectId unique P2002를 BadRequest로
     service.create({
       projectId: 17,
       title: "Duplicate architecture plan",
-      content: "<!doctype html><html><body>Duplicate</body></html>",
+      content: architecturePlanContent,
+      html: architecturePlanHtml,
     }),
     (error) =>
       error instanceof BadRequestException &&
@@ -220,7 +243,8 @@ test("ArchitecturePlansService.create는 projectId unique P2002를 BadRequest로
         data: {
           projectId: 17,
           title: "Duplicate architecture plan",
-          content: "<!doctype html><html><body>Duplicate</body></html>",
+          content: architecturePlanContent,
+          html: architecturePlanHtml,
         },
       },
     ],
@@ -233,8 +257,8 @@ test("ArchitecturePlansService.update는 같은 프로젝트의 계획만 수정
     projectId: 17,
     architecturePlanId: 31,
     title: "Updated deployment architecture plan",
-    content:
-      "<!doctype html><html><head></head><body>Updated architecture</body></html>",
+    content: architecturePlanContent,
+    html: architecturePlanHtml,
   };
   const updated = { id: input.architecturePlanId, ...input };
   const prisma = {
@@ -267,8 +291,8 @@ test("ArchitecturePlansService.update는 같은 프로젝트의 계획만 수정
         where: { id: 31 },
         data: {
           title: "Updated deployment architecture plan",
-          content:
-            "<!doctype html><html><head></head><body>Updated architecture</body></html>",
+          content: architecturePlanContent,
+          html: architecturePlanHtml,
         },
       },
     ],
@@ -301,7 +325,8 @@ test("ArchitecturePlansService.update는 없는 계획을 NotFound로 거부한�
       projectId: 17,
       architecturePlanId: 404,
       title: "Missing architecture plan",
-      content: "<!doctype html><html><head></head><body>Missing</body></html>",
+      content: architecturePlanContent,
+      html: architecturePlanHtml,
     }),
     (error) =>
       error instanceof NotFoundException &&
@@ -339,8 +364,8 @@ test("ArchitecturePlansService.update는 다른 프로젝트의 계획을 BadReq
       projectId: 17,
       architecturePlanId: 31,
       title: "Cross-project architecture plan",
-      content:
-        "<!doctype html><html><head></head><body>Cross-project</body></html>",
+      content: architecturePlanContent,
+      html: architecturePlanHtml,
     }),
     (error) =>
       error instanceof BadRequestException &&

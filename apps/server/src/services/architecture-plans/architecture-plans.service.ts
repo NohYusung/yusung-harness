@@ -24,21 +24,23 @@ export class ArchitecturePlansService {
     });
   }
 
-  /** 프로젝트에 HTML 아키텍처 설계 계획을 생성한다. */
+  /** 프로젝트에 Markdown 설명과 HTML 구조도를 포함한 아키텍처 설계 계획을 생성한다. */
   async create({
     projectId,
     title,
     content,
+    html,
   }: {
     projectId: number;
     title: string;
     content: string;
+    html: string;
   }) {
     await this.projectsService.ensureProject(projectId);
 
     try {
       return await this.prisma.architecturePlan.create({
-        data: { projectId, title, content },
+        data: { projectId, title, content, html },
       });
     } catch (error: unknown) {
       /** projectId unique 충돌은 호출자가 처리 가능한 domain 오류로 변환한다. */
@@ -55,17 +57,19 @@ export class ArchitecturePlansService {
     }
   }
 
-  /** 같은 프로젝트가 소유한 아키텍처 설계 계획의 제목과 HTML을 갱신한다. */
+  /** 같은 프로젝트가 소유한 아키텍처 설계 계획의 제목, Markdown, HTML을 갱신한다. */
   async update({
     projectId,
     architecturePlanId,
     title,
     content,
+    html,
   }: {
     projectId: number;
     architecturePlanId: number;
     title: string;
     content: string;
+    html: string;
   }) {
     await this.projectsService.ensureProject(projectId);
     const existingArchitecturePlan =
@@ -87,7 +91,7 @@ export class ArchitecturePlansService {
 
     return this.prisma.architecturePlan.update({
       where: { id: architecturePlanId },
-      data: { title, content },
+      data: { title, content, html },
     });
   }
 }

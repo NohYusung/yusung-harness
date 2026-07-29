@@ -619,16 +619,18 @@ export class McpService {
       (input) => this.execute(() => this.requestsService.create(input)),
     );
 
-    /** 프로젝트에 HTML 아키텍처 설계 계획을 생성한다. */
+    /** 프로젝트에 Markdown 설명과 HTML 구조도를 포함한 아키텍처 설계 계획을 생성한다. */
     server.registerTool(
       "create_architecturePlan",
       {
         title: "Create Architecture Plan",
-        description: "Creates an HTML Architecture Plan for a Project.",
+        description:
+          "Creates an Architecture Plan with non-empty Markdown content and a complete HTML architecture diagram for a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           title: z.string().trim().min(1),
-          content: htmlSchema,
+          content: z.string().min(1),
+          html: htmlSchema,
         }),
         annotations: {
           readOnlyHint: false,
@@ -641,18 +643,19 @@ export class McpService {
         this.execute(() => this.architecturePlansService.create(input)),
     );
 
-    /** 같은 프로젝트가 소유한 HTML 아키텍처 설계 계획을 교체한다. */
+    /** 같은 프로젝트가 소유한 Markdown 설명과 HTML 구조도를 교체한다. */
     server.registerTool(
       "update_architecturePlan",
       {
         title: "Update Architecture Plan",
         description:
-          "Replaces the title and HTML content of an Architecture Plan in the same Project.",
+          "Replaces the title, non-empty Markdown content, and complete HTML architecture diagram of an Architecture Plan in the same Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           architecturePlanId: architecturePlanIdSchema,
           title: z.string().trim().min(1),
-          content: htmlSchema,
+          content: z.string().min(1),
+          html: htmlSchema,
         }),
         annotations: {
           readOnlyHint: false,

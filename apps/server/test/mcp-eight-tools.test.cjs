@@ -12,6 +12,28 @@ const { z } = require("zod/v4");
 
 const serverRoot = join(__dirname, "..");
 const servicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
+const architecturePlanContent = [
+  "# 기술 스택",
+  "",
+  "| 영역 | 선택 |",
+  "| --- | --- |",
+  "| 배포 | GitHub Pages |",
+  "",
+  "# 네트워크",
+  "",
+  "```text",
+  "GitHub Actions -> GitHub Pages -> Browser",
+  "```",
+  "",
+  "# 배포 전략",
+  "",
+  "검증된 정적 산출물만 배포한다.",
+].join("\n");
+const architecturePlanHtml = [
+  "<!doctype html>",
+  '<html lang="ko"><head><meta charset="utf-8"><title>배포 인프라 구조도</title></head>',
+  '<body><main><h1>배포 인프라 구조도</h1><svg role="img" aria-label="GitHub Pages 리소스 아이콘" viewBox="0 0 24 24"><title>GitHub Pages</title><path d="M4 4h16v16H4z"></path></svg><p>Repository → Actions → Pages</p></main></body></html>',
+].join("");
 
 const expectedToolNames = [
   "get_context",
@@ -348,8 +370,8 @@ const workflowUpdateToolCases = [
       projectId: 17,
       architecturePlanId: 31,
       title: "Updated MCP architecture plan",
-      content:
-        "<!doctype html><html><head></head><body>Updated architecture plan</body></html>",
+      content: architecturePlanContent,
+      html: architecturePlanHtml,
     },
   },
   {
@@ -375,7 +397,7 @@ test("workflow 수정 도구는 schema와 annotations를 지키고 domain servic
       const expectedFields =
         toolCase.name === "update_request"
           ? ["projectId", "requestId", "title", "content", "status"]
-          : ["projectId", "architecturePlanId", "title", "content"];
+          : ["projectId", "architecturePlanId", "title", "content", "html"];
 
       assert.deepEqual(harness.calls, [
         [toolCase.service, "update", toolCase.input],
@@ -451,8 +473,30 @@ test("workflow 수정 도구는 schema와 annotations를 지키고 domain servic
           false,
         );
       } else {
+        const { content: _content, ...missingContentInput } = toolCase.input;
+        const { html: _html, ...missingHtmlInput } = toolCase.input;
+
+        assert.equal(
+          tool.definition.inputSchema.safeParse(missingContentInput).success,
+          false,
+        );
+        assert.equal(
+          tool.definition.inputSchema.safeParse(missingHtmlInput).success,
+          false,
+        );
+        assert.equal(
+          tool.definition.inputSchema.safeParse({
+            ...toolCase.input,
+            html: "",
+          }).success,
+          false,
+        );
+        assert.doesNotMatch(
+          tool.definition.inputSchema.shape.content.description ?? "",
+          /Complete HTML document/,
+        );
         assert.match(
-          tool.definition.inputSchema.shape.content.description,
+          tool.definition.inputSchema.shape.html.description,
           /Complete HTML document/,
         );
       }
@@ -485,8 +529,8 @@ const workflowCreateToolCases = [
     input: {
       projectId: 17,
       title: "MCP architecture plan",
-      content:
-        "<!doctype html><html><head></head><body>Architecture plan</body></html>",
+      content: architecturePlanContent,
+      html: architecturePlanHtml,
     },
   },
 ];
@@ -505,11 +549,12 @@ test("workflow 생성 도구는 domain service create 결과를 직렬화한다"
         method: "create",
         input: toolCase.input,
       });
-      assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), [
-        "projectId",
-        "title",
-        "content",
-      ]);
+      assert.deepEqual(
+        Object.keys(tool.definition.inputSchema.shape),
+        toolCase.name === "create_architecturePlan"
+          ? ["projectId", "title", "content", "html"]
+          : ["projectId", "title", "content"],
+      );
       assert.deepEqual(tool.definition.annotations, {
         readOnlyHint: false,
         destructiveHint: false,
@@ -552,6 +597,31 @@ test("workflow 생성 도구의 입력 schema는 ID와 비어 있지 않은 문�
       schema.parse({ ...toolCase.input, title: "  Trimmed title  " }).title,
       "Trimmed title",
     );
+
+    if (toolCase.name === "create_architecturePlan") {
+      const { content: _content, ...missingContentInput } = toolCase.input;
+      const { html: _html, ...missingHtmlInput } = toolCase.input;
+
+      assert.equal(schema.safeParse(missingContentInput).success, false);
+      assert.equal(schema.safeParse(missingHtmlInput).success, false);
+      assert.equal(
+        schema.safeParse({ ...toolCase.input, html: "" }).success,
+        false,
+      );
+      assert.equal(
+        schema.safeParse({
+          ...toolCase.input,
+          content: architecturePlanContent,
+          html: architecturePlanHtml,
+        }).success,
+        true,
+      );
+      assert.doesNotMatch(
+        schema.shape.content.description ?? "",
+        /Complete HTML document/,
+      );
+      assert.match(schema.shape.html.description, /Complete HTML document/);
+    }
   }
 });
 
