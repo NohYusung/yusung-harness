@@ -79,6 +79,6 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | update_design | 디자인 문서 업데이트 |
 > | update_wireframe | 와이어프레임 문서 업데이트 |
 > | update_db| 타겟 프로젝트 db 스키마(테이블별) 정리 문서 업데이트 |
-> | update_erd | 타겟 프로젝트 db 스킴카 관계 erd 업데이트 |
+> | update_erd | 타겟 프로젝트 db 스키마 관계 erd 업데이트 |
 > | update_architecturePlan | 아키텍쳐 설계 계획 문서 업데이트 |
 > | update_request | 요구사항 문서 업데이트 |
