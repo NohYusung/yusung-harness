@@ -26,6 +26,8 @@ import { WireframesService } from "../services/wireframes/wireframes.service";
 import { WorklogsService } from "../services/worklogs/worklogs.service";
 
 const projectIdSchema = z.number().int().positive().describe("Project ID");
+const planIdSchema = z.number().int().positive().describe("Plan ID");
+const taskIdSchema = z.number().int().positive().describe("Task ID");
 const domainIdSchema = z.number().int().positive().describe("Domain ID");
 const dbIdSchema = z.number().int().positive().describe("DB document ID");
 const erdIdSchema = z.number().int().positive().describe("ERD document ID");
@@ -138,7 +140,7 @@ export class McpService {
     private readonly worklogsService: WorklogsService,
   ) {}
 
-  /** 23개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 25개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -166,7 +168,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 23개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 25개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -256,6 +258,29 @@ export class McpService {
         },
       },
       (input) => this.execute(() => this.plansService.create(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 plan의 제목과 내용을 교체한다. */
+    server.registerTool(
+      "update_plan",
+      {
+        title: "Update Plan",
+        description:
+          "Replaces the title and content of a Plan in the same Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          planId: planIdSchema,
+          title: z.string().trim().min(1),
+          content: z.string().min(1),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.plansService.update(input)),
     );
 
     /** 프로젝트에 text draft를 생성한다. */
@@ -422,7 +447,7 @@ export class McpService {
         description: "Creates a Task under a Plan in the same Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
-          planId: z.number().int().positive(),
+          planId: planIdSchema,
           title: z.string().trim().min(1),
           content: z.string().optional(),
         }),
@@ -434,6 +459,31 @@ export class McpService {
         },
       },
       (input) => this.execute(() => this.tasksService.create(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 task의 상태를 갱신하고 plan 상태를 동기화한다. */
+    server.registerTool(
+      "update_task",
+      {
+        title: "Update Task",
+        description:
+          "Updates a Task status in the same Project and synchronizes its Plan status.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          taskId: taskIdSchema,
+          status: z.enum(["PENDING", "COMPLETED"]),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId, taskId, status }) =>
+        this.execute(() =>
+          this.tasksService.updateStatus(projectId, taskId, status),
+        ),
     );
 
     /** 같은 프로젝트의 wireframe과 asset을 조합한 HTML design을 생성한다. */

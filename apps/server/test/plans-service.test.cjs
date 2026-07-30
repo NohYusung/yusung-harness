@@ -3,6 +3,7 @@ const { readFileSync } = require("node:fs");
 const { dirname, join } = require("node:path");
 const Module = require("node:module");
 const test = require("node:test");
+const { BadRequestException, NotFoundException } = require("@nestjs/common");
 const ts = require("typescript");
 
 const serverRoot = join(__dirname, "..");
@@ -130,4 +131,131 @@ test("PlansService.create는 version 할당 없이 초기 PENDING Plan을 만든
   assert.equal(Object.hasOwn(calls[1][1].data, "version"), false);
   assert.equal(Object.hasOwn(calls[1][1].data, "tasks"), false);
   assert.equal(Object.hasOwn(calls[1][1], "include"), false);
+});
+
+test("PlansService.update는 같은 프로젝트의 Plan 제목과 내용만 갱신한다", async () => {
+  const calls = [];
+  const input = {
+    projectId: 7,
+    planId: 13,
+    title: "Updated delivery plan",
+    content: "Implement and verify the requested MCP tools.",
+  };
+  const updatedPlan = {
+    id: input.planId,
+    projectId: input.projectId,
+    title: input.title,
+    content: input.content,
+    status: "IN_PROGRESS",
+  };
+  const prisma = {
+    plan: {
+      findUnique: async (args) => {
+        calls.push(["plan.findUnique", args]);
+        return { id: input.planId, projectId: input.projectId };
+      },
+      update: async (args) => {
+        calls.push(["plan.update", args]);
+        return updatedPlan;
+      },
+    },
+  };
+  const projectsService = {
+    ensureProject: async (projectId) => {
+      calls.push(["projects.ensureProject", projectId]);
+    },
+  };
+  const PlansService = loadPlansService();
+  const service = new PlansService(prisma, projectsService);
+
+  assert.deepEqual(await service.update(input), updatedPlan);
+  assert.deepEqual(calls, [
+    ["projects.ensureProject", 7],
+    ["plan.findUnique", { where: { id: 13 } }],
+    [
+      "plan.update",
+      {
+        where: { id: 13 },
+        data: {
+          title: "Updated delivery plan",
+          content: "Implement and verify the requested MCP tools.",
+        },
+      },
+    ],
+  ]);
+});
+
+test("PlansService.update는 없는 Plan을 NotFound로 거부한다", async () => {
+  const calls = [];
+  const prisma = {
+    plan: {
+      findUnique: async (args) => {
+        calls.push(["plan.findUnique", args]);
+        return null;
+      },
+      update: async () => {
+        calls.push(["plan.update"]);
+      },
+    },
+  };
+  const projectsService = {
+    ensureProject: async (projectId) => {
+      calls.push(["projects.ensureProject", projectId]);
+    },
+  };
+  const PlansService = loadPlansService();
+  const service = new PlansService(prisma, projectsService);
+
+  await assert.rejects(
+    service.update({
+      projectId: 7,
+      planId: 404,
+      title: "Missing plan",
+      content: "Missing plan content",
+    }),
+    (error) =>
+      error instanceof NotFoundException && error.message === "Plan 404 not found",
+  );
+  assert.deepEqual(calls, [
+    ["projects.ensureProject", 7],
+    ["plan.findUnique", { where: { id: 404 } }],
+  ]);
+});
+
+test("PlansService.update는 다른 프로젝트의 Plan을 BadRequest로 거부한다", async () => {
+  const calls = [];
+  const prisma = {
+    plan: {
+      findUnique: async (args) => {
+        calls.push(["plan.findUnique", args]);
+        return { id: 13, projectId: 8 };
+      },
+      update: async () => {
+        calls.push(["plan.update"]);
+      },
+    },
+  };
+  const projectsService = {
+    ensureProject: async (projectId) => {
+      calls.push(["projects.ensureProject", projectId]);
+    },
+  };
+  const PlansService = loadPlansService();
+  const service = new PlansService(prisma, projectsService);
+
+  await assert.rejects(
+    service.update({
+      projectId: 7,
+      planId: 13,
+      title: "Cross-project plan",
+      content: "Cross-project plan content",
+    }),
+    (error) =>
+      error instanceof BadRequestException &&
+      error.message === "Plan 13 does not belong to project 7",
+  );
+  assert.deepEqual(calls, [
+    ["projects.ensureProject", 7],
+    ["plan.findUnique", { where: { id: 13 } }],
+  ]);
 });

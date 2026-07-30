@@ -40,6 +40,7 @@ const expectedToolNames = [
   "get_project",
   "create_project",
   "create_plan",
+  "update_plan",
   "create_draft",
   "create_domain",
   "update_domain",
@@ -48,6 +49,7 @@ const expectedToolNames = [
   "create_erd",
   "update_erd",
   "create_task",
+  "update_task",
   "create_design",
   "update_design",
   "create_wireframe",
@@ -167,6 +169,10 @@ const createHarness = () => {
         calls.push(["plansService", "create", input]);
         return result("plansService", "create", input);
       },
+      update: async (input) => {
+        calls.push(["plansService", "update", input]);
+        return result("plansService", "update", input);
+      },
     },
     draftsService: {
       list: listService("draftsService", "drafts"),
@@ -180,6 +186,20 @@ const createHarness = () => {
       create: async (input) => {
         calls.push(["tasksService", "create", input]);
         return result("tasksService", "create", input);
+      },
+      updateStatus: async (projectId, taskId, status) => {
+        calls.push([
+          "tasksService",
+          "updateStatus",
+          projectId,
+          taskId,
+          status,
+        ]);
+        return result("tasksService", "updateStatus", {
+          projectId,
+          taskId,
+          status,
+        });
       },
     },
     designsService: {
@@ -346,7 +366,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 23개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 25개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -354,10 +374,139 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 23개 도구와 �
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 23);
+  assert.equal(tools.size, 25);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
+  }
+});
+
+const planUpdateInput = {
+  projectId: 17,
+  planId: 23,
+  title: "Updated delivery plan",
+  content: "Implement and verify the requested MCP tools.",
+};
+
+const taskUpdateInput = {
+  projectId: 17,
+  taskId: 29,
+  status: "COMPLETED",
+};
+
+test("update_plan은 schema와 annotations를 지키고 PlansService.update에 위임한다", async () => {
+  const harness = createHarness();
+  const response = await harness.invoke("update_plan", planUpdateInput);
+  const tool = harness.tools.get("update_plan");
+
+  assert.deepEqual(harness.calls, [
+    ["plansService", "update", planUpdateInput],
+  ]);
+  assert.deepEqual(response, {
+    service: "plansService",
+    method: "update",
+    input: planUpdateInput,
+  });
+  assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), [
+    "projectId",
+    "planId",
+    "title",
+    "content",
+  ]);
+  assert.deepEqual(tool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
+  });
+
+  for (const idField of ["projectId", "planId"]) {
+    for (const invalidId of [0, -1, 1.5, "17"]) {
+      assert.equal(
+        tool.definition.inputSchema.safeParse({
+          ...planUpdateInput,
+          [idField]: invalidId,
+        }).success,
+        false,
+      );
+    }
+  }
+  assert.equal(
+    tool.definition.inputSchema.safeParse({
+      ...planUpdateInput,
+      title: "   ",
+    }).success,
+    false,
+  );
+  assert.equal(
+    tool.definition.inputSchema.safeParse({
+      ...planUpdateInput,
+      content: "",
+    }).success,
+    false,
+  );
+  assert.equal(
+    tool.definition.inputSchema.parse({
+      ...planUpdateInput,
+      title: "  Updated delivery plan  ",
+    }).title,
+    "Updated delivery plan",
+  );
+});
+
+test("update_task는 상태 schema와 멱등 annotations를 지키고 TasksService.updateStatus에 위임한다", async () => {
+  const harness = createHarness();
+  const response = await harness.invoke("update_task", taskUpdateInput);
+  const tool = harness.tools.get("update_task");
+
+  assert.deepEqual(harness.calls, [
+    ["tasksService", "updateStatus", 17, 29, "COMPLETED"],
+  ]);
+  assert.deepEqual(response, {
+    service: "tasksService",
+    method: "updateStatus",
+    input: taskUpdateInput,
+  });
+  assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), [
+    "projectId",
+    "taskId",
+    "status",
+  ]);
+  assert.deepEqual(tool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  });
+
+  for (const idField of ["projectId", "taskId"]) {
+    for (const invalidId of [0, -1, 1.5, "17"]) {
+      assert.equal(
+        tool.definition.inputSchema.safeParse({
+          ...taskUpdateInput,
+          [idField]: invalidId,
+        }).success,
+        false,
+      );
+    }
+  }
+  for (const status of ["PENDING", "COMPLETED"]) {
+    assert.equal(
+      tool.definition.inputSchema.safeParse({
+        ...taskUpdateInput,
+        status,
+      }).success,
+      true,
+    );
+  }
+  for (const status of ["IN_PROGRESS", "CANCELLED", 1]) {
+    assert.equal(
+      tool.definition.inputSchema.safeParse({
+        ...taskUpdateInput,
+        status,
+      }).success,
+      false,
+    );
   }
 });
 
@@ -1714,7 +1863,7 @@ test("실제 MCP workflow update는 성공과 service 오류 응답을 직렬화
   }
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 23개 공개 계약을 따른다", async (t) => {
+test("실제 MCP tools/list와 제거된 도구 호출도 25개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 

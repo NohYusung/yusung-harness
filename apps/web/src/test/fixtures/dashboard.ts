@@ -92,6 +92,7 @@ export function createDesign(overrides: Partial<Design> = {}): Design {
     ...createArtifactRecord({ title: "Design" }),
     assetId: asset.id,
     wireframeId: wireframe.id,
+    version: 1,
     asset,
     wireframe,
     html: "<!doctype html><html><head><style>body{color:#171b2a}</style></head><body><main>Production design</main></body></html>",

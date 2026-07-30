@@ -17,8 +17,9 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const architecturePlanContent = "# Architecture plan content marker";
 const architecturePlanHtml =
-  "<!doctype html><html><head><title>Architecture plan</title></head><body><main>Architecture plan preview marker</main></body></html>";
+  "<!doctype html><html><head><title>Architecture diagram</title></head><body><main>Architecture diagram preview marker</main></body></html>";
 const erdHtml =
   "<!doctype html><html><head><title>ERD</title></head><body><main>ERD preview marker</main></body></html>";
 
@@ -39,11 +40,11 @@ function createProjectRecordContext() {
     architecturePlans: [
       {
         ...createArtifact({
-          content: architecturePlanHtml,
+          content: architecturePlanContent,
           id: 201,
           title: "Project navigation architecture",
         }),
-        html: "",
+        html: architecturePlanHtml,
       },
     ],
     databases: [
@@ -164,7 +165,7 @@ describe("Project record navigation", () => {
     },
   );
 
-  it("WorkLog와 DB는 Markdown detail, Architecture Plan과 ERD는 sandbox HTML preview를 렌더한다", () => {
+  it("Markdown detail과 Architecture Plan 탭, ERD sandbox HTML preview를 렌더한다", () => {
     const context = createProjectRecordContext();
 
     render(
@@ -198,24 +199,47 @@ describe("Project record navigation", () => {
       ).toBeInTheDocument();
     }
 
-    for (const { label, marker, title } of [
-      {
-        label: "Architecture Plan",
-        marker: "Architecture plan preview marker",
-        title: "Project navigation architecture",
-      },
-      {
-        label: "ERD",
-        marker: "ERD preview marker",
-        title: "Project database ERD",
-      },
-    ]) {
-      fireEvent.click(screen.getByRole("button", { name: new RegExp(label) }));
-      fireEvent.click(screen.getByRole("option", { name: new RegExp(title) }));
-      expect(screen.getByTitle(`${title} HTML preview`)).toHaveAttribute(
-        "srcdoc",
-        expect.stringContaining(marker),
-      );
-    }
+    fireEvent.click(
+      screen.getByRole("button", { name: /Architecture Plan/ }),
+    );
+    fireEvent.click(
+      screen.getByRole("option", { name: /Project navigation architecture/ }),
+    );
+    const architectureDetail = screen.getByRole("complementary", {
+      name: "Project navigation architecture",
+    });
+
+    expect(
+      within(architectureDetail).getByRole("heading", {
+        level: 1,
+        name: "Architecture plan content marker",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(architectureDetail).queryByTitle(
+        "Project navigation architecture HTML preview",
+      ),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(architectureDetail).getByRole("tab", { name: "구조도" }),
+    );
+
+    expect(
+      within(architectureDetail).getByTitle(
+        "Project navigation architecture HTML preview",
+      ),
+    ).toHaveAttribute(
+      "srcdoc",
+      expect.stringContaining("Architecture diagram preview marker"),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /ERD/ }));
+    fireEvent.click(
+      screen.getByRole("option", { name: /Project database ERD/ }),
+    );
+    expect(
+      screen.getByTitle("Project database ERD HTML preview"),
+    ).toHaveAttribute("srcdoc", expect.stringContaining("ERD preview marker"));
   });
 });

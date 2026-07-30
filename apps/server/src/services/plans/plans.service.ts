@@ -45,6 +45,27 @@ export class PlansService {
     });
   }
 
+  /** 같은 프로젝트가 소유한 계획의 제목과 내용을 갱신한다. */
+  async update({
+    projectId,
+    planId,
+    title,
+    content,
+  }: {
+    projectId: number;
+    planId: number;
+    title: string;
+    content: string;
+  }) {
+    await this.projectsService.ensureProject(projectId);
+    await this.ensurePlan(projectId, planId);
+
+    return this.prisma.plan.update({
+      where: { id: planId },
+      data: { title, content },
+    });
+  }
+
   async ensurePlan(projectId: number, planId: number) {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
 

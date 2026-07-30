@@ -423,16 +423,10 @@ function getRelations(
 }
 
 function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
-  /** Architecture Plan의 문서 content만 기본 preview record로 정규화한다. */
+  /** Architecture Plan은 별도 html 구조도를 가진 hybrid preview로 분류한다. */
   if (entry.relation === "architecturePlans") {
     const architecturePlan = entry.record as ArchitecturePlan;
-    return {
-      kind: "Architecture Plan",
-      record: {
-        ...architecturePlan,
-        html: architecturePlan.content,
-      },
-    };
+    return { kind: "Architecture Plan", record: architecturePlan };
   }
 
   /** ERD는 저장된 완성형 HTML을 공용 sandbox preview에 직접 전달한다. */
@@ -490,12 +484,8 @@ function ArchitecturePlanPreview({
   const panelId = `architecture-plan-${record.id}-view-panel`;
   const activeTabId =
     activeView === "content" ? contentTabId : diagramTabId;
-  const activeRecord: HtmlArtifactDocument = {
-    ...record,
-    html: activeView === "content" ? record.content : record.html,
-  };
 
-  /** 탭 전환 시 새 iframe의 최상단 상태에 맞춰 접힌 metadata를 복원한다. */
+  /** 탭 전환 시 새 preview의 최상단 상태에 맞춰 접힌 metadata를 복원한다. */
   function selectView(view: ArchitecturePlanView) {
     setActiveView(view);
     onScrollStateChange(0);
@@ -571,7 +561,14 @@ function ArchitecturePlanPreview({
         role="tabpanel"
         tabIndex={0}
       >
-        {activeView === "diagram" && record.html.trim().length === 0 ? (
+        {activeView === "content" ? (
+          <article
+            aria-label="Architecture Plan content"
+            className="h-full min-h-0 overflow-auto rounded-card border border-line bg-surface p-4"
+          >
+            <MarkdownContent content={record.content} />
+          </article>
+        ) : record.html.trim().length === 0 ? (
           <div className="grid h-full min-h-48 place-items-center rounded-card border border-line bg-surface-muted px-6 text-center">
             <div>
               <p className="m-0 text-sm font-semibold text-ink">
@@ -587,7 +584,7 @@ function ArchitecturePlanPreview({
           <WorkbenchHtmlPreview
             onNavigateWireframe={onNavigateWireframe}
             onScrollStateChange={onScrollStateChange}
-            record={activeRecord}
+            record={record}
           />
         )}
       </div>
@@ -743,15 +740,20 @@ export function ArtifactWorkbench({
     selectedEntry?.relation === "requests"
       ? (selectedEntry.record as Request)
       : null;
-  /** Wireframe filter에는 context에 실제 존재하는 고유 version만 최신순으로 제공한다. */
-  const wireframeVersions = useMemo(
-    () =>
-      [...new Set(context.wireframes.map((wireframe) => wireframe.version))].sort(
-        (left, right) => right - left,
-      ),
-    [context.wireframes],
-  );
   const isWireframeView = typeFilter === "wireframes";
+  const isVersionFilteredView =
+    typeFilter === "wireframes" || typeFilter === "designs";
+  /** 현재 relation에 실제 존재하는 고유 version만 최신순으로 제공한다. */
+  const availableVersions = useMemo(() => {
+    const versions =
+      typeFilter === "wireframes"
+        ? context.wireframes.map((wireframe) => wireframe.version)
+        : typeFilter === "designs"
+          ? context.designs.map((design) => design.version)
+          : [];
+
+    return [...new Set(versions)].sort((left, right) => right - left);
+  }, [context.designs, context.wireframes, typeFilter]);
   const isRequestView = typeFilter === "requests";
   /** 수정 중인 record는 성공 응답으로 교체된 로컬 Request 목록에서 읽는다. */
   const editorRequest =
@@ -765,11 +767,11 @@ export function ArtifactWorkbench({
   /** 현재 status/version/query 조합에 단일 record가 일치하는지 판별한다. */
   function matchesVisibleFilters(entry: WorkbenchEntry): boolean {
     const config = relationConfig[entry.relation];
-    /** Wireframe에는 숨겨진 status filter를 적용하지 않고 선택한 version만 적용한다. */
+    /** Version relation에는 숨겨진 status filter 대신 선택한 version만 적용한다. */
     const matchesRecordFilter =
-      entry.relation === "wireframes"
+      entry.relation === "wireframes" || entry.relation === "designs"
         ? versionFilter === null ||
-          (entry.record as Wireframe).version === versionFilter
+          (entry.record as Wireframe | Design).version === versionFilter
         : statusFilter === "All" || getStatus(entry) === statusFilter;
     const matchesQuery =
       normalizedQuery.length === 0 ||
@@ -1145,6 +1147,8 @@ export function ArtifactWorkbench({
                         className="flex min-h-9 w-full items-center gap-[9px] rounded-control border-0 bg-transparent px-[9px] py-[7px] text-left text-[13px] text-muted hover:bg-surface-muted hover:text-ink aria-pressed:bg-primary-soft aria-pressed:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
                         onClick={() => {
                           setTypeFilter(relation);
+                          /** Relation 전환마다 version을 All로 복원해 Wireframe과 Design 선택을 격리한다. */
+                          setVersionFilter(null);
                           setMobilePane("records");
 
                           /** 독립 workspace 진입 시 이전 도메인의 선택·편집 상태를 노출하지 않는다. */
@@ -1226,7 +1230,7 @@ export function ArtifactWorkbench({
               {context.title} /{" "}
               <strong>{relationConfig[typeFilter].plural}</strong>
             </span>
-            {isWireframeView ? (
+            {isVersionFilteredView ? (
               <label>
                 <span className="sr-only">Version</span>
                 <select
@@ -1242,7 +1246,7 @@ export function ArtifactWorkbench({
                   value={versionFilter ?? "All"}
                 >
                   <option value="All">All versions</option>
-                  {wireframeVersions.map((version) => (
+                  {availableVersions.map((version) => (
                     <option key={version} value={version}>
                       v{version}
                     </option>

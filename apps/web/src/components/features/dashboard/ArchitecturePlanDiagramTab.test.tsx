@@ -16,10 +16,24 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Architecture Plan diagram tab", () => {
-  it("content 문서를 기본 표시하고 구조도 탭에서 별도 html 칼럼을 렌더한다", () => {
+  it("Content 탭은 GFM Markdown을 의미 요소로 렌더하고 구조도 탭은 별도 html iframe을 유지한다", () => {
     const architecturePlan = createArchitecturePlan({
-      content:
-        "<!doctype html><html><head><title>Plan content</title></head><body><main>Architecture plan content marker</main></body></html>",
+      content: `# 배포 아키텍처
+
+| 계층 | 책임 |
+| --- | --- |
+| GitHub Actions | 정적 산출물 검증 |
+| GitHub Pages | HTTPS 배포 |
+
+- Markdown 설명을 표시한다.
+- 별도 HTML 구조도를 유지한다.
+
+\`\`\`text
+Repository -> Actions -> Pages
+\`\`\`
+
+<button id="unsafe-markup" onclick="window.__unsafeMarkdownExecuted = true">Unsafe button</button>
+<script>window.__unsafeMarkdownExecuted = true</script>`,
       html: "<!doctype html><html><head><title>Plan diagram</title></head><body><main>Architecture diagram html marker</main></body></html>",
       id: 301,
       title: "Tabbed architecture plan",
@@ -28,7 +42,7 @@ describe("Architecture Plan diagram tab", () => {
       architecturePlans: [architecturePlan],
     });
 
-    render(
+    const { container } = render(
       <Dashboard
         activeRelation="architecturePlans"
         context={context}
@@ -51,22 +65,31 @@ describe("Architecture Plan diagram tab", () => {
     expect(diagramTab).toHaveAttribute("aria-selected", "false");
 
     let activePanel = within(detailPane).getByRole("tabpanel");
-    let previewFrame = activePanel.querySelector("iframe");
+    expect(activePanel.querySelector("iframe")).toBeNull();
+    expect(
+      within(activePanel).getByRole("heading", {
+        level: 1,
+        name: "배포 아키텍처",
+      }),
+    ).toBeInTheDocument();
+    const architectureTable = within(activePanel).getByRole("table");
 
-    expect(previewFrame).not.toBeNull();
-    expect(previewFrame).toHaveAttribute("sandbox", "allow-scripts");
-    expect(previewFrame).toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining("Architecture plan content marker"),
+    expect(
+      within(architectureTable).getByRole("columnheader", { name: "계층" }),
+    ).toBeInTheDocument();
+    expect(
+      within(architectureTable).getByRole("cell", { name: "GitHub Pages" }),
+    ).toBeInTheDocument();
+    const architectureList = within(activePanel).getByRole("list");
+
+    expect(within(architectureList).getAllByRole("listitem")).toHaveLength(2);
+    expect(activePanel.querySelector("pre code")).toHaveTextContent(
+      "Repository -> Actions -> Pages",
     );
-    expect(previewFrame).not.toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining("Architecture diagram html marker"),
-    );
-    expect(previewFrame).toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining("Content-Security-Policy"),
-    );
+    expect(activePanel).not.toHaveTextContent("# 배포 아키텍처");
+    expect(activePanel).not.toHaveTextContent("| 계층 | 책임 |");
+    expect(container.querySelector("#unsafe-markup")).toBeNull();
+    expect(container.querySelector("script")).toBeNull();
 
     fireEvent.click(diagramTab);
 
@@ -74,7 +97,7 @@ describe("Architecture Plan diagram tab", () => {
     expect(diagramTab).toHaveAttribute("aria-selected", "true");
 
     activePanel = within(detailPane).getByRole("tabpanel");
-    previewFrame = activePanel.querySelector("iframe");
+    const previewFrame = activePanel.querySelector("iframe");
 
     expect(previewFrame).not.toBeNull();
     expect(previewFrame).toHaveAttribute("sandbox", "allow-scripts");
@@ -84,7 +107,7 @@ describe("Architecture Plan diagram tab", () => {
     );
     expect(previewFrame).not.toHaveAttribute(
       "srcdoc",
-      expect.stringContaining("Architecture plan content marker"),
+      expect.stringContaining("# 배포 아키텍처"),
     );
     expect(previewFrame).toHaveAttribute(
       "srcdoc",
@@ -92,12 +115,55 @@ describe("Architecture Plan diagram tab", () => {
     );
   });
 
+  it("content가 비어 있으면 fallback을 표시하고 구조도 탭은 저장된 html을 계속 렌더한다", () => {
+    const architecturePlan = createArchitecturePlan({
+      content: "  \n  ",
+      html: "<!doctype html><html><head><title>Fallback diagram</title></head><body><main>Fallback architecture diagram marker</main></body></html>",
+      id: 302,
+      title: "Architecture plan without content",
+    });
+    const context = createProjectContext({
+      architecturePlans: [architecturePlan],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="architecturePlans"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={architecturePlan.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    const detailPane = screen.getByRole("complementary", {
+      name: architecturePlan.title,
+    });
+    const viewTabs = within(detailPane).getByRole("tablist", {
+      name: "Architecture Plan views",
+    });
+    const diagramTab = within(viewTabs).getByRole("tab", { name: "구조도" });
+    let activePanel = within(detailPane).getByRole("tabpanel");
+
+    expect(activePanel.querySelector("iframe")).toBeNull();
+    expect(
+      within(activePanel).getByText("No content has been saved yet."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(diagramTab);
+
+    activePanel = within(detailPane).getByRole("tabpanel");
+    expect(activePanel.querySelector("iframe")).toHaveAttribute(
+      "srcdoc",
+      expect.stringContaining("Fallback architecture diagram marker"),
+    );
+  });
+
   it("html 칼럼이 비어도 구조도 탭을 유지하고 content로 대체하지 않는다", () => {
     const architecturePlan = createArchitecturePlan({
-      content:
-        "<!doctype html><html><head><title>Plan only</title></head><body><main>Content-only architecture plan marker</main></body></html>",
+      content: "# Content-only architecture plan marker",
       html: "",
-      id: 302,
+      id: 303,
       title: "Architecture plan without diagram",
     });
     const context = createProjectContext({
@@ -121,14 +187,15 @@ describe("Architecture Plan diagram tab", () => {
       name: "Architecture Plan views",
     });
     const diagramTab = within(viewTabs).getByRole("tab", { name: "구조도" });
-    const contentPreview = within(detailPane)
-      .getByRole("tabpanel")
-      .querySelector("iframe");
+    const contentPanel = within(detailPane).getByRole("tabpanel");
 
-    expect(contentPreview).toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining("Content-only architecture plan marker"),
-    );
+    expect(contentPanel.querySelector("iframe")).toBeNull();
+    expect(
+      within(contentPanel).getByRole("heading", {
+        level: 1,
+        name: "Content-only architecture plan marker",
+      }),
+    ).toBeInTheDocument();
 
     fireEvent.click(diagramTab);
 
@@ -136,5 +203,8 @@ describe("Architecture Plan diagram tab", () => {
     expect(
       within(detailPane).getByRole("tabpanel").querySelector("iframe"),
     ).toBeNull();
+    expect(
+      within(detailPane).getByText("저장된 구조도가 없습니다"),
+    ).toBeInTheDocument();
   });
 });

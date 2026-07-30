@@ -186,11 +186,12 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
   );
 });
 
-test("MCP의 21개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
+test("MCP의 23개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const mutationTools = [
     "create_project",
     "create_plan",
+    "update_plan",
     "create_draft",
     "create_domain",
     "update_domain",
@@ -199,6 +200,7 @@ test("MCP의 21개 mutation tool은 공통 execute 경계로 결과를 직렬화
     "create_erd",
     "update_erd",
     "create_task",
+    "update_task",
     "create_design",
     "update_design",
     "create_wireframe",
@@ -228,7 +230,7 @@ test("MCP의 21개 mutation tool은 공통 execute 경계로 결과를 직렬화
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 23);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 25);
   assert.doesNotMatch(mcpService, /\bAGENT\b/);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
 });

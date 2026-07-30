@@ -76,6 +76,7 @@ export type Asset = HtmlArtifactDocument;
 export interface Design extends HtmlArtifactDocument {
   wireframeId: number;
   assetId: number;
+  version: number;
   wireframe: Wireframe;
   asset: Asset;
 }

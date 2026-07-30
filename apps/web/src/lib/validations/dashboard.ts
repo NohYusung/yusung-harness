@@ -96,6 +96,7 @@ const assetSchema: z.ZodType<Asset> = htmlArtifactSchema;
 const designSchema: z.ZodType<Design> = htmlArtifactSchema.extend({
   wireframeId: z.number().int().positive(),
   assetId: z.number().int().positive(),
+  version: z.number().int().positive(),
   wireframe: wireframeSchema,
   asset: assetSchema,
 });

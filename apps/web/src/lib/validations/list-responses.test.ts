@@ -169,12 +169,32 @@ describe("project-scoped list response schemas", () => {
     }
   });
 
+  it("designs는 양의 정수 version을 필수로 검증하고 응답에 유지한다", () => {
+    const design = { ...createDesign(), version: 3 };
+
+    expect(
+      designListResponseSchema.parse({ data: [design] }).data[0],
+    ).toMatchObject({ version: 3 });
+
+    for (const invalidVersion of [undefined, 0, -1, 1.5, "3"]) {
+      expect(
+        designListResponseSchema.safeParse({
+          data: [{ ...design, version: invalidVersion }],
+        }).success,
+      ).toBe(false);
+    }
+  });
+
   it("createWireframe fixture는 root 계층과 version 기본값을 제공한다", () => {
     expect(createWireframe()).toMatchObject({
       parentId: null,
       index: "1",
       version: 1,
     });
+  });
+
+  it("createDesign fixture는 version 기본값을 제공한다", () => {
+    expect(createDesign()).toMatchObject({ version: 1 });
   });
 
   it("Architecture Plan은 full HTML content와 빈 호환 html 필드를 그대로 보존한다", () => {

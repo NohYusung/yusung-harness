@@ -461,7 +461,176 @@ describe("Dashboard artifact workbench visual contract", () => {
     ).toBeInTheDocument();
   });
 
-  it("Wireframes가 아닌 목록은 기존 Status 필터와 Status·Links 칼럼을 유지한다", () => {
+  it("Designs 목록은 실제 Design version만 최신순으로 필터링하고 All versions로 복구한다", () => {
+    const wireframe = createWireframe({ id: 700, version: 4 });
+    const asset = createAsset({ id: 710 });
+    const latestDesign = {
+      ...createDesign({
+        asset,
+        assetId: asset.id,
+        id: 720,
+        title: "Latest portfolio design",
+        wireframe,
+        wireframeId: wireframe.id,
+      }),
+      version: 3,
+    };
+    const latestDetailDesign = {
+      ...createDesign({
+        asset,
+        assetId: asset.id,
+        id: 721,
+        title: "Latest portfolio detail design",
+        wireframe,
+        wireframeId: wireframe.id,
+      }),
+      version: 3,
+    };
+    const previousDesign = {
+      ...createDesign({
+        asset,
+        assetId: asset.id,
+        id: 722,
+        title: "Previous portfolio design",
+        wireframe,
+        wireframeId: wireframe.id,
+      }),
+      version: 2,
+    };
+    const context = createProjectContext({
+      assets: [asset],
+      designs: [previousDesign, latestDesign, latestDetailDesign],
+      wireframes: [wireframe],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="designs"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    expect(
+      screen.queryByRole("combobox", { name: "Status" }),
+    ).not.toBeInTheDocument();
+    const versionFilter = screen.getByRole("combobox", { name: "Version" });
+    expect(
+      within(versionFilter).getAllByRole("option").map((option) => ({
+        label: option.textContent,
+        value: (option as HTMLOptionElement).value,
+      })),
+    ).toEqual([
+      { label: "All versions", value: "All" },
+      { label: "v3", value: "3" },
+      { label: "v2", value: "2" },
+    ]);
+
+    fireEvent.change(versionFilter, { target: { value: "3" } });
+    expect(within(records).getAllByRole("option")).toHaveLength(2);
+    expect(
+      within(records).getByRole("option", { name: /Latest portfolio design/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(records).getByRole("option", {
+        name: /Latest portfolio detail design/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(records).queryByRole("option", {
+        name: /Previous portfolio design/,
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(versionFilter, { target: { value: "2" } });
+    expect(within(records).getAllByRole("option")).toHaveLength(1);
+    expect(
+      within(records).getByRole("option", {
+        name: /Previous portfolio design/,
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(versionFilter, { target: { value: "All" } });
+    expect(within(records).getAllByRole("option")).toHaveLength(3);
+  });
+
+  it("Wireframe과 Design의 Version 선택은 relation 전환 시 서로 오염되지 않는다", () => {
+    const wireframeV4 = createWireframe({
+      id: 730,
+      title: "Wireframe v4",
+      version: 4,
+    });
+    const wireframeV2 = createWireframe({
+      id: 731,
+      title: "Wireframe v2",
+      version: 2,
+    });
+    const wireframes = [wireframeV4, wireframeV2];
+    const asset = createAsset({ id: 740 });
+    const designs = [
+      {
+        ...createDesign({
+          asset,
+          assetId: asset.id,
+          id: 750,
+          title: "Design v3",
+          wireframe: wireframeV4,
+          wireframeId: wireframeV4.id,
+        }),
+        version: 3,
+      },
+      {
+        ...createDesign({
+          asset,
+          assetId: asset.id,
+          id: 751,
+          title: "Design v2",
+          wireframe: wireframeV2,
+          wireframeId: wireframeV2.id,
+        }),
+        version: 2,
+      },
+    ];
+    const context = createProjectContext({ assets: [asset], designs, wireframes });
+
+    render(
+      <Dashboard
+        activeRelation="wireframes"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    fireEvent.change(screen.getByRole("combobox", { name: "Version" }), {
+      target: { value: "4" },
+    });
+    expect(within(records).getAllByRole("option")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
+    expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
+      "All",
+    );
+    expect(within(records).getAllByRole("option")).toHaveLength(2);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Version" }), {
+      target: { value: "3" },
+    });
+    expect(within(records).getAllByRole("option")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
+    expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
+      "All",
+    );
+    expect(within(records).getAllByRole("option")).toHaveLength(2);
+  });
+
+  it("일반 relation 목록은 기존 Status 필터와 Status·Links 칼럼을 유지한다", () => {
     renderWorkbench();
 
     const records = screen.getByRole("listbox", { name: "Artifact records" });
