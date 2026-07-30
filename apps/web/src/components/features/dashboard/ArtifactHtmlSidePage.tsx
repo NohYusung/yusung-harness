@@ -65,13 +65,14 @@ const previewEscapeMessage = "YUSUNG_HARNESS_HTML_PREVIEW_ESCAPE";
 const previewNavigationMessage = "YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE";
 const previewScrollMessage = "YUSUNG_HARNESS_HTML_PREVIEW_SCROLL";
 
+// NOTE: 외부 이미지는 HTTPS와 기존 data/blob source만 허용한다.
 const previewContentSecurityPolicy = [
   "default-src 'none'",
   "base-uri 'none'",
   "connect-src 'none'",
   "form-action 'none'",
   "frame-src 'none'",
-  "img-src data: blob:",
+  "img-src data: blob: https:",
   "font-src data:",
   "media-src data: blob:",
   "object-src 'none'",

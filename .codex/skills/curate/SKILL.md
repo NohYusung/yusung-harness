@@ -15,33 +15,6 @@ description: mcp에 project를 등록하기 위한 스킬
 ## 워크플로우
 
 > - coder는 project 등록 목표로 지정된 레포의 파일을 분석하고, 레포의 구성을 파악한다.
-> - doc-curator는 coder로 부터 내용을 받아, yusung-harness-doc mcp에 문서를 생성한다.
->   - project를 등록하고, 도메인 별로 문서 생성
->   - 도메인이 존재하지않으면, 억지로 경계를 나누어 도메인 문서를 별도 작성하지 않아도 괜찮다.
->     - 예시:
->
->     ```markdown
->     . 📂 portfolio
->     └── 📂 back/
->     └── 📂 front/
->     ```
->
->     - 이렇게 비어있는 폴더의 경우 back과 front를 domain 문서로 등록하는건 잘못된 것
+> - doc-curator는 coder로 부터 내용을 받아, yusung-harness-doc mcp에 project 문서를 생성한다.
 
-### 분석 scope
-
-| 문서             | 내용                                                            |
-| ---------------- | --------------------------------------------------------------- |
-| domain           | domain별 내용 정리                                              |
-| architecture     | 현재 운영상의 아키텍쳐 내용 정리(배포전이면 구현된 부분까지만). |
-| architecturePlan | 개발중인, 그리고 배포 예정인 현재까지 확정된 아키텍쳐 설계 계획 |
-| db               | 데이터베이스 스키마. 테이블별 정리                              |
-| ERD              | 데이터 베이스 스키마들의 관계 ERD                               |
-
-- 작성 후 doc-curator에게 handoff하여, yusung-harness-doc mcp 에 문서 기록
-
-### 도메인이란?
-
-- DDD의 창시자 에릭 에반스에 따르면 도메인이란
-  > - "A sphere of knowledge, influence, or activity."
-  > - "사용자가 해결하려는 현실 세계의 문제와 그 문제를 해결하기 위한 규칙, 개념, 행위를 포함하는 지식의 영역이다."
+### 작성 후 doc-curator에게 handoff하여, yusung-harness-doc mcp 에 문서 기록

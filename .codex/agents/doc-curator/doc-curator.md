@@ -55,32 +55,32 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > 문서를 생성할 때 사용하는 tool 목록
 > | tool 목록 | 목적 | 문서 작성 정책 |
 > | ---------------- | ---------------- | --- |
-> | create_project | 프로젝트 문서 생성 |[프로젝트 문서 생성 정책](.references/yusung-harness-doc-Project.md)|
-> | create_plan | 계획 문서 생성 |[계획 문서 생성 정책](.references/yusung-harness-doc-Plan.md)|
-> | create_draft | 드래프트 문서 생성 |[드래프트 문서 생성 정책](.references/yusung-harness-doc-Draft.md)|
-> | create_task | 태스크 문서 생성 |[태스크 문서 생성 정책](.references/yusung-harness-doc-Task.md)|
-> | create_design | 디자인 문서 생성 |[디자인 문서 생성 정책](.references/yusung-harness-doc-Design.md)|
-> | create_wireframe | 와이어 프레임 문서 생성 |[와이어 프레임 문서 생성 정책](.references/yusung-harness-doc-Wireframe.md)|
-> | create_asset | 디자인 에셋 문서 생성 |[디자인 에셋 문서 생성 정책](.references/yusung-harness-doc-Asset.md)|
-> | create_domain | 도메인 문서 생성 |[도메인 문서 생성 정책](.references/yusung-harness-doc-Domain.md)|
+> | create_project | 프로젝트 문서 생성 |[프로젝트 문서 생성 정책](./references/yusung-harness-doc-Project.md)|
+> | create_plan | 계획 문서 생성 |[계획 문서 생성 정책](./references/yusung-harness-doc-Plan.md)|
+> | create_draft | 드래프트 문서 생성 |[드래프트 문서 생성 정책](./references/yusung-harness-doc-Draft.md)|
+> | create_task | 태스크 문서 생성 |[태스크 문서 생성 정책](./references/yusung-harness-doc-Task.md)|
+> | create_design | 디자인 문서 생성 |[디자인 문서 생성 정책](./references/yusung-harness-doc-Design.md)|
+> | create_wireframe | 와이어 프레임 문서 생성 |[와이어 프레임 문서 생성 정책](./references/yusung-harness-doc-Wireframe.md)|
+> | create_asset | 디자인 에셋 문서 생성 |[디자인 에셋 문서 생성 정책](./references/yusung-harness-doc-Asset.md)|
+> | create_domain | 도메인 문서 생성 |[도메인 문서 생성 정책](./references/yusung-harness-doc-Domain.md)|
 > | create_architecturePlan | 아키텍처 계획 문서 생성 |[아키텍쳐 계획 문서 생성 정책](./references/yusung-harness-doc-ArchitecturePlan.md) |
-> | create_workLog | 작업 로그 문서 생성 |[작업로그 문서 생성 정책](.references/yusung-harness-doc-WorkLog.md)|
-> | create_request | 요구사항 문서 생성 |[요구사항 문서 생성 정책](.references/yusung-harness-doc-Request.md)|
-> | create_db | 타겟 프로젝트의 db 테이블별 정리 문서 생성 |[db 문서 생성 정책](.references/yusung-harness-doc-DB.md)|
-> | create_erd | 타겟 프로젝트의 db 스키마 관계 erd 생성|[erd 문서 생성 정책](.references/yusung-harness-doc-ERD.md)|
+> | create_workLog | 작업 로그 문서 생성 |[작업로그 문서 생성 정책](./references/yusung-harness-doc-WorkLog.md)|
+> | create_request | 요구사항 문서 생성 |[요구사항 문서 생성 정책](./references/yusung-harness-doc-Request.md)|
+> | create_db | 타겟 프로젝트의 db 테이블별 정리 문서 생성 |[db 문서 생성 정책](./references/yusung-harness-doc-DB.md)|
+> | create_erd | 타겟 프로젝트의 db 스키마 관계 erd 생성|[erd 문서 생성 정책](./references/yusung-harness-doc-ERD.md)|
 
 **_업데이트용 tool 목록_**
 
 > 문서를 업데이트할 때 사용하는 tool 목록
 > | tool목록 | 목적 | 문서 작성 정책 |
 > |-------|-------| --- |
-> | update_domain | 도메인 문서 업데이트 |[도메인 문서 업데이트 정책](.references/yusung-harness-doc-Domain.md)|
-> | update_asset | 디자인 에셋 문서 업데이트 |[디자인 에셋 문서 업데이트 정책](.references/yusung-harness-doc-Asset.md)|
-> | update_design | 디자인 문서 업데이트 |[디자인 문서 업데이트 정책](.references/yusung-harness-doc-Design.md)|
-> | update_wireframe | 와이어프레임 문서 업데이트 |[와이어 프레임 문서 업데이트 정책](.references/yusung-harness-doc-Wireframe.md)|
-> | update_db| 타겟 프로젝트 db 스키마(테이블별) 정리 문서 업데이트 |[db 문서 업데이트 정책](.references/yusung-harness-doc-DB.md)|
-> | update_erd | 타겟 프로젝트 db 스키마 관계 erd 업데이트 |[erd 문서 업데이트 정책](.references/yusung-harness-doc-ERD.md)|
+> | update_domain | 도메인 문서 업데이트 |[도메인 문서 업데이트 정책](./references/yusung-harness-doc-Domain.md)|
+> | update_asset | 디자인 에셋 문서 업데이트 |[디자인 에셋 문서 업데이트 정책](./references/yusung-harness-doc-Asset.md)|
+> | update_design | 디자인 문서 업데이트 |[디자인 문서 업데이트 정책](./references/yusung-harness-doc-Design.md)|
+> | update_wireframe | 와이어프레임 문서 업데이트 |[와이어 프레임 문서 업데이트 정책](./references/yusung-harness-doc-Wireframe.md)|
+> | update_db| 타겟 프로젝트 db 스키마(테이블별) 정리 문서 업데이트 |[db 문서 업데이트 정책](./references/yusung-harness-doc-DB.md)|
+> | update_erd | 타겟 프로젝트 db 스키마 관계 erd 업데이트 |[erd 문서 업데이트 정책](./references/yusung-harness-doc-ERD.md)|
 > | update_architecturePlan | 아키텍쳐 설계 계획 문서 업데이트 |[아키텍쳐 계획 문서 업데이트 정책](./references/yusung-harness-doc-ArchitecturePlan.md) |
-> | update_request | 요구사항 문서 업데이트 |[요구사항 문서 업데이트 정책](.references/yusung-harness-doc-Request.md)|
-> | update_plan | 계획 문서 업데이트 |[계획 문서 업데이트 정책](.references/yusung-harness-doc-Plan.md)|
-> | update_task | 태스크 문서 업데이트 |[태스크 문서 업데이트 정책](.references/yusung-harness-doc-Task.md)|
+> | update_request | 요구사항 문서 업데이트 |[요구사항 문서 업데이트 정책](./references/yusung-harness-doc-Request.md)|
+> | update_plan | 계획 문서 업데이트 |[계획 문서 업데이트 정책](./references/yusung-harness-doc-Plan.md)|
+> | update_task | 태스크 문서 업데이트 |[태스크 문서 업데이트 정책](./references/yusung-harness-doc-Task.md)|

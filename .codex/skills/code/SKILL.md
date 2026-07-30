@@ -31,6 +31,22 @@ description: 코드 베이스를 탐색하고, 코딩 작업을 수행하는 ski
 - task마다 하나씩 작업을 진행하고, 진행 완료시 task의 status를 completed로 수정한다.
   - plan을 통째로 작업하는 경우에는 task1이 completed 된 후에 다음 작업으로 넘어간다.
 
+### Task 완료 처리
+
+<HARD-GATE>
+
+- task별 작업을 완료할 때마다 다음 스크립트를 반드시 실행한다.
+
+```bash
+python3 <CODE_SKILL_DIR>/scripts/complete_task.py \
+  --project-id <PROJECT_ID> \
+  --task-id <TASK_ID>
+```
+
+- 스크립트 실패 시 이유를 파악해서 유저에게 질문을 던지고, 어떻게 해야할지 보고를 받는다.
+
+</HARD-GATE>
+
 ### 추가 호출 가능한 에이전트
 
 | 에이전트명  | 하는일                                     |

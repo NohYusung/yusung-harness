@@ -44,6 +44,45 @@ describe("ArtifactHtmlSidePage", () => {
     expect(srcdoc).toContain("script-src 'unsafe-inline'");
   });
 
+  it("HTTPS 이미지만 허용하고 외부 실행·연결·frame·object는 계속 차단한다", () => {
+    const design = createDesign({
+      html: '<!doctype html><html><head><title>External image policy</title></head><body><img alt="HTTPS icon" src="https://cdn.example.com/icon.svg"><img alt="HTTP icon" src="http://cdn.example.com/icon.svg"></body></html>',
+      title: "External image policy document",
+    });
+
+    render(<ArtifactHtmlPreviewFrame record={design} />);
+
+    const srcdoc =
+      screen
+        .getByTitle("External image policy document HTML preview")
+        .getAttribute("srcdoc") ?? "";
+    const srcdocDocument = new DOMParser().parseFromString(srcdoc, "text/html");
+    const policy =
+      srcdocDocument
+        .querySelector('meta[http-equiv="Content-Security-Policy"]')
+        ?.getAttribute("content") ?? "";
+    const directives = new Map<string, string[]>();
+
+    for (const directive of policy.split(";")) {
+      const [name, ...sources] = directive.trim().split(/\s+/);
+
+      if (name) {
+        directives.set(name, sources);
+      }
+    }
+
+    expect(srcdoc).toContain('src="https://cdn.example.com/icon.svg"');
+    expect(directives.get("img-src")).toEqual(
+      expect.arrayContaining(["data:", "blob:", "https:"]),
+    );
+    expect(directives.get("img-src")).not.toContain("http:");
+    expect(directives.get("default-src")).toEqual(["'none'"]);
+    expect(directives.get("connect-src")).toEqual(["'none'"]);
+    expect(directives.get("frame-src")).toEqual(["'none'"]);
+    expect(directives.get("object-src")).toEqual(["'none'"]);
+    expect(directives.get("script-src")).toEqual(["'unsafe-inline'"]);
+  });
+
   it.each([
     {
       html: "<!doctype html><html><body>Headless complete document</body></html>",
