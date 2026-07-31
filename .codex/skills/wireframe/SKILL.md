@@ -5,6 +5,11 @@ description: UX 기반의 와이어 프레임을 만드는 스킬
 
 UX 디자인 기반의 와이어 프레임을 만드는 스킬. click, scroll, page navigation 등의 인터렉트가 구현되어야 함.
 
+<HARD-GATE>
+- doc-curator는 먼저 yusung-harness-doc mcp 서버의 'get_project'를 통해 작업 지시가 내려진 레포가 project로 등록이 되어있는지 확인한다.
+- 만약 project로 등록이 되어있지 않으면, 'project로 등록되지 않았습니다. 먼저 레포를 project로 등록하세요' 라고 반환한 후 메인 에이전트의 대화를 종료한다.
+</HARD-GATE>
+
 ## 호출할 에이전트 목록
 
 | 에이전트명  | 하는일                                                          |
@@ -16,8 +21,6 @@ UX 디자인 기반의 와이어 프레임을 만드는 스킬. click, scroll, p
 
 ## 워크플로우
 
-> - doc-curator는 먼저 yusung-harness-doc mcp 서버의 'get_project'를 통해 작업 지시가 내려진 레포가 project로 등록이 되어있는지 확인한다.
-> - 만약 project로 등록이 되어있지 않으면, 'project로 등록되지 않았습니다. 먼저 레포를 project로 등록하세요' 라고 반환한 후 메인 에이전트의 대화를 종료한다.
 > - 와이어 프레임의 페이지 레이아웃과 IA를 디자인 시 항상 image_gen 툴을 호출한다.
 >   - image_gen 호출이 불가능하면, 메인 에이전트 스레드에 이 사실을 전달 한 후 작업을 중단하고, 이유를 보고한다.
 >   - image_gen 으로 산출된 image의 레이아웃, UX, IA 구조를 참고하여 와이어 프레임을 구현한다.

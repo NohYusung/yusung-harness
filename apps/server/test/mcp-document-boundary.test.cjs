@@ -27,6 +27,9 @@ const domains = [
   ["wireframes", "WireframesService", "create"],
   ["reviews", "ReviewsService", "create"],
   ["designs", "DesignsService", "create"],
+  ["files", "FilesService", "create"],
+  ["files", "FilesService", "update"],
+  ["files", "FilesService", "delete"],
   ["requests", "RequestsService", "create"],
   ["requests", "RequestsService", "update"],
   ["worklogs", "WorklogsService", "create"],
@@ -186,7 +189,7 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
   );
 });
 
-test("MCP의 23개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
+test("MCP의 26개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const mutationTools = [
     "create_project",
@@ -207,6 +210,9 @@ test("MCP의 23개 mutation tool은 공통 execute 경계로 결과를 직렬화
     "update_wireframe",
     "create_asset",
     "update_asset",
+    "create_file",
+    "update_file",
+    "delete_file",
     "create_workLog",
     "create_request",
     "create_architecturePlan",
@@ -230,7 +236,7 @@ test("MCP의 23개 mutation tool은 공통 execute 경계로 결과를 직렬화
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 25);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 28);
   assert.doesNotMatch(mcpService, /\bAGENT\b/);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
 });
@@ -312,6 +318,7 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
     ["DesignsService", "designsService", ["list", "create", "update"]],
     ["WireframesService", "wireframesService", ["list", "create", "update"]],
     ["AssetsService", "assetsService", ["list", "create", "update"]],
+    ["FilesService", "filesService", ["create", "update", "delete"]],
     ["ReviewsService", "reviewsService", ["list"]],
     ["RequestsService", "requestsService", ["create", "update"]],
     ["WorklogsService", "worklogsService", ["create"]],
@@ -409,6 +416,7 @@ test("McpModule은 각 도메인 모듈을 조립하고 McpService만 제공한�
     "TasksModule",
     "PlansModule",
     "AssetsModule",
+    "FilesModule",
     "DraftsModule",
     "DomainsModule",
     "ArchitecturesModule",

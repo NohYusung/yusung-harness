@@ -56,6 +56,9 @@ const expectedToolNames = [
   "update_wireframe",
   "create_asset",
   "update_asset",
+  "create_file",
+  "update_file",
+  "delete_file",
   "create_workLog",
   "create_request",
   "create_architecturePlan",
@@ -257,6 +260,20 @@ const createHarness = () => {
         return result("assetsService", "update", input);
       },
     },
+    filesService: {
+      create: async (input) => {
+        calls.push(["filesService", "create", input]);
+        return result("filesService", "create", input);
+      },
+      update: async (input) => {
+        calls.push(["filesService", "update", input]);
+        return result("filesService", "update", input);
+      },
+      delete: async (input) => {
+        calls.push(["filesService", "delete", input]);
+        return result("filesService", "delete", input);
+      },
+    },
     domainsService: {
       list: listService("domainsService", "domains"),
       create: async (input) => {
@@ -366,7 +383,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 25개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 28개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -374,11 +391,178 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 25개 도구와 �
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 25);
+  assert.equal(tools.size, 28);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
   }
+});
+
+const createFileInput = {
+  projectId: 17,
+  title: "architecture.png",
+  mimeType: "image/png",
+  content: Buffer.from("file payload").toString("base64"),
+};
+const updateFileInput = {
+  projectId: 17,
+  fileId: 31,
+  uploadUrl: "https://cdn.example.com/files/architecture.png",
+};
+const deleteFileInput = { projectId: 17, fileId: 31 };
+
+test("파일 도구는 schema와 annotations를 지키고 FilesService에 위임한다", async () => {
+  const harness = createHarness();
+  const createTool = harness.tools.get("create_file");
+  const updateTool = harness.tools.get("update_file");
+  const deleteTool = harness.tools.get("delete_file");
+
+  assert.deepEqual(Object.keys(createTool.definition.inputSchema.shape), [
+    "projectId",
+    "title",
+    "mimeType",
+    "content",
+  ]);
+  assert.deepEqual(Object.keys(updateTool.definition.inputSchema.shape), [
+    "projectId",
+    "fileId",
+    "uploadUrl",
+  ]);
+  assert.deepEqual(Object.keys(deleteTool.definition.inputSchema.shape), [
+    "projectId",
+    "fileId",
+  ]);
+  assert.deepEqual(createTool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  });
+  assert.deepEqual(updateTool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: true,
+    openWorldHint: false,
+  });
+  assert.deepEqual(deleteTool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
+  });
+
+  const created = await harness.invoke("create_file", createFileInput);
+  const updated = await harness.invoke("update_file", updateFileInput);
+  const deleted = await harness.invoke("delete_file", deleteFileInput);
+
+  assert.deepEqual(harness.calls, [
+    ["filesService", "create", createFileInput],
+    ["filesService", "update", updateFileInput],
+    ["filesService", "delete", deleteFileInput],
+  ]);
+  assert.deepEqual(created, {
+    service: "filesService",
+    method: "create",
+    input: createFileInput,
+  });
+  assert.deepEqual(updated, {
+    service: "filesService",
+    method: "update",
+    input: updateFileInput,
+  });
+  assert.deepEqual(deleted, {
+    service: "filesService",
+    method: "delete",
+    input: deleteFileInput,
+  });
+});
+
+test("파일 도구 schema는 ID, Base64, URL과 비어 있지 않은 metadata를 검증한다", () => {
+  const { tools } = createHarness();
+  const createSchema = tools.get("create_file").definition.inputSchema;
+  const updateSchema = tools.get("update_file").definition.inputSchema;
+  const deleteSchema = tools.get("delete_file").definition.inputSchema;
+
+  assert.equal(createSchema.safeParse(createFileInput).success, true);
+  assert.equal(updateSchema.safeParse(updateFileInput).success, true);
+  assert.equal(deleteSchema.safeParse(deleteFileInput).success, true);
+
+  for (const invalidId of [0, -1, 1.5, "17"]) {
+    assert.equal(
+      createSchema.safeParse({ ...createFileInput, projectId: invalidId })
+        .success,
+      false,
+    );
+    assert.equal(
+      updateSchema.safeParse({ ...updateFileInput, fileId: invalidId }).success,
+      false,
+    );
+    assert.equal(
+      deleteSchema.safeParse({ ...deleteFileInput, fileId: invalidId }).success,
+      false,
+    );
+  }
+
+  assert.equal(
+    createSchema.safeParse({ ...createFileInput, title: "   " }).success,
+    false,
+  );
+  assert.equal(
+    createSchema.safeParse({ ...createFileInput, mimeType: "   " }).success,
+    false,
+  );
+  assert.equal(
+    createSchema.safeParse({ ...createFileInput, content: "not/base64***" })
+      .success,
+    false,
+  );
+  assert.equal(
+    updateSchema.safeParse({ ...updateFileInput, uploadUrl: "not-a-url" })
+      .success,
+    false,
+  );
+});
+
+test("실제 MCP 파일 도구는 service에 위임하고 잘못된 입력을 차단한다", async (t) => {
+  const harness = await createSdkHarness();
+  t.after(() => harness.close());
+
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "create_file",
+      arguments: createFileInput,
+    }),
+  );
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "update_file",
+      arguments: updateFileInput,
+    }),
+  );
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "delete_file",
+      arguments: deleteFileInput,
+    }),
+  );
+  const invalidBase64 = await harness.client.callTool({
+    name: "create_file",
+    arguments: { ...createFileInput, content: "not/base64***" },
+  });
+  const invalidUrl = await harness.client.callTool({
+    name: "update_file",
+    arguments: { ...updateFileInput, uploadUrl: "not-a-url" },
+  });
+
+  assert.deepEqual(harness.calls, [
+    ["filesService", "create", createFileInput],
+    ["filesService", "update", updateFileInput],
+    ["filesService", "delete", deleteFileInput],
+  ]);
+  assert.equal(invalidBase64.isError, true);
+  assert.match(invalidBase64.content[0].text, /invalid/i);
+  assert.equal(invalidUrl.isError, true);
+  assert.match(invalidUrl.content[0].text, /invalid/i);
 });
 
 const planUpdateInput = {
@@ -1863,7 +2047,7 @@ test("실제 MCP workflow update는 성공과 service 오류 응답을 직렬화
   }
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 25개 공개 계약을 따른다", async (t) => {
+test("실제 MCP tools/list와 제거된 도구 호출도 28개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 

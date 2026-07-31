@@ -17,6 +17,7 @@ import { DesignsService } from "../services/designs/designs.service";
 import { DomainsService } from "../services/domains/domains.service";
 import { DraftsService } from "../services/drafts/drafts.service";
 import { ErdService } from "../services/erd/erd.service";
+import { FilesService } from "../services/files/files.service";
 import { PlansService } from "../services/plans/plans.service";
 import { ProjectsService } from "../services/projects/projects.service";
 import { RequestsService } from "../services/requests/requests.service";
@@ -31,6 +32,7 @@ const taskIdSchema = z.number().int().positive().describe("Task ID");
 const domainIdSchema = z.number().int().positive().describe("Domain ID");
 const dbIdSchema = z.number().int().positive().describe("DB document ID");
 const erdIdSchema = z.number().int().positive().describe("ERD document ID");
+const fileIdSchema = z.number().int().positive().describe("File ID");
 const architecturePlanIdSchema = z
   .number()
   .int()
@@ -138,9 +140,10 @@ export class McpService {
     private readonly reviewsService: ReviewsService,
     private readonly requestsService: RequestsService,
     private readonly worklogsService: WorklogsService,
+    private readonly filesService: FilesService,
   ) {}
 
-  /** 25개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 28개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -168,7 +171,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 25개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 28개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -625,6 +628,71 @@ export class McpService {
         },
       },
       (input) => this.execute(() => this.assetsService.update(input)),
+    );
+
+    /** 프로젝트에 Base64 파일을 임시 바이너리 데이터로 저장한다. */
+    server.registerTool(
+      "create_file",
+      {
+        title: "Create File",
+        description:
+          "Creates a temporary Project file from Base64-encoded content and calculates its byte size.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          title: z.string().trim().min(1),
+          mimeType: z.string().trim().min(1),
+          content: z.base64().describe("Base64-encoded file content"),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.filesService.create(input)),
+    );
+
+    /** 파일의 원격 업로드 완료 상태와 URL을 기록하고 임시 바이너리를 비운다. */
+    server.registerTool(
+      "update_file",
+      {
+        title: "Update File",
+        description:
+          "Marks a Project file as uploaded, records its remote URL, and clears temporary binary content.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          fileId: fileIdSchema,
+          uploadUrl: z.url(),
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.filesService.update(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 파일 레코드를 삭제한다. */
+    server.registerTool(
+      "delete_file",
+      {
+        title: "Delete File",
+        description: "Deletes a File owned by the selected Project.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          fileId: fileIdSchema,
+        }),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.filesService.delete(input)),
     );
 
     /** 프로젝트에 text 작업 내역을 생성한다. */

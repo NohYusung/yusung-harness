@@ -8,6 +8,7 @@ import { DesignsModule } from "../services/designs/designs.module";
 import { DomainsModule } from "../services/domains/domains.module";
 import { DraftsModule } from "../services/drafts/drafts.module";
 import { ErdModule } from "../services/erd/erd.module";
+import { FilesModule } from "../services/files/files.module";
 import { PlansModule } from "../services/plans/plans.module";
 import { ProjectsModule } from "../services/projects/projects.module";
 import { RequestsModule } from "../services/requests/requests.module";
@@ -33,6 +34,7 @@ import { McpService } from "./mcp.service";
     DesignsModule,
     DbModule,
     ErdModule,
+    FilesModule,
     ReviewsModule,
     RequestsModule,
     WorklogsModule,
