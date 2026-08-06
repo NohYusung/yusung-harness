@@ -168,11 +168,6 @@ model WorkLog {
   @@index([projectId])
 }
 
-/*
-AGENT
-- 도메인도 wireframe처럼 parent, children 관계가 필요(nullable). 
-- 하나의 도메인은 반드시 하나이상의 DB와 연결되어있어야 함. 하나의 도메인은 여러개의 DB ID를 가질 수 있음. 
-*/
 //해당 프로젝트의 도메인 구조
 model Domain {
   id        Int      @id @default(autoincrement())

@@ -53,6 +53,35 @@ const createInput = {
   content: Buffer.from("binary file payload").toString("base64"),
 };
 
+test("FilesService.list는 프로젝트 파일을 최근 수정순으로 조회한다", async () => {
+  const calls = [];
+  const files = [{ id: 31, projectId: 7 }];
+  const prisma = {
+    file: {
+      findMany: async (args) => {
+        calls.push(["file.findMany", args]);
+        return files;
+      },
+    },
+  };
+  const projectsService = {
+    ensureProject: async (projectId) => {
+      calls.push(["projects.ensureProject", projectId]);
+    },
+  };
+  const FilesService = loadFilesService();
+  const service = new FilesService(prisma, projectsService);
+
+  assert.deepEqual(await service.list({ projectId: 7 }), files);
+  assert.deepEqual(calls, [
+    ["projects.ensureProject", 7],
+    [
+      "file.findMany",
+      { where: { projectId: 7 }, orderBy: { updatedAt: "desc" } },
+    ],
+  ]);
+});
+
 test("FilesService.create는 Base64 파일을 Bytes로 변환하고 size를 계산해 저장한다", async () => {
   const calls = [];
   const expectedContent = Buffer.from(createInput.content, "base64");

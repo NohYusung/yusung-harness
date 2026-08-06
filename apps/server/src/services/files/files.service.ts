@@ -15,6 +15,16 @@ export class FilesService {
     private readonly projectsService: ProjectsService,
   ) {}
 
+  /** 프로젝트 파일을 최근 수정순으로 조회한다. */
+  async list({ projectId }: { projectId: number }) {
+    await this.projectsService.ensureProject(projectId);
+
+    return this.prisma.file.findMany({
+      where: { projectId },
+      orderBy: { updatedAt: "desc" },
+    });
+  }
+
   /** Base64 파일을 프로젝트의 임시 바이너리 데이터로 저장한다. */
   async create({
     projectId,

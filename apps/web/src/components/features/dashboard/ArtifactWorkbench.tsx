@@ -754,6 +754,13 @@ export function ArtifactWorkbench({
 
     return [...new Set(versions)].sort((left, right) => right - left);
   }, [context.designs, context.wireframes, typeFilter]);
+  /** Version relation은 유효한 현재 선택을 보존하고 없거나 stale하면 실제 최신 version을 기본값으로 사용한다. */
+  const effectiveVersionFilter =
+    isVersionFilteredView
+      ? versionFilter !== null && availableVersions.includes(versionFilter)
+        ? versionFilter
+        : (availableVersions[0] ?? null)
+      : versionFilter;
   const isRequestView = typeFilter === "requests";
   /** 수정 중인 record는 성공 응답으로 교체된 로컬 Request 목록에서 읽는다. */
   const editorRequest =
@@ -770,8 +777,9 @@ export function ArtifactWorkbench({
     /** Version relation에는 숨겨진 status filter 대신 선택한 version만 적용한다. */
     const matchesRecordFilter =
       entry.relation === "wireframes" || entry.relation === "designs"
-        ? versionFilter === null ||
-          (entry.record as Wireframe | Design).version === versionFilter
+        ? effectiveVersionFilter === null ||
+          (entry.record as Wireframe | Design).version ===
+            effectiveVersionFilter
         : statusFilter === "All" || getStatus(entry) === statusFilter;
     const matchesQuery =
       normalizedQuery.length === 0 ||
@@ -1147,7 +1155,7 @@ export function ArtifactWorkbench({
                         className="flex min-h-9 w-full items-center gap-[9px] rounded-control border-0 bg-transparent px-[9px] py-[7px] text-left text-[13px] text-muted hover:bg-surface-muted hover:text-ink aria-pressed:bg-primary-soft aria-pressed:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
                         onClick={() => {
                           setTypeFilter(relation);
-                          /** Relation 전환마다 version을 All로 복원해 Wireframe과 Design 선택을 격리한다. */
+                          /** Relation 전환마다 explicit version을 비워 각 workspace의 최신 version을 다시 선택한다. */
                           setVersionFilter(null);
                           setMobilePane("records");
 
@@ -1237,15 +1245,10 @@ export function ArtifactWorkbench({
                   aria-label="Version"
                   className="h-[34px] rounded-control border border-line bg-surface pr-7 pl-2.5 text-xs focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
                   onChange={(event) =>
-                    setVersionFilter(
-                      event.target.value === "All"
-                        ? null
-                        : Number(event.target.value),
-                    )
+                    setVersionFilter(Number(event.target.value))
                   }
-                  value={versionFilter ?? "All"}
+                  value={effectiveVersionFilter ?? ""}
                 >
-                  <option value="All">All versions</option>
                   {availableVersions.map((version) => (
                     <option key={version} value={version}>
                       v{version}

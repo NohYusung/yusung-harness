@@ -236,7 +236,7 @@ test("MCP의 26개 mutation tool은 공통 execute 경계로 결과를 직렬화
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 28);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 43);
   assert.doesNotMatch(mcpService, /\bAGENT\b/);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
 });
@@ -318,11 +318,15 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
     ["DesignsService", "designsService", ["list", "create", "update"]],
     ["WireframesService", "wireframesService", ["list", "create", "update"]],
     ["AssetsService", "assetsService", ["list", "create", "update"]],
-    ["FilesService", "filesService", ["create", "update", "delete"]],
+    ["FilesService", "filesService", ["list", "create", "update", "delete"]],
     ["ReviewsService", "reviewsService", ["list"]],
-    ["RequestsService", "requestsService", ["create", "update"]],
-    ["WorklogsService", "worklogsService", ["create"]],
-    ["ArchitecturePlansService", "architecturePlansService", ["create", "update"]],
+    ["RequestsService", "requestsService", ["list", "create", "update"]],
+    ["WorklogsService", "worklogsService", ["list", "create"]],
+    [
+      "ArchitecturePlansService",
+      "architecturePlansService",
+      ["list", "create", "update"],
+    ],
   ];
 
   for (const [serviceName, field, methods] of exposedServices) {

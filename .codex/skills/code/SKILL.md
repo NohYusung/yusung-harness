@@ -1,6 +1,7 @@
 ---
 name: code
 description: 코드 베이스를 탐색하고, 코딩 작업을 수행하는 skill
+argument-hint: "[--worktree [worktree-name]]"
 ---
 
 # 매 코딩을 진행학기 전에 Conventions 문서를 참조
@@ -53,17 +54,21 @@ python3 <CODE_SKILL_DIR>/scripts/complete_task.py \
 | ----------- | ------------------------------------------ |
 | doc-curator | yusung-harness-doc을 통한 문서 조회와 수정 |
 
-<!-- <HARD-GATE>
-## 작업 시작시 매 작업에 맞게 워크트리를 생성한 후 진행할지 독립된 저장소에서 작업한다.
+# 사용자 argument 입력값 파싱
 
-- 먼저 사용자에게 현재 브랜치에서 작업을 진행할지 worktree생성 후 작업을 진행할지 아니면 worktree 디렉토리에서 새로운 워크트리를 생성한 후 작업을 진행할지를 메인 에이전트 스레드를 통해 묻는다.
-  - 현재 브랜치에서 작업을 진행하기를 원하면, 바로 작업을 시작한다.
-  - 워크트리 작업을 원하면, 작업하는 레포(작업이 이루어지는 타겟 레포) 루트에 worktree 디렉토리를 생성 후 그 곳에 새로운 워크트리 디렉토리를 만든 후 작업을 진행한다.
-  ```markdown
-  . 📂 portfolio
-  └── 📂 worktree/
-  └── 📂 back/
-  └── 📂 front/
-  ```
+$ARGUMENTS
 
-</HARD-GATE> -->
+## Worktree 생성 규칙 (`--worktree`)
+
+1. 사용자가 `$ARGUMENTS`에 `--worktree`옵션을 포함한 경우
+
+- 사용자가 명시적으로 워크트리 이름을 지정했다면, 해당 이름을 사용한다.
+- **_워크트리 이름을 지정하지 않은 경우 (`--worktree`만 넘긴 경우)_** : 에이전트가 수행할 작업 (Task 제목 및 기능 명세)을 분석하여 **영문 케밥 케이스(kebab-case)형식의 직관적인 이름(예: `feature-notice`, `fix-GA4`) 을 자동으로 판단하여 생성**한다.
+
+2. 생성되거나 지정한 `<worktree-name>`으로 아래 파이썬 스크립트를 실행한다.
+
+```bash
+python3 <CODE_SKILL_DIR>/scripts/create_worktree.py \
+  --target-repo <target-repo-path> \
+  --worktree-name <worktree-name>
+```

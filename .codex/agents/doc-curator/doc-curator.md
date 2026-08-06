@@ -49,6 +49,18 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | ----------- | ------------------------------------------------------------- |
 > | get_context | SQLite schema context 반환(DDL, tables, indexes, fk, pk 포함) |
 > | get_project | 특정 프로젝트에 대한 모든 맥락 반환 |
+> | get_architecture | 특정 프로젝트의 architecture 목록 반환 |
+> | get_architecturePlan | 특정 프로젝트의 architecturePlan 목록 반환 |
+> | get_request | 특정 프로젝트의 request 목록 반환 |
+> | get_workLog | 특정 프로젝트의 workLog 목록 반환 |
+> | get_domain | 특정 프로젝트의 domain 목록 반환 |
+> | get_task | 특정 프로젝트의 task 목록 반환 |
+> | get_draft | 특정 프로젝트의 draft 목록 반환 |
+> | get_wireframe | 특정 프로젝트의 wireframe 목록 반환 |
+> | get_review | 특정 프로젝트의 review 목록 반환 |
+> | get_db | 특정 프로젝트의 db 목록 반환 |
+> | get_erd | 특정 프로젝트의 erd 목록 반환 |
+> | get_file | 특정 프로젝트의 file 목록 반환 |
 
 **_생성용 tool 목록_**
 

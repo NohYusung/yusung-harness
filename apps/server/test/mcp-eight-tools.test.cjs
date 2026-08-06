@@ -38,6 +38,21 @@ const architecturePlanHtml = [
 const expectedToolNames = [
   "get_context",
   "get_project",
+  "get_plan",
+  "get_asset",
+  "get_design",
+  "get_architecture",
+  "get_architecturePlan",
+  "get_request",
+  "get_workLog",
+  "get_domain",
+  "get_task",
+  "get_draft",
+  "get_wireframe",
+  "get_review",
+  "get_db",
+  "get_erd",
+  "get_file",
   "create_project",
   "create_plan",
   "update_plan",
@@ -142,6 +157,10 @@ const createHarness = () => {
       "databases",
       "erds",
       "reviews",
+      "architecturePlans",
+      "requests",
+      "worklogs",
+      "files",
     ].map((domain) => [domain, [{ domain, projectId: 17 }]]),
   );
   const listService = (service, domain) => async (...args) => {
@@ -261,6 +280,7 @@ const createHarness = () => {
       },
     },
     filesService: {
+      list: listService("filesService", "files"),
       create: async (input) => {
         calls.push(["filesService", "create", input]);
         return result("filesService", "create", input);
@@ -292,12 +312,14 @@ const createHarness = () => {
       list: listService("reviewsService", "reviews"),
     },
     worklogsService: {
+      list: listService("worklogsService", "worklogs"),
       create: async (input) => {
         calls.push(["worklogsService", "create", input]);
         return result("worklogsService", "create", input);
       },
     },
     requestsService: {
+      list: listService("requestsService", "requests"),
       create: async (input) => {
         calls.push(["requestsService", "create", input]);
         return result("requestsService", "create", input);
@@ -308,6 +330,7 @@ const createHarness = () => {
       },
     },
     architecturePlansService: {
+      list: listService("architecturePlansService", "architecturePlans"),
       create: async (input) => {
         calls.push(["architecturePlansService", "create", input]);
         return result("architecturePlansService", "create", input);
@@ -383,7 +406,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 28개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 43개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -391,11 +414,81 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 28개 도구와 �
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 28);
+  assert.equal(tools.size, 43);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
   }
+});
+
+test("산출물 조회 도구는 읽기 전용 schema를 지키고 domain service list에 위임한다", async (t) => {
+  const harness = createHarness();
+  const contracts = [
+    ["get_plan", "plansService", "plans"],
+    ["get_asset", "assetsService", "assets"],
+    ["get_design", "designsService", "designs"],
+    ["get_architecture", "architecturesService", "architectures"],
+    ["get_architecturePlan", "architecturePlansService", "architecturePlans"],
+    ["get_request", "requestsService", "requests"],
+    ["get_workLog", "worklogsService", "worklogs"],
+    ["get_domain", "domainsService", "domains"],
+    ["get_draft", "draftsService", "drafts"],
+    ["get_wireframe", "wireframesService", "wireframes"],
+    ["get_review", "reviewsService", "reviews"],
+    ["get_db", "dbService", "databases"],
+    ["get_erd", "erdService", "erds"],
+    ["get_file", "filesService", "files"],
+  ];
+
+  for (const [toolName, serviceName, domain] of contracts) {
+    await t.test(toolName, async () => {
+      const tool = harness.tools.get(toolName);
+
+      assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), [
+        "projectId",
+      ]);
+      assert.deepEqual(tool.definition.annotations, {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      });
+      assert.deepEqual(await harness.invoke(toolName, { projectId: 17 }), [
+        { domain, projectId: 17 },
+      ]);
+      assert.deepEqual(harness.calls.at(-1), [
+        serviceName,
+        "list",
+        { projectId: 17 },
+      ]);
+    });
+  }
+});
+
+test("get_task는 선택한 plan으로 작업 목록을 필터링해 TasksService.list에 위임한다", async () => {
+  const harness = createHarness();
+  const tool = harness.tools.get("get_task");
+
+  assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), [
+    "projectId",
+    "planId",
+  ]);
+  assert.equal(tool.definition.inputSchema.shape.planId.isOptional(), true);
+  assert.deepEqual(tool.definition.annotations, {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  });
+  assert.deepEqual(await harness.invoke("get_task", {
+    projectId: 17,
+    planId: 3,
+  }), harness.domainResults.tasks);
+  assert.deepEqual(harness.calls.at(-1), [
+    "tasksService",
+    "list",
+    { projectId: 17, planId: 3 },
+  ]);
 });
 
 const createFileInput = {
@@ -1012,7 +1105,17 @@ test("get_project는 projectId가 있으면 11종 domain list를 병렬 조립�
     title: harness.project.title,
     repoPaths: harness.project.repoPaths,
     description: harness.project.description,
-    ...harness.domainResults,
+    plans: harness.domainResults.plans,
+    tasks: harness.domainResults.tasks,
+    drafts: harness.domainResults.drafts,
+    domains: harness.domainResults.domains,
+    architectures: harness.domainResults.architectures,
+    wireframes: harness.domainResults.wireframes,
+    assets: harness.domainResults.assets,
+    designs: harness.domainResults.designs,
+    databases: harness.domainResults.databases,
+    erds: harness.domainResults.erds,
+    reviews: harness.domainResults.reviews,
   });
   assert.equal("_count" in contextResponse, false);
   const tool = harness.tools.get("get_project");
@@ -2047,7 +2150,7 @@ test("실제 MCP workflow update는 성공과 service 오류 응답을 직렬화
   }
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 28개 공개 계약을 따른다", async (t) => {
+test("실제 MCP tools/list와 제거된 도구 호출도 43개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 

@@ -143,7 +143,7 @@ export class McpService {
     private readonly filesService: FilesService,
   ) {}
 
-  /** 28개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 43개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -171,7 +171,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 28개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 43개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -212,6 +212,284 @@ export class McpService {
             ? this.projectsService.list()
             : this.getProjectContext(projectId),
         ),
+    );
+
+    /** 선택한 프로젝트의 plan 목록을 조회한다. */
+    server.registerTool(
+      "get_plan",
+      {
+        title: "Get Plan",
+        description: "Returns Plans owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.plansService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 asset 목록을 조회한다. */
+    server.registerTool(
+      "get_asset",
+      {
+        title: "Get Asset",
+        description: "Returns Assets owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.assetsService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 design 목록을 조회한다. */
+    server.registerTool(
+      "get_design",
+      {
+        title: "Get Design",
+        description: "Returns Designs owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.designsService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 architecture 목록을 조회한다. */
+    server.registerTool(
+      "get_architecture",
+      {
+        title: "Get Architecture",
+        description: "Returns Architectures owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.architecturesService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 architecture plan 목록을 조회한다. */
+    server.registerTool(
+      "get_architecturePlan",
+      {
+        title: "Get Architecture Plan",
+        description:
+          "Returns Architecture Plans owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() =>
+          this.architecturePlansService.list({ projectId }),
+        ),
+    );
+
+    /** 선택한 프로젝트의 request 목록을 조회한다. */
+    server.registerTool(
+      "get_request",
+      {
+        title: "Get Request",
+        description: "Returns Requests owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.requestsService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 work log 목록을 조회한다. */
+    server.registerTool(
+      "get_workLog",
+      {
+        title: "Get Work Log",
+        description: "Returns Work Logs owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.worklogsService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 domain 목록을 조회한다. */
+    server.registerTool(
+      "get_domain",
+      {
+        title: "Get Domain",
+        description: "Returns Domains owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.domainsService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트 전체 또는 특정 plan의 task 목록을 조회한다. */
+    server.registerTool(
+      "get_task",
+      {
+        title: "Get Task",
+        description:
+          "Returns Tasks owned by the selected Project, optionally filtered by Plan.",
+        inputSchema: z.object({
+          projectId: projectIdSchema,
+          planId: planIdSchema.optional(),
+        }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId, planId }) =>
+        this.execute(() => this.tasksService.list({ projectId, planId })),
+    );
+
+    /** 선택한 프로젝트의 draft 목록을 조회한다. */
+    server.registerTool(
+      "get_draft",
+      {
+        title: "Get Draft",
+        description: "Returns Drafts owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.draftsService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 wireframe 목록을 조회한다. */
+    server.registerTool(
+      "get_wireframe",
+      {
+        title: "Get Wireframe",
+        description: "Returns Wireframes owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.wireframesService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 review 목록을 조회한다. */
+    server.registerTool(
+      "get_review",
+      {
+        title: "Get Review",
+        description: "Returns Reviews owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.reviewsService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 DB schema 문서 목록을 조회한다. */
+    server.registerTool(
+      "get_db",
+      {
+        title: "Get DB Schema Document",
+        description:
+          "Returns DB schema documents owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.dbService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 ERD 문서 목록을 조회한다. */
+    server.registerTool(
+      "get_erd",
+      {
+        title: "Get ERD",
+        description: "Returns ERDs owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.erdService.list({ projectId })),
+    );
+
+    /** 선택한 프로젝트의 file 목록을 조회한다. */
+    server.registerTool(
+      "get_file",
+      {
+        title: "Get File",
+        description: "Returns Files owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }),
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      ({ projectId }) =>
+        this.execute(() => this.filesService.list({ projectId })),
     );
 
     /** 하나 이상의 repository 경로를 연결한 프로젝트를 생성한다. */

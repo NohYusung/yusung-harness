@@ -367,7 +367,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
   });
 
-  it("Wireframes 목록은 Index 중심 칼럼과 Version 필터만 제공한다", () => {
+  it("Wireframes 목록은 All versions 없이 실제 version을 최신순으로 제공하고 선택한 version만 표시한다", () => {
     const overview = {
       ...createWireframe({
         id: 610,
@@ -447,10 +447,19 @@ describe("Dashboard artifact workbench visual contract", () => {
         value: (option as HTMLOptionElement).value,
       })),
     ).toEqual([
-      { label: "All versions", value: "All" },
       { label: "v3", value: "3" },
       { label: "v2", value: "2" },
     ]);
+    expect(
+      within(versionFilter).queryByRole("option", { name: "All versions" }),
+    ).not.toBeInTheDocument();
+    expect(versionFilter).toHaveValue("3");
+    expect(within(records).getAllByRole("option")).toHaveLength(2);
+    expect(
+      within(records).queryByRole("option", {
+        name: /Previous portfolio overview/,
+      }),
+    ).not.toBeInTheDocument();
 
     fireEvent.change(versionFilter, { target: { value: "2" } });
     expect(within(records).getAllByRole("option")).toHaveLength(1);
@@ -461,7 +470,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     ).toBeInTheDocument();
   });
 
-  it("Designs 목록은 실제 Design version만 최신순으로 필터링하고 All versions로 복구한다", () => {
+  it("Designs 목록은 All versions 없이 실제 version을 최신순으로 제공하고 선택한 version만 표시한다", () => {
     const wireframe = createWireframe({ id: 700, version: 4 });
     const asset = createAsset({ id: 710 });
     const latestDesign = {
@@ -524,12 +533,13 @@ describe("Dashboard artifact workbench visual contract", () => {
         value: (option as HTMLOptionElement).value,
       })),
     ).toEqual([
-      { label: "All versions", value: "All" },
       { label: "v3", value: "3" },
       { label: "v2", value: "2" },
     ]);
-
-    fireEvent.change(versionFilter, { target: { value: "3" } });
+    expect(
+      within(versionFilter).queryByRole("option", { name: "All versions" }),
+    ).not.toBeInTheDocument();
+    expect(versionFilter).toHaveValue("3");
     expect(within(records).getAllByRole("option")).toHaveLength(2);
     expect(
       within(records).getByRole("option", { name: /Latest portfolio design/ }),
@@ -552,12 +562,14 @@ describe("Dashboard artifact workbench visual contract", () => {
         name: /Previous portfolio design/,
       }),
     ).toBeInTheDocument();
-
-    fireEvent.change(versionFilter, { target: { value: "All" } });
-    expect(within(records).getAllByRole("option")).toHaveLength(3);
+    expect(
+      within(records).queryByRole("option", {
+        name: /Latest portfolio design/,
+      }),
+    ).not.toBeInTheDocument();
   });
 
-  it("Wireframe과 Design의 Version 선택은 relation 전환 시 서로 오염되지 않는다", () => {
+  it("Wireframe과 Design은 relation 전환 시 각 relation의 최신 Version으로 시작한다", () => {
     const wireframeV4 = createWireframe({
       id: 730,
       title: "Wireframe v4",
@@ -607,27 +619,27 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
 
     const records = screen.getByRole("listbox", { name: "Artifact records" });
+    expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
+      "4",
+    );
+    expect(within(records).getAllByRole("option")).toHaveLength(1);
+
     fireEvent.change(screen.getByRole("combobox", { name: "Version" }), {
-      target: { value: "4" },
+      target: { value: "2" },
     });
     expect(within(records).getAllByRole("option")).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
     expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
-      "All",
+      "3",
     );
-    expect(within(records).getAllByRole("option")).toHaveLength(2);
-
-    fireEvent.change(screen.getByRole("combobox", { name: "Version" }), {
-      target: { value: "3" },
-    });
     expect(within(records).getAllByRole("option")).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
     expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
-      "All",
+      "4",
     );
-    expect(within(records).getAllByRole("option")).toHaveLength(2);
+    expect(within(records).getAllByRole("option")).toHaveLength(1);
   });
 
   it("일반 relation 목록은 기존 Status 필터와 Status·Links 칼럼을 유지한다", () => {
@@ -761,9 +773,12 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
 
     expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
-      "All",
+      "3",
     );
-    expect(within(records).getAllByRole("option")).toHaveLength(3);
+    expect(within(records).getAllByRole("option")).toHaveLength(2);
+    expect(
+      within(records).queryByRole("option", { name: /No 632,/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("Wireframe Version 필터는 Plans 목록에 적용되지 않는다", () => {

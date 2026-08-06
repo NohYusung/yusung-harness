@@ -17,6 +17,21 @@ const servicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
 const expectedToolNames = [
   "get_context",
   "get_project",
+  "get_plan",
+  "get_asset",
+  "get_design",
+  "get_architecture",
+  "get_architecturePlan",
+  "get_request",
+  "get_workLog",
+  "get_domain",
+  "get_task",
+  "get_draft",
+  "get_wireframe",
+  "get_review",
+  "get_db",
+  "get_erd",
+  "get_file",
   "create_project",
   "create_plan",
   "update_plan",
@@ -172,7 +187,7 @@ test("remote hostname과 origin의 POST 요청도 MCP transport까지 전달한�
   assert.deepEqual(calls.at(-1), ["server.close"]);
 });
 
-test("실제 Streamable HTTP client는 GET 405 후 POST로 28개 tool을 조회한다", async () => {
+test("실제 Streamable HTTP client는 GET 405 후 POST로 43개 tool을 조회한다", async () => {
   const McpController = loadMcpController();
   const McpService = loadMcpService();
   const emptyService = {};
