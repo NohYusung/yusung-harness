@@ -51,6 +51,31 @@ flowchart LR
 - Doc Curator가 계획과 산출물을 MCP 서버에 기록합니다.
 - 다음 작업은 저장된 프로젝트 맥락을 다시 읽고 이어서 진행합니다.
 
+## 실제 사용 예시
+
+`wireframe`, `asset`, `design` 워크플로우에서 만든 산출물은 Project Workbench에서 프로젝트 맥락과 함께 탐색하고 바로 미리 볼 수 있습니다.
+
+### 1. 와이어프레임 검토
+
+![Project Workbench에서 포트폴리오 와이어프레임을 검토하는 화면](./docs/images/readme/portfolio-wireframe.png)
+
+- 화면 구조와 콘텐츠 흐름을 구현 전에 확인합니다.
+- 레코드 메타데이터와 HTML 미리보기를 한 화면에서 비교합니다.
+
+### 2. 디자인 에셋 탐색
+
+![Project Workbench에서 포트폴리오 디자인 에셋 팔레트를 탐색하는 화면](./docs/images/readme/portfolio-asset-palette.png)
+
+- 워드마크, 로고, 컬러 팔레트 같은 디자인 자산을 프로젝트별로 축적합니다.
+- 산출물의 버전과 연결 관계를 유지한 채 브라우저에서 확인합니다.
+
+### 3. 완성 디자인 검토
+
+![Project Workbench에서 완성된 포트폴리오 디자인을 검토하는 화면](./docs/images/readme/portfolio-design.png)
+
+- 와이어프레임과 에셋을 결합한 최종 디자인을 원본 크기로 미리 봅니다.
+- 기획부터 디자인까지 이어지는 작업 결과를 동일한 프로젝트 기록에서 추적합니다.
+
 ## Agent Team
 
 | Agent | 책임 |
