@@ -133,17 +133,13 @@ function renderWorkbench() {
 function getWorkbenchLayout() {
   const topbar = screen.getByRole("banner");
   const workspace = screen.getByRole("main");
-  const contentShell = topbar.parentElement;
-  const viewportLayout = contentShell?.parentElement;
+  const viewportLayout = topbar.parentElement;
 
-  if (!(contentShell instanceof HTMLElement)) {
-    throw new Error("Dashboard header/content shell is missing");
-  }
   if (!(viewportLayout instanceof HTMLElement)) {
     throw new Error("Dashboard viewport layout is missing");
   }
 
-  return { contentShell, topbar, viewportLayout, workspace };
+  return { topbar, viewportLayout, workspace };
 }
 
 function renderPreviewNavigationWorkbench({
@@ -248,11 +244,10 @@ describe("Dashboard artifact workbench visual contract", () => {
     setWindowInnerWidth(originalInnerWidth);
   });
 
-  it("공통 header와 main을 함께 밀고 detail pane을 viewport 전체 높이의 형제 열로 조립한다", () => {
+  it("전폭 header 아래 230px Explorer·Records·detail을 body grid로 조립한다", () => {
     renderWorkbench();
 
-    const { contentShell, topbar, viewportLayout, workspace } =
-      getWorkbenchLayout();
+    const { topbar, viewportLayout, workspace } = getWorkbenchLayout();
     const treePane = screen.getByRole("complementary", {
       name: "Project artifact tree",
     });
@@ -266,31 +261,26 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(viewportLayout).toHaveClass(
       "grid",
       "h-dvh",
-      "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]",
+      "grid-rows-[58px_minmax(0,1fr)]",
     );
     expect(viewportLayout.style.getPropertyValue("--detail-pane-width")).toBe(
       "30%",
     );
-    expect(contentShell).toHaveClass(
-      "grid",
-      "min-w-0",
-      "grid-rows-[58px_minmax(0,1fr)]",
-    );
-    expect(contentShell).toContainElement(topbar);
-    expect(contentShell).toContainElement(workspace);
-    expect(contentShell).not.toContainElement(detailPane);
-    expect(detailPane.parentElement).toBe(viewportLayout);
-    expect(detailPane.className).toMatch(/(?:^|\s)(?:h-dvh|h-full)(?:\s|$)/);
+    expect(topbar.parentElement).toBe(viewportLayout);
+    expect(workspace.parentElement).toBe(viewportLayout);
+    expect(detailPane.parentElement).toBe(workspace);
+    expect(detailPane).toHaveClass("h-full", "min-h-0");
+    expect(detailPane).not.toHaveClass("h-dvh");
     expect(detailPane.className).not.toMatch(
       /(?:^|\s)(?:fixed|absolute|z-\S+)(?:\s|$)/,
     );
     expect(workspace).toHaveClass(
       "min-h-0",
-      "md:grid-cols-[230px_minmax(0,1fr)]",
-      "lg:grid",
+      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
+    );
+    expect(workspace.className).not.toContain(
       "lg:grid-cols-[270px_minmax(0,1fr)]",
     );
-    expect(workspace.className).not.toContain("var(--detail-pane-width)");
     expect(treePane).toBeInTheDocument();
     expect(recordsPane).toBeInTheDocument();
     expect(detailPane).toBeInTheDocument();
@@ -820,7 +810,7 @@ describe("Dashboard artifact workbench visual contract", () => {
   it("main header row와 detail header는 수축 없는 동일한 58px 높이를 유지한다", () => {
     renderWorkbench();
 
-    const { contentShell } = getWorkbenchLayout();
+    const { viewportLayout } = getWorkbenchLayout();
     const detailPane = screen.getByRole("complementary", {
       name: "MCP-only document pipeline",
     });
@@ -833,7 +823,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       throw new Error("Record detail header is missing");
     }
 
-    expect(contentShell).toHaveClass(
+    expect(viewportLayout).toHaveClass(
       "grid-rows-[58px_minmax(0,1fr)]",
     );
     expect(detailHeader).toHaveClass("h-[58px]");
@@ -846,7 +836,7 @@ describe("Dashboard artifact workbench visual contract", () => {
   it("desktop detail pane을 닫아 Records를 확장하고 같은 또는 다른 record 선택으로 다시 연다", () => {
     renderWorkbench();
 
-    const { viewportLayout, workspace } = getWorkbenchLayout();
+    const { workspace } = getWorkbenchLayout();
     const records = screen.getByRole("listbox", { name: "Artifact records" });
     const selectedRow = within(records).getByRole("option", {
       name: /MCP-only document pipeline/,
@@ -865,22 +855,18 @@ describe("Dashboard artifact workbench visual contract", () => {
     fireEvent.click(closeButton);
 
     expect(detailPane).toHaveClass("hidden");
-    expect(viewportLayout).toHaveClass(
-      "md:grid-cols-[minmax(0,1fr)]",
-    );
-    expect(viewportLayout).not.toHaveClass(
-      "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]",
-    );
     expect(workspace).toHaveClass(
       "md:grid-cols-[230px_minmax(0,1fr)]",
-      "lg:grid-cols-[270px_minmax(0,1fr)]",
+    );
+    expect(workspace).not.toHaveClass(
+      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
     );
     expect(selectedRow).toHaveAttribute("aria-selected", "true");
 
     fireEvent.click(selectedRow);
     expect(detailPane).not.toHaveClass("hidden");
-    expect(viewportLayout).toHaveClass(
-      "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]",
+    expect(workspace).toHaveClass(
+      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
     );
 
     closeButton = within(detailPane).getByRole("button", {
@@ -894,8 +880,8 @@ describe("Dashboard artifact workbench visual contract", () => {
     });
     expect(detailPane).not.toHaveClass("hidden");
     expect(otherRow).toHaveAttribute("aria-selected", "true");
-    expect(viewportLayout).toHaveClass(
-      "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]",
+    expect(workspace).toHaveClass(
+      "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
     );
   });
 
@@ -1462,6 +1448,44 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(
       within(records).queryByRole("option", { name: /API boundary/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("320px와 390px topbar는 검색을 숨기고 hidden input에 shortcut focus를 보내지 않는다", () => {
+    setWindowInnerWidth(390);
+    fireEvent.resize(window);
+    renderWorkbench();
+
+    const topbar = screen.getByRole("banner");
+    const search = within(topbar).getByRole("searchbox", {
+      name: /Search records/,
+    });
+    const searchLabel = search.parentElement;
+    const mobileNavigation = within(topbar).getByRole("navigation", {
+      name: "Mobile panes",
+    });
+
+    if (!(searchLabel instanceof HTMLLabelElement)) {
+      throw new Error("Search label is missing");
+    }
+
+    expect(topbar).toHaveClass("overflow-hidden");
+    expect(topbar.parentElement).toHaveClass(
+      "w-screen",
+      "min-w-0",
+      "max-w-full",
+    );
+    expect(searchLabel).toHaveClass("hidden", "md:block");
+    for (const paneButton of within(mobileNavigation).getAllByRole("button")) {
+      expect(paneButton).toHaveClass("min-h-11", "min-w-11");
+    }
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(search).not.toHaveFocus();
+
+    setWindowInnerWidth(320);
+    fireEvent.resize(window);
+    fireEvent.keyDown(document, { ctrlKey: true, key: "k" });
+    expect(search).not.toHaveFocus();
   });
 
   it("record 선택 시 Metadata inspector 콘텐츠를 유지한다", () => {

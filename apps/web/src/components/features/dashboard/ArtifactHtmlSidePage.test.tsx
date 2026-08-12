@@ -7,6 +7,121 @@ import {
 } from "./ArtifactHtmlSidePage";
 
 describe("ArtifactHtmlSidePage", () => {
+  it.each([
+    {
+      html: '<!doctype html><html lang="ko"><head><title>Original complete title</title></head><body><main data-original-content="complete"><span>Complete source marker</span></main></body></html>',
+      marker: "Complete source marker",
+      shape: "complete",
+      title: "Complete themed preview",
+    },
+    {
+      html: '<!doctype html><html lang="ko"><body><main data-original-content="headless"><span>Headless source marker</span></main></body></html>',
+      marker: "Headless source marker",
+      shape: "headless",
+      title: "Headless themed preview",
+    },
+    {
+      html: '<main data-original-content="fragment"><span>Fragment source marker</span></main>',
+      marker: "Fragment source marker",
+      shape: "fragment",
+      title: "Fragment themed preview",
+    },
+  ])(
+    "$shape HTML에 preview theme을 한 번만 주입하고 보호 경계와 원본을 보존한다",
+    ({ html, marker, shape, title }) => {
+      const design = createDesign({ html, title });
+
+      render(<ArtifactHtmlPreviewFrame record={design} />);
+
+      const srcdoc =
+        screen
+          .getByTitle(`${title} HTML preview`)
+          .getAttribute("srcdoc") ?? "";
+      const srcdocDocument = new DOMParser().parseFromString(
+        srcdoc,
+        "text/html",
+      );
+      const previewThemeStyles = srcdocDocument.querySelectorAll(
+        "style[data-yusung-harness-preview-theme]",
+      );
+      const previewThemeStyle = previewThemeStyles.item(0);
+
+      expect(
+        srcdoc.match(/<style data-yusung-harness-preview-theme>/g),
+      ).toHaveLength(1);
+      expect(previewThemeStyles).toHaveLength(1);
+      expect(previewThemeStyle?.parentElement?.tagName).toBe("HEAD");
+      expect(previewThemeStyle?.textContent?.trim()).toBeTruthy();
+
+      expect(
+        srcdocDocument.querySelectorAll(
+          'meta[http-equiv="Content-Security-Policy"]',
+        ),
+      ).toHaveLength(1);
+      expect(srcdoc).toContain("style-src 'unsafe-inline'");
+      expect(srcdoc).toContain("YUSUNG_HARNESS_HTML_PREVIEW_ESCAPE");
+      expect(srcdoc).toContain("YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE");
+      expect(srcdoc).toContain("YUSUNG_HARNESS_HTML_PREVIEW_SCROLL");
+
+      const originalContent = srcdocDocument.querySelector(
+        `[data-original-content="${shape}"]`,
+      );
+      expect(originalContent).not.toBeNull();
+      expect(originalContent?.textContent).toContain(marker);
+      expect(srcdoc).toContain(
+        `<main data-original-content="${shape}"><span>${marker}</span></main>`,
+      );
+    },
+  );
+
+  it("preview theme은 원본 style 다음에 위치하고 레거시 색상 변수를 비파랑 팔레트로 재매핑한다", () => {
+    const design = createDesign({
+      html: '<!doctype html><html><head><style data-original-theme>:root{--canvas:#0b0e13;--blue:#79b8ff;--teal:#6ed6ce}</style></head><body><main>Legacy themed preview</main></body></html>',
+      title: "Legacy themed preview",
+    });
+
+    render(<ArtifactHtmlPreviewFrame record={design} />);
+
+    const srcdoc =
+      screen
+        .getByTitle("Legacy themed preview HTML preview")
+        .getAttribute("srcdoc") ?? "";
+    const originalThemeIndex = srcdoc.indexOf("<style data-original-theme>");
+    const previewThemeIndex = srcdoc.indexOf(
+      "<style data-yusung-harness-preview-theme>",
+    );
+
+    expect(originalThemeIndex).toBeGreaterThan(-1);
+    expect(previewThemeIndex).toBeGreaterThan(originalThemeIndex);
+    expect(srcdoc).toContain("--canvas:#F3F0EC");
+    expect(srcdoc).toContain("--sidebar:#292A2C");
+    expect(srcdoc).toContain("--primary:#6B1E2E");
+    expect(srcdoc).toContain("--selected:#F4E4E5");
+    expect(srcdoc).toContain("--blue:#6B1E2E");
+    expect(srcdoc).toContain("--navy:#292A2C");
+    expect(srcdoc).toContain("--cyan:#5D5654");
+    expect(srcdoc).toContain("--teal:#5D5654");
+    expect(srcdoc).toContain("--success:#46633F");
+    expect(srcdoc).toContain("--warning:#7A5726");
+    expect(srcdoc).toContain("--danger:#9B2F34");
+    expect(srcdoc).toContain(
+      ":root:not(#yusung-harness-preview-theme-scope) :where(body *){border-color:var(--line)!important;background-color:transparent!important;color:var(--ink)!important",
+    );
+    expect(srcdoc).toContain("--blue:#79b8ff;--teal:#6ed6ce");
+
+    const previewThemeText = new DOMParser()
+      .parseFromString(srcdoc, "text/html")
+      .querySelector("style[data-yusung-harness-preview-theme]")?.textContent;
+
+    expect(previewThemeText).not.toMatch(
+      /(?:^|[;}])(?:display|position|inset|margin|padding|gap|width|height|min-width|max-width|min-height|max-height|border-radius|box-shadow|grid-template|transform|transition)\s*:/,
+    );
+    expect(previewThemeText).not.toContain("@media");
+    expect(previewThemeText).not.toMatch(
+      /#(?:173C2E|315845|8A5700|D29A2B|F2E5C3)\b/i,
+    );
+  });
+
   it("주석의 fake head보다 앞선 실제 protected head를 한 번만 생성한다", () => {
     const design = createDesign({
       html: '<!doctype html><html><!-- <head></head> --><body class="preview"><script src="https://evil.invalid/x.js"></script><main>Adversarial</main></body></html>',

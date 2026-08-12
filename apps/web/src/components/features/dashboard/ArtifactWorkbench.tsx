@@ -120,31 +120,31 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
     code: "DM",
     label: "Domain",
     plural: "Domain",
-    dotClassName: "bg-primary",
+    dotClassName: "bg-olive",
   },
   architectures: {
     code: "AR",
     label: "Architecture",
     plural: "Architecture",
-    dotClassName: "bg-violet",
+    dotClassName: "bg-plum",
   },
   wireframes: {
     code: "WF",
     label: "Wireframe",
     plural: "Wireframes",
-    dotClassName: "bg-teal",
+    dotClassName: "bg-olive",
   },
   assets: {
     code: "AS",
     label: "Asset",
     plural: "Assets",
-    dotClassName: "bg-warning",
+    dotClassName: "bg-clay",
   },
   designs: {
     code: "DS",
     label: "Design",
     plural: "Designs",
-    dotClassName: "bg-violet",
+    dotClassName: "bg-plum",
   },
   reviews: {
     code: "RV",
@@ -162,19 +162,19 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
     code: "WL",
     label: "WorkLog",
     plural: "WorkLogs",
-    dotClassName: "bg-teal",
+    dotClassName: "bg-clay",
   },
   architecturePlans: {
     code: "AP",
     label: "Architecture Plan",
     plural: "Architecture Plan",
-    dotClassName: "bg-violet",
+    dotClassName: "bg-plum",
   },
   databases: {
     code: "DB",
     label: "DB",
     plural: "DB",
-    dotClassName: "bg-warning",
+    dotClassName: "bg-clay",
   },
   erds: {
     code: "ERD",
@@ -455,7 +455,7 @@ function WorkbenchHtmlPreview({
   record: HtmlArtifactDocument;
 }) {
   return (
-    <div className="h-full min-h-0 overflow-hidden rounded-card">
+    <div className="h-full min-h-0 overflow-hidden rounded-card border border-line bg-surface shadow-card">
       <ArtifactHtmlPreviewFrame
         onNavigateWireframe={onNavigateWireframe}
         onScrollStateChange={onScrollStateChange}
@@ -528,7 +528,7 @@ function ArchitecturePlanPreview({
           ref={contentTabRef}
           aria-controls={panelId}
           aria-selected={activeView === "content"}
-          className="min-h-11 border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold text-muted hover:text-ink aria-selected:border-violet aria-selected:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+          className="min-h-11 border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold text-muted hover:text-ink aria-selected:border-accent aria-selected:text-primary focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
           id={contentTabId}
           onClick={() => selectView("content")}
           onKeyDown={(event) => handleTabKeyDown(event, "content")}
@@ -542,7 +542,7 @@ function ArchitecturePlanPreview({
           ref={diagramTabRef}
           aria-controls={panelId}
           aria-selected={activeView === "diagram"}
-          className="min-h-11 border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold text-muted hover:text-ink aria-selected:border-violet aria-selected:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+          className="min-h-11 border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold text-muted hover:text-ink aria-selected:border-accent aria-selected:text-primary focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
           id={diagramTabId}
           onClick={() => selectView("diagram")}
           onKeyDown={(event) => handleTabKeyDown(event, "diagram")}
@@ -595,12 +595,12 @@ function ArchitecturePlanPreview({
 /** lifecycle 상태 badge의 의미에 맞는 색상만 선택한다. */
 function getStatusClassName(status: RecordStatus): string {
   if (status === "Completed") {
-    return "inline-flex w-max rounded-full border border-[#3e5a39] bg-success-soft px-[7px] py-[3px] font-mono text-[10px] text-success";
+    return "inline-flex w-max rounded-full border border-success/35 bg-success-soft px-[7px] py-[3px] font-mono text-[10px] text-success";
   }
   if (status === "Pending") {
-    return "inline-flex w-max rounded-full border border-[#594727] bg-warning-soft px-[7px] py-[3px] font-mono text-[10px] text-warning";
+    return "inline-flex w-max rounded-full border border-line-strong bg-surface-muted px-[7px] py-[3px] font-mono text-[10px] text-muted";
   }
-  return "inline-flex w-max rounded-full border border-line px-[7px] py-[3px] font-mono text-[10px] text-muted";
+  return "inline-flex w-max rounded-full border border-primary/35 bg-primary-soft px-[7px] py-[3px] font-mono text-[10px] text-primary";
 }
 
 function getRelationHref(entry: WorkbenchEntry, projectId: number): string {
@@ -618,6 +618,12 @@ function useSearchShortcut(searchRef: RefObject<HTMLInputElement | null>) {
     function focusSearch(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+
+        /** Mobile header에서 숨긴 검색 input으로 focus가 이동하지 않게 한다. */
+        if (window.innerWidth < 768) {
+          return;
+        }
+
         searchRef.current?.focus();
       }
     }
@@ -1017,35 +1023,29 @@ export function ArtifactWorkbench({
   const viewportLayoutStyle = {
     "--detail-pane-width": `${detailPaneRatio}%`,
   } as CSSProperties;
-  /** Detail 표시 여부에 따라 content shell과 detail을 viewport 1열 또는 2열로 전환한다. */
-  const viewportGridClassName = isDetailPaneOpen
-    ? "md:grid-cols-[minmax(0,1fr)_var(--detail-pane-width)]"
-    : "md:grid-cols-[minmax(0,1fr)]";
-
   return (
     <div
-      className={`group/workbench grid h-dvh min-h-dvh overflow-hidden bg-canvas max-md:h-auto max-md:overflow-visible ${viewportGridClassName}`}
+      className={`group/workbench grid h-dvh min-h-dvh w-screen min-w-0 max-w-full grid-rows-[58px_minmax(0,1fr)] overflow-hidden bg-canvas max-md:h-dvh`}
       data-mobile-pane={mobilePane}
       style={viewportLayoutStyle}
     >
-      <div className="grid min-h-0 min-w-0 grid-rows-[58px_minmax(0,1fr)] max-md:group-data-[mobile-pane=detail]/workbench:hidden">
-        <header className="flex items-center gap-4 border-b border-line bg-sidebar px-4">
-        <strong className="block min-w-0 truncate text-sm leading-tight tracking-[-0.01em] md:min-w-[250px]">
+      <header className="flex min-w-0 items-center gap-2 overflow-hidden border-b border-sidebar-line bg-sidebar px-2 text-sidebar-ink shadow-card sm:gap-4 sm:px-4">
+        <strong className="block min-w-0 shrink truncate text-xs leading-tight font-semibold tracking-[-0.01em] sm:text-base md:min-w-[250px]">
           Yusung Harness
         </strong>
 
-        <label className="relative min-w-0 max-w-[680px] flex-1">
+        <label className="relative hidden min-w-0 max-w-[680px] flex-1 md:block">
           <span className="sr-only">Search records</span>
           <span
             aria-hidden="true"
-            className="absolute top-[9px] left-3 text-subtle"
+            className="absolute top-[9px] left-3 text-sidebar-subtle"
           >
             ⌕
           </span>
           <input
             ref={searchRef}
             aria-label="Search records"
-            className="h-9 w-full rounded-[7px] border border-line bg-surface pr-[90px] pl-9 text-[13px] placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none max-md:pr-3"
+            className="h-9 w-full rounded-control border border-sidebar-line bg-sidebar-hover pr-[90px] pl-9 text-[13px] text-sidebar-ink placeholder:text-sidebar-subtle focus-visible:ring-2 focus-visible:ring-focus-dark focus-visible:outline-none max-md:pr-3"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
@@ -1057,20 +1057,20 @@ export function ArtifactWorkbench({
             type="search"
             value={query}
           />
-          <span className="absolute top-[7px] right-2 rounded-[5px] border border-line px-1.5 py-[3px] font-mono text-[10px] text-subtle max-md:hidden">
+          <span className="absolute top-[7px] right-2 rounded-[5px] border border-sidebar-line px-1.5 py-[3px] font-mono text-[10px] text-sidebar-subtle max-md:hidden">
             ⌘ K
           </span>
         </label>
 
-        <div className="ml-auto hidden min-w-0 items-center gap-2 font-mono text-[11px] text-muted md:flex">
+        <div className="ml-auto hidden min-w-0 items-center gap-2 font-mono text-[11px] text-sidebar-muted md:flex">
           <span
             aria-hidden="true"
-            className="size-[7px] shrink-0 rounded-full bg-success shadow-[0_0_0_3px_rgb(182_232_117_/_0.08)]"
+            className="size-[7px] shrink-0 rounded-full bg-success ring-2 ring-success/15"
           />
           <span className="max-w-[18rem] truncate">{repositoryPath}</span>
         </div>
 
-        <nav aria-label="Mobile panes" className="ml-auto flex gap-1 md:hidden">
+        <nav aria-label="Mobile panes" className="ml-auto flex shrink-0 gap-1 md:hidden">
           {[
             { id: "tree" as const, label: "Tree", ariaLabel: "Open tree" },
             {
@@ -1087,7 +1087,8 @@ export function ArtifactWorkbench({
             <button
               key={pane.id}
               aria-label={pane.ariaLabel}
-              className="h-9 min-w-9 rounded-control border border-line bg-surface px-2 text-[11px] text-muted focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+              aria-pressed={mobilePane === pane.id}
+              className="min-h-11 min-w-11 rounded-control border border-sidebar-line bg-sidebar-hover px-2 text-[11px] font-semibold text-sidebar-muted aria-pressed:border-accent aria-pressed:bg-sidebar-selected aria-pressed:text-sidebar-ink focus-visible:ring-2 focus-visible:ring-focus-dark focus-visible:outline-none"
               onClick={() => selectMobilePane(pane.id)}
               type="button"
             >
@@ -1095,29 +1096,35 @@ export function ArtifactWorkbench({
             </button>
           ))}
         </nav>
-        </header>
+      </header>
 
-        <main className="min-h-0 bg-surface md:grid md:grid-cols-[230px_minmax(0,1fr)] lg:grid lg:grid-cols-[270px_minmax(0,1fr)]">
+      <main
+        className={`min-h-0 min-w-0 bg-surface md:grid ${
+          isDetailPaneOpen
+            ? "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]"
+            : "md:grid-cols-[230px_minmax(0,1fr)]"
+        }`}
+      >
         <aside
           aria-label="Project artifact tree"
-          className={`${mobilePane === "tree" ? "flex" : "hidden"} min-h-[calc(100dvh-58px)] min-w-0 flex-col border-r border-line bg-surface md:flex md:min-h-0`}
+          className={`${mobilePane === "tree" ? "flex" : "hidden"} min-h-[calc(100dvh-58px)] min-w-0 flex-col border-r border-sidebar-line bg-sidebar text-sidebar-ink md:flex md:min-h-0`}
         >
-          <div className="flex min-h-14 items-center justify-between gap-3 border-b border-line px-3.5 py-2.5">
-            <h2 className="m-0 text-xs font-semibold tracking-[0.08em] text-muted uppercase">
+          <div className="flex min-h-14 items-center justify-between gap-3 border-b border-sidebar-line px-3.5 py-2.5">
+            <h2 className="m-0 text-xs font-semibold tracking-[0.08em] text-sidebar-muted uppercase">
               Explorer
             </h2>
-            <span className="font-mono text-[11px] text-subtle">
+            <span className="font-mono text-[11px] text-sidebar-subtle">
               {allEntries.length} records
             </span>
           </div>
           <div className="min-h-0 overflow-auto">
-            <div className="m-3 rounded-card border border-line bg-surface-muted p-3">
+            <div className="m-3 rounded-card border border-sidebar-line bg-sidebar-hover p-3 shadow-card">
               <label className="sr-only" htmlFor="workbench-project">
                 Project
               </label>
               <select
                 id="workbench-project"
-                className="h-[38px] w-full border-0 bg-transparent text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                className="h-[38px] w-full border-0 bg-transparent text-[13px] font-semibold text-sidebar-ink focus-visible:ring-2 focus-visible:ring-focus-dark focus-visible:outline-none"
                 onChange={(event) =>
                   router.push(`/projects/${event.currentTarget.value}`)
                 }
@@ -1130,13 +1137,13 @@ export function ArtifactWorkbench({
                   </option>
                 ))}
               </select>
-              <p className="mt-[7px] mb-0 truncate font-mono text-[10px] text-subtle">
+              <p className="mt-[7px] mb-0 truncate font-mono text-[10px] text-sidebar-subtle">
                 {repositoryPath}
               </p>
             </div>
 
             <nav aria-label="Artifact types" className="px-2 pt-2 pb-3">
-              <p className="m-0 px-2.5 py-2 font-mono text-[10px] tracking-[0.1em] text-subtle uppercase">
+              <p className="m-0 px-2.5 py-2 font-mono text-[10px] tracking-[0.1em] text-sidebar-subtle uppercase">
                 Project records
               </p>
               {relationOrder
@@ -1152,7 +1159,7 @@ export function ArtifactWorkbench({
                         aria-pressed={
                           typeFilter === relation
                         }
-                        className="flex min-h-9 w-full items-center gap-[9px] rounded-control border-0 bg-transparent px-[9px] py-[7px] text-left text-[13px] text-muted hover:bg-surface-muted hover:text-ink aria-pressed:bg-primary-soft aria-pressed:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                        className="flex min-h-11 w-full items-center gap-[9px] rounded-control border-0 bg-transparent px-[9px] py-[7px] text-left text-[13px] text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-ink aria-pressed:bg-sidebar-selected aria-pressed:text-sidebar-ink aria-pressed:shadow-[inset_3px_0_var(--color-accent)] focus-visible:ring-2 focus-visible:ring-focus-dark focus-visible:outline-none"
                         onClick={() => {
                           setTypeFilter(relation);
                           /** Relation 전환마다 explicit version을 비워 각 workspace의 최신 version을 다시 선택한다. */
@@ -1179,12 +1186,12 @@ export function ArtifactWorkbench({
                       >
                         <span
                           aria-hidden="true"
-                          className="w-[18px] text-center font-mono text-[11px] text-subtle"
+                          className="w-[18px] text-center font-mono text-[11px] text-sidebar-subtle"
                         >
                           {config.code}
                         </span>
                         <span className="flex-1">{config.plural}</span>
-                        <span className="font-mono text-[10px] text-subtle">
+                        <span className="font-mono text-[10px] text-sidebar-subtle">
                           {relationEntries.length}
                         </span>
                       </button>
@@ -1197,9 +1204,9 @@ export function ArtifactWorkbench({
 
         <section
           aria-labelledby="records-heading"
-          className={`${mobilePane === "records" ? "flex" : "hidden"} min-h-[calc(100dvh-58px)] min-w-0 flex-col border-r border-line bg-surface-muted md:flex md:min-h-0`}
+          className={`${mobilePane === "records" ? "flex" : "hidden"} min-h-[calc(100dvh-58px)] min-w-0 max-w-full flex-col overflow-hidden border-r border-line bg-surface md:flex md:min-h-0`}
         >
-          <div className="flex min-h-14 items-center justify-between gap-3 border-b border-line bg-surface px-3.5 py-2.5">
+          <div className="flex min-h-14 items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2.5">
             <div>
               <button
                 className="mr-2 inline-flex h-9 items-center rounded-control border border-line bg-surface px-2.5 text-muted md:hidden"
@@ -1210,7 +1217,7 @@ export function ArtifactWorkbench({
               </button>
               <h2
                 id="records-heading"
-                className="m-0 inline text-xs font-semibold tracking-[0.08em] text-muted uppercase"
+                className="m-0 inline text-sm font-semibold tracking-[0.04em] text-ink uppercase"
               >
                 Records
               </h2>
@@ -1224,7 +1231,7 @@ export function ArtifactWorkbench({
               </span>
               {isRequestView ? (
                 <button
-                  className="min-h-11 rounded-control bg-primary px-3 text-xs font-semibold text-canvas hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="min-h-11 rounded-control bg-primary px-3 text-xs font-semibold text-surface hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:outline-none"
                   onClick={openRequestCreator}
                   type="button"
                 >
@@ -1233,7 +1240,7 @@ export function ArtifactWorkbench({
               ) : null}
             </div>
           </div>
-          <div className="flex items-center gap-2 border-b border-line px-3.5 py-2.5">
+          <div className="flex items-center gap-2 border-b border-line bg-surface-muted px-4 py-2.5">
             <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">
               {context.title} /{" "}
               <strong>{relationConfig[typeFilter].plural}</strong>
@@ -1243,7 +1250,7 @@ export function ArtifactWorkbench({
                 <span className="sr-only">Version</span>
                 <select
                   aria-label="Version"
-                  className="h-[34px] rounded-control border border-line bg-surface pr-7 pl-2.5 text-xs focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                  className="h-[34px] rounded-control border border-line-strong bg-surface pr-7 pl-2.5 text-xs text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
                   onChange={(event) =>
                     setVersionFilter(Number(event.target.value))
                   }
@@ -1261,7 +1268,7 @@ export function ArtifactWorkbench({
                 <span className="sr-only">Status</span>
                 <select
                   aria-label="Status"
-                  className="h-[34px] rounded-control border border-line bg-surface pr-7 pl-2.5 text-xs focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                  className="h-[34px] rounded-control border border-line-strong bg-surface pr-7 pl-2.5 text-xs text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
                   onChange={(event) =>
                     setStatusFilter(event.target.value as StatusFilter)
                   }
@@ -1275,10 +1282,10 @@ export function ArtifactWorkbench({
               </label>
             )}
           </div>
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="m-3 min-h-0 flex-1 overflow-auto rounded-card border border-line bg-surface shadow-card">
             <div
               aria-hidden="true"
-              className={`sticky top-0 z-10 grid h-[34px] items-center gap-3 border-b border-line bg-surface-muted px-4 font-mono text-[10px] tracking-[0.06em] text-subtle uppercase ${isWireframeView ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
+              className={`sticky top-0 z-10 grid h-9 items-center gap-3 border-b border-line bg-surface-muted px-4 font-mono text-[10px] font-semibold tracking-[0.06em] text-muted uppercase ${isWireframeView ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
             >
               <span>Type</span>
               <span>No</span>
@@ -1357,7 +1364,7 @@ export function ArtifactWorkbench({
                     }
                     aria-label={accessibleName}
                     aria-selected={isSelected}
-                    className={`grid min-h-14 w-full items-center gap-3 border-0 border-b border-line bg-transparent px-4 text-left text-ink hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_2px_0_var(--color-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none ${wireframe ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
+                    className={`grid min-h-14 w-full items-center gap-3 border-0 border-b border-line bg-surface px-4 text-left text-ink transition-colors hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_3px_0_var(--color-accent)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none motion-reduce:transition-none ${wireframe ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
                     onClick={() => selectEntry(entry)}
                     data-plan-expanded={
                       isPlanExpanded === null
@@ -1474,12 +1481,9 @@ export function ArtifactWorkbench({
           ) : null}
         </section>
 
-        </main>
-      </div>
-
-      <aside
+        <aside
           aria-labelledby="detail-heading"
-          className={`${isDetailPaneOpen && mobilePane === "detail" ? "flex" : "hidden"} relative h-full min-h-0 min-w-0 flex-col bg-[#0f141b] max-md:min-h-dvh ${isDetailPaneOpen ? "md:flex" : "md:hidden"}`}
+          className={`${isDetailPaneOpen && mobilePane === "detail" ? "flex" : "hidden"} relative h-full min-h-0 min-w-0 flex-col border-l border-line bg-surface ${isDetailPaneOpen ? "md:flex" : "md:hidden"}`}
         >
           <div
             aria-label="Resize detail pane"
@@ -1500,11 +1504,11 @@ export function ArtifactWorkbench({
           >
             <span
               aria-hidden="true"
-              className="h-14 w-0.5 rounded-full bg-line transition-colors group-hover:bg-primary group-focus-visible:bg-primary motion-reduce:transition-none"
+              className="h-14 w-0.5 rounded-full bg-line-strong transition-colors group-hover:bg-accent group-focus-visible:bg-accent motion-reduce:transition-none"
             />
           </div>
 
-          <div className="flex h-[58px] shrink-0 items-center gap-3 border-b border-line bg-surface px-3.5">
+          <div className="flex h-[58px] shrink-0 items-center gap-3 border-b border-line bg-surface px-4 shadow-card">
             <button
               className="inline-flex h-9 items-center rounded-control border border-line bg-surface px-2.5 text-muted md:hidden"
               onClick={() => setMobilePane("records")}
@@ -1515,7 +1519,7 @@ export function ArtifactWorkbench({
             <div className="min-w-0 flex-1">
               <h2
                 id="detail-heading"
-                className="m-0 truncate text-[13px] font-semibold text-ink"
+                className="m-0 truncate text-sm font-semibold tracking-[-0.01em] text-ink"
               >
                 {requestEditorMode?.type === "create"
                   ? "New request"
@@ -1526,7 +1530,7 @@ export function ArtifactWorkbench({
             </div>
             {selectedRequest && requestEditorMode === null ? (
               <button
-                className="min-h-11 shrink-0 rounded-control border border-line bg-surface px-3 text-xs font-semibold text-muted hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                className="min-h-11 shrink-0 rounded-control border border-line-strong bg-surface px-3 text-xs font-semibold text-primary hover:bg-primary-soft focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
                 onClick={() => openRequestEditor(selectedRequest)}
                 type="button"
               >
@@ -1574,7 +1578,7 @@ export function ArtifactWorkbench({
                   aria-hidden={
                     selectedHtmlArtifact ? isHtmlMetadataCollapsed : false
                   }
-                  className={`mt-0 font-mono text-[10px] tracking-[0.1em] text-subtle uppercase ${
+                  className={`mt-0 font-mono text-[10px] font-semibold tracking-[0.1em] text-muted uppercase ${
                     selectedHtmlArtifact
                       ? `overflow-hidden transition-[max-height,margin,opacity] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "mb-0 max-h-0 opacity-0" : "mb-[9px] max-h-8 opacity-100"}`
                       : "mb-[9px]"
@@ -1588,8 +1592,8 @@ export function ArtifactWorkbench({
                   }
                   className={
                     selectedHtmlArtifact
-                      ? `overflow-hidden transition-[max-height,opacity] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "max-h-0 opacity-0" : "max-h-96 opacity-100"}`
-                      : undefined
+                      ? `overflow-hidden rounded-card border bg-surface px-4 shadow-card transition-[max-height,padding,opacity] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "max-h-0 border-transparent py-0 opacity-0" : "max-h-96 border-line py-4 opacity-100"}`
+                      : "rounded-card border border-line bg-surface p-4 shadow-card"
                   }
                   data-record-metadata
                 >
@@ -1658,8 +1662,8 @@ export function ArtifactWorkbench({
                     )}
                   </div>
                 ) : (
-                  <div className="mt-[18px] border-t border-line pt-4">
-                    <p className="mt-0 mb-[9px] text-sm font-semibold text-ink">
+                  <div className="mt-[18px] rounded-card border border-line bg-surface p-4 shadow-card">
+                    <p className="mt-0 mb-3 border-b border-line pb-3 text-sm font-semibold text-ink">
                       {selectedEntry.record.title}
                     </p>
                     <MarkdownContent content={getContent(selectedEntry)} />
@@ -1667,7 +1671,10 @@ export function ArtifactWorkbench({
                 )}
               </section>
             ) : isRequestView ? (
-              <section aria-label="Request empty state" className="py-10 text-center">
+              <section
+                aria-label="Request empty state"
+                className="rounded-card border border-line bg-surface px-6 py-10 text-center shadow-card"
+              >
                 <h3 className="m-0 text-base font-semibold text-ink">
                   No Request selected
                 </h3>
@@ -1677,7 +1684,8 @@ export function ArtifactWorkbench({
               </section>
             ) : null}
           </div>
-      </aside>
+        </aside>
+      </main>
     </div>
   );
 }

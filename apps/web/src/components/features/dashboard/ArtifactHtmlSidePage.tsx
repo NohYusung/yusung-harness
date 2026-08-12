@@ -80,6 +80,11 @@ const previewContentSecurityPolicy = [
   "script-src 'unsafe-inline'",
 ].join("; ");
 
+/** 저장 원본을 바꾸지 않고 모든 HTML preview에 사무형 색상과 서체만 덮어쓴다. */
+function buildPreviewThemeStyle(): string {
+  return `<style data-yusung-harness-preview-theme>:root{color-scheme:light;--canvas:#F3F0EC;--sidebar:#292A2C;--surface:#FFFCF8;--surface-muted:#F6F2ED;--hover:#F2ECE8;--selected:#F4E4E5;--ink:#211D1D;--muted:#5D5654;--subtle:#766D69;--line:#D8D1CB;--line-strong:#B8AEA7;--primary:#6B1E2E;--primary-soft:#F4E4E5;--accent:#A54A5A;--success:#46633F;--success-soft:#E7EEE3;--warning:#7A5726;--warning-soft:#F2E9DC;--danger:#9B2F34;--danger-soft:#F4E3E4;--plum:#6B405E;--plum-soft:#F0E6EC;--olive:#55603A;--olive-soft:#EAECDF;--clay:#85503E;--clay-soft:#F2E7E2;--background:#F3F0EC;--foreground:#211D1D;--card:#FFFCF8;--card-foreground:#211D1D;--popover:#FFFCF8;--popover-foreground:#211D1D;--secondary:#F6F2ED;--secondary-foreground:#211D1D;--border:#D8D1CB;--input:#D8D1CB;--ring:#6B1E2E;--blue:#6B1E2E;--blue-soft:#F4E4E5;--navy:#292A2C;--cyan:#5D5654;--cyan-soft:#EEE9E3;--teal:#5D5654;--teal-soft:#EEE9E3;--violet:#6B405E;--violet-soft:#F0E6EC}html,body{background-color:var(--canvas)!important;color:var(--ink)!important;font-family:"Geist","Geist Fallback",ui-sans-serif,system-ui,sans-serif!important}:root:not(#yusung-harness-preview-theme-scope) :where(body *){border-color:var(--line)!important;background-color:transparent!important;color:var(--ink)!important;font-family:inherit!important}:root:not(#yusung-harness-preview-theme-scope) :where(main,section,article,header,footer,[class*="card"],[class*="panel"],[class*="surface"],[class*="modal"],[class*="dialog"]){border-color:var(--line)!important;background-color:var(--surface)!important;color:var(--ink)!important}:root:not(#yusung-harness-preview-theme-scope) :where(a){color:var(--primary)!important}:root:not(#yusung-harness-preview-theme-scope) :where(button,input,select,textarea){border-color:var(--line-strong)!important;background-color:var(--surface)!important;color:var(--ink)!important}:root:not(#yusung-harness-preview-theme-scope) :where(table,thead,tbody,tfoot,tr,th,td){border-color:var(--line)!important}:root:not(#yusung-harness-preview-theme-scope) :where(th,thead){background-color:var(--surface-muted)!important;color:var(--muted)!important}:root:not(#yusung-harness-preview-theme-scope) :where([class*="sidebar"],[class*="navigation"]){border-color:var(--sidebar)!important;background-color:var(--sidebar)!important;color:#FFFCF8!important}:root:not(#yusung-harness-preview-theme-scope) :where([class*="sidebar"] *,[class*="navigation"] *){color:#FFFCF8!important}:root:not(#yusung-harness-preview-theme-scope) :where([class*="blue" i],[class*="cyan" i],[class*="teal" i],[style*="#79b8ff" i],[style*="#6ed6ce" i]){border-color:var(--accent)!important;background-color:var(--selected)!important;color:var(--primary)!important}:root:not(#yusung-harness-preview-theme-scope) :where([aria-selected="true"],[aria-current="page"],[data-active="true"]){border-color:var(--accent)!important;background-color:var(--selected)!important;color:var(--ink)!important}:root:not(#yusung-harness-preview-theme-scope) :where([class*="success"],[data-status="completed"]){background-color:var(--success-soft)!important;color:var(--success)!important}:root:not(#yusung-harness-preview-theme-scope) :where([class*="warning"],[data-status="pending"]){background-color:var(--warning-soft)!important;color:var(--warning)!important}:root:not(#yusung-harness-preview-theme-scope) :where([class*="danger"],[class*="error"],[data-status="failed"]){background-color:var(--danger-soft)!important;color:var(--danger)!important}:focus-visible{outline:2px solid var(--primary)!important;outline-offset:2px!important}::selection{background:var(--primary-soft);color:var(--ink)}</style>`;
+}
+
 /** 주석 안의 fake document tag를 검색 대상에서 제외하면서 원본 index를 보존한다. */
 function maskHtmlComments(html: string): string {
   return html.replace(/<!--[\s\S]*?(?:-->|$)/g, (comment) =>
@@ -105,16 +110,36 @@ function findOpeningTag(
   };
 }
 
+/** 주석이 아닌 영역에서 지정한 실제 HTML 종료 태그를 찾는다. */
+function findClosingTag(html: string, tagName: "head"): HtmlTagRange | null {
+  const searchableHtml = maskHtmlComments(html);
+  const match = new RegExp(`</${tagName}\\s*>`, "i").exec(searchableHtml);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    end: match.index + match[0].length,
+    start: match.index,
+  };
+}
+
 /** 완성형 문서는 기존 head를 사용하고 fragment는 독립 실행 가능한 문서로 감싼다. */
-function mergeProtectedHead(html: string, protectedHead: string): string {
+function mergeProtectedHead(
+  html: string,
+  protectedHeadStart: string,
+  protectedHeadEnd: string,
+): string {
   const content = html.replace(/^\s*<!doctype[^>]*>\s*/i, "");
   const htmlTag = findOpeningTag(content, "html");
 
   if (!htmlTag) {
-    return `<!doctype html><html><head>${protectedHead}</head><body>${content}</body></html>`;
+    return `<!doctype html><html><head>${protectedHeadStart}${protectedHeadEnd}</head><body>${content}</body></html>`;
   }
 
   const headTag = findOpeningTag(content, "head");
+  const closingHeadTag = findClosingTag(content, "head");
   const bodyTag = findOpeningTag(content, "body");
 
   if (
@@ -122,10 +147,19 @@ function mergeProtectedHead(html: string, protectedHead: string): string {
     headTag.start > htmlTag.start &&
     (!bodyTag || headTag.start < bodyTag.start)
   ) {
-    return `<!doctype html>${content.slice(0, headTag.end)}${protectedHead}${content.slice(headTag.end)}`;
+    if (
+      closingHeadTag &&
+      closingHeadTag.start > headTag.end &&
+      (!bodyTag || closingHeadTag.start < bodyTag.start)
+    ) {
+      return `<!doctype html>${content.slice(0, headTag.end)}${protectedHeadStart}${content.slice(headTag.end, closingHeadTag.start)}${protectedHeadEnd}${content.slice(closingHeadTag.start)}`;
+    }
+
+    const headContentEnd = bodyTag?.start ?? content.length;
+    return `<!doctype html>${content.slice(0, headTag.end)}${protectedHeadStart}${content.slice(headTag.end, headContentEnd)}${protectedHeadEnd}</head>${content.slice(headContentEnd)}`;
   }
 
-  return `<!doctype html>${content.slice(0, htmlTag.end)}<head>${protectedHead}</head>${content.slice(htmlTag.end)}`;
+  return `<!doctype html>${content.slice(0, htmlTag.end)}<head>${protectedHeadStart}${protectedHeadEnd}</head>${content.slice(htmlTag.end)}`;
 }
 
 /** hash route는 iframe 안에서 처리하고 상대 HTML 링크는 부모의 record 전환 요청으로 바꾼다. */
@@ -141,12 +175,13 @@ function buildScrollBridge(): string {
 /** CSP와 iframe 전용 상호작용 bridge를 원본 문서의 실제 head에 주입한다. */
 function buildSandboxedPreviewHtml(html: string): string {
   const policy = `<meta http-equiv="Content-Security-Policy" content="${previewContentSecurityPolicy}">`;
+  const previewThemeStyle = buildPreviewThemeStyle();
   const escapeBridge = `<script>window.addEventListener("keydown",function(event){if(event.key==="Escape"){window.parent.postMessage({type:"${previewEscapeMessage}"},"*")}})</script>`;
   const navigationBridge = buildNavigationBridge();
   const scrollBridge = buildScrollBridge();
-  const protectedHead = `${policy}${escapeBridge}${navigationBridge}${scrollBridge}`;
+  const protectedHeadStart = `${policy}${escapeBridge}${navigationBridge}${scrollBridge}`;
 
-  return mergeProtectedHead(html, protectedHead);
+  return mergeProtectedHead(html, protectedHeadStart, previewThemeStyle);
 }
 
 /** HTML artifact를 동일한 CSP와 iframe sandbox 경계 안에서 렌더링한다. */
@@ -247,7 +282,7 @@ export function ArtifactHtmlPreviewFrame({
     <iframe
       ref={resolvedFrameRef}
       id={id}
-      className="h-full w-full rounded-control border bg-white"
+      className="h-full w-full rounded-control border bg-surface"
       referrerPolicy="no-referrer"
       sandbox="allow-scripts"
       srcDoc={buildSandboxedPreviewHtml(record.html)}

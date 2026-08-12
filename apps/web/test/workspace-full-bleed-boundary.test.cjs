@@ -47,7 +47,7 @@ function emptyWorkspaceRootClasses(componentSource, helperName) {
   return classes;
 }
 
-test("Artifact Workbench detail은 header/content shell을 밀어내는 viewport 형제 열이다", () => {
+test("Artifact Workbench header는 full-width 첫 행이고 body는 230px Explorer·Records·detail 열이다", () => {
   const workbench = source(
     "components/features/dashboard/ArtifactWorkbench.tsx",
   );
@@ -58,31 +58,21 @@ test("Artifact Workbench detail은 header/content shell을 밀어내는 viewport
 
   assert.match(
     workbench,
-    /md:grid-cols-\[minmax\(0,1fr\)_var\(--detail-pane-width\)\]/,
-    "viewport root는 content shell과 detail pane을 별도 열로 배치해야 한다",
-  );
-  assert.match(
-    workbench,
-    /className=["'][^"']*\bgrid\b[^"']*\bmin-w-0\b[^"']*\bgrid-rows-\[58px_minmax\(0,1fr\)\][^"']*["'][\s\S]*?<header\b[\s\S]*?<main\b/,
-    "공통 header와 main은 같은 content shell 안에 있어 함께 밀려야 한다",
+    /className=\{`[^`]*\bgrid\b[^`]*\bgrid-rows-\[58px_minmax\(0,1fr\)\][^`]*`\}[\s\S]*?<header\b[\s\S]*?<main\b/,
+    "viewport root는 full-width header와 body를 58px/remaining 행으로 배치해야 한다",
   );
   assert.ok(mainOpeningTag, "main opening tag를 찾을 수 있어야 한다");
   for (const token of [
     "min-h-0",
-    "md:grid-cols-[230px_minmax(0,1fr)]",
-    "lg:grid-cols-[270px_minmax(0,1fr)]",
+    "md:grid-cols-[230px_minmax(0,1fr)_var(--detail-pane-width)]",
   ]) {
     assert.match(
       mainOpeningTag[0],
       new RegExp(token.replace(/[()[\].-]/g, "\\$&")),
-      `main은 Explorer와 Records 두 pane을 위한 ${token}을 가져야 한다`,
+      `main body는 Explorer·Records·Detail을 위한 ${token}을 가져야 한다`,
     );
   }
-  assert.doesNotMatch(
-    mainOpeningTag[0],
-    /var\(--detail-pane-width\)/,
-    "detail pane 폭은 main 내부의 세 번째 열로 잡으면 안 된다",
-  );
+  assert.doesNotMatch(workbench, /lg:grid-cols-\[270px_minmax\(0,1fr\)\]/);
   assert.match(
     workbench,
     /["']--detail-pane-width["']:\s*`\$\{[^}]+\}%`/,
@@ -90,19 +80,19 @@ test("Artifact Workbench detail은 header/content shell을 밀어내는 viewport
   );
   assert.match(
     workbench,
-    /<\/main>\s*<\/div>\s*<aside\b[^>]*aria-labelledby=["']detail-heading["']/,
-    "detail pane은 main을 감싼 content shell과 직접 형제여야 한다",
+    /<\/section>\s*<aside\b[^>]*aria-labelledby=["']detail-heading["'][\s\S]*?<\/aside>\s*<\/main>/,
+    "detail pane은 header 아래 body grid의 Records 형제여야 한다",
   );
   assert.ok(detailPaneOpeningTag, "detail pane opening tag를 찾을 수 있어야 한다");
   assert.match(
     detailPaneOpeningTag[0],
-    /(?:^|\s)(?:h-dvh|h-full)(?:\s|$)/,
-    "detail pane은 공통 header 아래가 아닌 viewport 전체 높이를 차지해야 한다",
+    /(?:^|\s)h-full(?:\s|$)/,
+    "detail pane은 header 아래 body grid의 전체 높이를 차지해야 한다",
   );
   assert.doesNotMatch(
     detailPaneOpeningTag[0],
-    /min-h-\[calc\(100dvh-58px\)\]|(?:^|\s)(?:fixed|absolute|z-\S+)(?:\s|$)/,
-    "detail pane은 header 높이를 빼거나 z-index overlay로 header를 덮으면 안 된다",
+    /h-dvh|min-h-\[calc\(100dvh-58px\)\]|(?:^|\s)(?:fixed|absolute|z-\S+)(?:\s|$)/,
+    "detail pane은 body row를 넘거나 overlay로 header를 덮으면 안 된다",
   );
 });
 
