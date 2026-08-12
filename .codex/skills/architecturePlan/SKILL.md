@@ -17,8 +17,72 @@ description: 아키텍쳐 plan 문서를 작성하는 스킬
 
 - ArchitecturePlan은 인프라, 아키텍쳐, 기술스택, 배포전략, 로그관리 등등에 대한 레포 scope의 계획 문서이다.
 - projectId당 하나의 ArchitecturePlan만 존재한다.
-- 매 plan 생성시마다, 해당 plan 예상 결과를 포함한 architecturePlan의 내용이 맞는지를 확인하고, 어긋난 부분이 있을 경우 업데이트한다.
+- 매 Plan 생성 시마다 해당 Plan의 KPI와 ArchitecturePlan의 내용이 일치하는지 확인하고, 어긋난 부분이 있으면 업데이트한다.
+- ArchitecturePlan의 `content`는 Markdown 설명이고 `html`은 완전한 HTML 인프라 구조도이다.
+- 런타임·인프라 구성이 바뀌면 `content`와 `html`을 반드시 같은 변경 단위에서 함께 갱신한다.
+- 이 제목 중심 계약을 적용한 ArchitecturePlan의 `schemaVersion`은 `2.0.0`이다.
+
+## 런타임·인프라 구조도 필수 계약
+
+- `content`의 6번은 사용자와 시스템 사이의 논리적 관계를 설명하는 시스템 컨텍스트로 작성한다.
+- `content`의 7번은 환경, Cluster, AZ, Compute, Task, Container, Data, Ops의 물리적 배치 구조로 작성한다.
+- 7번의 섹션명과 순서는 아래와 같이 고정한다.
+
+```text
+7. 런타임·인프라 구성
+├── 7.1 런타임·인프라 배치 구조도
+├── 7.2 컴포넌트 배치 표
+├── 7.3 서비스 배치 규칙
+├── 7.4 코드·런타임 매핑
+└── 7.5 Markdown·HTML 일치 규칙
+```
+
+- 7.1에는 HTML 구조도를 열지 않아도 전체 배치와 흐름을 이해할 수 있는 ASCII 구조도를 작성한다.
+- 7.2의 모든 컴포넌트는 코드형 ID 대신 사람이 읽는 표시 제목을 사용한다.
+  - 같은 부모 아래의 표시 제목은 유일해야 한다.
+  - 컴포넌트의 정본 식별자는 `환경 > Cluster > AZ/Compute > Task > Container` 순서로 부모 제목을 결합한 제목 경로다.
+  - 제목 경로는 앞뒤 공백만 제거한 문자열로 비교하며 별칭, 축약, 번호형 ID를 사용하지 않는다.
+- 7.3에는 환경별 Task 수, AZ 배치, 배포 중 최소 정상 비율과 최대 Task 비율을 명시한다.
+- 7.4에는 실제 레포 경로, 책임, 런타임, 연결되는 컴포넌트 제목 경로를 기록한다.
+- 7.5에는 출발 제목 경로, 도착 제목 경로, 흐름 제목, 프로토콜 또는 데이터 종류를 기록한다.
+- 연결은 별도 ID 없이 `(출발 제목 경로, 도착 제목 경로, 흐름 제목)` 튜플로 식별한다.
+
+## HTML 구조도 작성 규칙
+
+- `html`은 `<!doctype html>`, `<html>`, `<head>`, `<body>`, `<main>`을 포함하는 완전한 단일 HTML 문서로 작성한다.
+- [인프라 구조도 예시](./references/인프라.pdf)처럼 경계 상자를 중첩하여 `환경 → Cluster → AZ/Compute → Task/Container` 포함 관계를 표현한다.
+- 구조도에는 외부 사용자, 진입점, 환경별 Compute, 환경별 Data, 관측성 경계와 방향이 있는 연결선을 포함한다.
+- 노드에는 `data-component-title-path`, 연결에는 `data-source-title-path`, `data-target-title-path`, `data-flow-title`, 환경 경계에는 `data-environment`를 사용한다.
+- HTML의 제목 경로와 흐름 제목은 Markdown의 정본 문자열과 exact-match해야 한다.
+- Promtail 같은 sidecar는 소속 Task 안에 배치하고, 조회 흐름과 로그 전송 흐름의 방향을 구분한다.
+- 공식 공급자 아이콘이 있으면 공식 원본 SVG를 사용하고 색상, 비율, 요소를 변경하지 않는다.
+- AWS 구조도는 `assets/aws/2026-04-30`의 AWS Architecture Icons 2026-04-30 패키지를 사용한다.
+- 공식 아이콘은 날짜가 고정된 로컬 에셋으로 보관하고 최종 HTML에는 inline SVG 또는 data URI로 포함하여 네트워크 없이 렌더링되게 한다.
+- AWS 아이콘은 원본 색상·비율·구성을 변경하지 않고, 구조도 하단에 출처·패키지 날짜·CC BY-ND 2.0 표기를 둔다.
+- 비공식 서비스는 상표 아이콘 대신 범용 Container 도형과 텍스트 라벨을 사용한다.
+- 출처, 패키지 버전, 라이선스를 구조도 하단에 표시한다.
+- 레이아웃은 CSS Grid 기반으로 작성한다.
+  - 1200px 이상은 참조 PDF와 같은 가로 흐름을 사용한다.
+  - 768px 이상 1199px 이하는 Public 상단, prod·dev 2열, ops 하단으로 배치한다.
+  - 767px 이하는 Public → prod → dev → ops 순서의 세로 흐름으로 재배치한다.
+- 환경은 색상뿐 아니라 환경명과 경계 라벨로도 식별 가능해야 한다.
+
+## 구조도 정합성 검증
+
+- Markdown 7.2의 제목과 부모 제목을 결합해 만든 컴포넌트 제목 경로 집합은 HTML의 컴포넌트 제목 경로 집합과 일치해야 한다.
+- Markdown 7.1 ASCII 구조도는 7.2와 같은 부모·자식 포함 관계와 7.5의 흐름 방향·제목을 사람이 읽을 수 있는 짧은 제목으로 표현해야 한다.
+- Markdown 7.5와 HTML의 `(출발 제목 경로, 도착 제목 경로, 흐름 제목)` 튜플 집합이 일치해야 한다.
+- 모든 연결의 출발 제목 경로와 도착 제목 경로는 7.2에 존재해야 한다.
+- 제목 경로는 문서 전체에서 유일해야 하며, 연결 튜플도 중복될 수 없다.
+- 제목을 변경하면 Markdown, HTML, 모든 연결 참조를 같은 변경 단위에서 갱신한다.
+- prod와 dev 데이터 저장소 사이에는 연결을 만들지 않는다.
+- 구조도에 표시한 Task 수, AZ 수, 배치 규칙은 7.3과 일치해야 한다.
+- HTML에만 존재하는 아키텍처 결정이나 수치를 두지 않는다.
+- 1440px, 1024px, 390px 너비에서 노드 겹침, 텍스트 잘림, 끊어진 연결선, 깨진 아이콘이 없어야 한다.
+- 네트워크를 차단한 상태에서도 모든 아이콘과 라벨이 표시되어야 한다.
 
 ### 구조도 예시
 
 - [인프라 구조도 예시](./references/인프라.pdf)
+- [ArchitecturePlan Markdown 예시](./references/architecturePlan-example.md)
+- [ArchitecturePlan HTML 구조도 예시](./references/architecturePlan-example.html)

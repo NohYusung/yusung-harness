@@ -1,0 +1,39 @@
+name: AWS Architecture Icons
+package_date: 2026-04-30
+retrieved_at: 2026-08-12T11:45:00+09:00
+source_page: https://aws.amazon.com/architecture/icons/
+archive_url: https://d1.awsstatic.com/onedam/marketing-channels/website/aws/en_US/architecture/approved/architecture-icons/Icon-package_04302026.4705b90f5aa45b019271a2699e9ce9b97b941ee1.zip
+owner: Amazon Web Services, Inc. or its affiliates
+license: CC BY-ND 2.0
+license_url: https://creativecommons.org/licenses/by-nd/2.0/
+license_evidence: https://github.com/awslabs/aws-icons-for-plantuml/blob/main/LICENSE
+usage_note: Icons are used unmodified; only their embedding format and display size change.
+files:
+  - path: Arch_AWS-Amplify_64.svg
+    archive_path: Architecture-Service-Icons_04302026/Arch_Front-End-Web-Mobile/64/Arch_AWS-Amplify_64.svg
+    archive_sha256: d38fd389b67c4df1a22be0f1308b577bb874dbe9dd8ee065ebb69d4e5508b08f
+    local_sha256: a5b8bcf4f41ebf05c9e45fd7f369f1ed6030359c9623a20c9fcce95e02d15ee8
+  - path: Res_Elastic-Load-Balancing_Application-Load-Balancer_48.svg
+    archive_path: Resource-Icons_04302026/Res_Networking-Content-Delivery/Res_Elastic-Load-Balancing_Application-Load-Balancer_48.svg
+    archive_sha256: 27bea44fffd83cc42ce68411e659761a114d41d6b89efc556afef969f96414aa
+    local_sha256: 1d873f6facc9ae34e94bc879fc3772ee81e866cf26480306c00fab34c371051a
+  - path: Arch_Amazon-Elastic-Container-Service_64.svg
+    archive_path: Architecture-Service-Icons_04302026/Arch_Containers/64/Arch_Amazon-Elastic-Container-Service_64.svg
+    archive_sha256: 768688ef725e0e02c5817b218d2cb9dda45c1b76921872f607253da91d881552
+    local_sha256: 0c1e8aeb8e9e007389516cc29867a4628fb997915cda2dc140cf1cf772c51bbd
+  - path: Arch_Amazon-EC2_64.svg
+    archive_path: Architecture-Service-Icons_04302026/Arch_Compute/64/Arch_Amazon-EC2_64.svg
+    archive_sha256: 5a7a0cef7a9f44ccdd544564ce9076abec3024090be0d6454504c49d149ce9ec
+    local_sha256: b2a1ca642d2b1ec2777b1852c3f39a6351e5e44c453c89d3bc9d884dfb20e4bf
+  - path: Arch_Amazon-RDS_64.svg
+    archive_path: Architecture-Service-Icons_04302026/Arch_Databases/64/Arch_Amazon-RDS_64.svg
+    archive_sha256: 1b24caf4baf274a12164053f05bf0cba331f4d5e30fdd4164000702c1ec192a6
+    local_sha256: b4dc14fea94299ee2142361fbd9931ab903443d12d958c292769ba14d9cada0d
+  - path: Arch_Amazon-ElastiCache_64.svg
+    archive_path: Architecture-Service-Icons_04302026/Arch_Databases/64/Arch_Amazon-ElastiCache_64.svg
+    archive_sha256: d7f3d85f54a818a33d0772c56688cdd0453558295a39ec9894f4d107ea7ebef5
+    local_sha256: 09463fad6817a4fe195c063cea9c09827d66104eca17f16c23e5855484ec4f0c
+  - path: Arch_Amazon-Simple-Storage-Service_64.svg
+    archive_path: Architecture-Service-Icons_04302026/Arch_Storage/64/Arch_Amazon-Simple-Storage-Service_64.svg
+    archive_sha256: b92c5101cc6565dd12df37655802279f8fba0c719279f62f93106d26750b36c6
+    local_sha256: 17fded648c0d66ba21322bce0da2c12e3c54ebe1ebdfa1e3d2f1a85f0e7b73a2

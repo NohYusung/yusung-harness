@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="architecture-plan-schema-version" content="2.0.0">
+  <title>Pickme Platform v1 · 런타임·인프라 배치 구조도</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #58647a;
+      --line: #b9c4d6;
+      --canvas: #f3f6fb;
+      --surface: #ffffff;
+      --public: #315acb;
+      --public-soft: #edf3ff;
+      --prod: #087765;
+      --prod-soft: #e9f8f4;
+      --dev: #9a5a08;
+      --dev-soft: #fff6e8;
+      --ops: #6637b7;
+      --ops-soft: #f4efff;
+      --task: #41506a;
+      --shadow: 0 16px 40px rgba(28, 44, 75, .09);
+      --icon-amplify: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODBweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODAgODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BV1MtQW1wbGlmeV82NDwvdGl0bGU+CiAgICA8ZyBpZD0iSWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BV1MtQW1wbGlmeV82NCIgc3Ryb2tlPSJub25lIiBzdHJva2Utd2lkdGg9IjEiIGZpbGw9Im5vbmUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+CiAgICAgICAgPGcgaWQ9Ikljb24tQXJjaGl0ZWN0dXJlLUJHLzY0L01vYmlsZSIgZmlsbD0iI0REMzQ0QyI+CiAgICAgICAgICAgIDxyZWN0IGlkPSJSZWN0YW5nbGUiIHg9IjAiIHk9IjAiIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PC9yZWN0PgogICAgICAgIDwvZz4KICAgICAgICA8cGF0aCBkPSJNNTkuNjEwNzM4OSw1OS4xNzkgTDM5LjUwNjczODksMjAgTDQ1LjI1NzczODksMjAgTDY1LjM2MjczODksNTkuMTc5IEw1OS42MTA3Mzg5LDU5LjE3OSBaIE02Ny44ODg3Mzg5LDU5LjcyMiBMNDYuNzU4NzM4OSwxOC41NDQgQzQ2LjU4ODczODksMTguMjEgNDYuMjQ0NzM4OSwxOCA0NS44Njk3Mzg5LDE4IEwzNy44Njk3Mzg5LDE4IEMzNy41MjA3Mzg5LDE4IDM3LjE5NzczODksMTguMTgxIDM3LjAxNTczODksMTguNDc5IEMzNi44MzQ3Mzg5LDE4Ljc3NiAzNi44MjA3Mzg5LDE5LjE0NyAzNi45Nzk3Mzg5LDE5LjQ1NyBMNTguMTA5NzM4OSw2MC42MzYgQzU4LjI4MDczODksNjAuOTY5IDU4LjYyNDczODksNjEuMTc5IDU4Ljk5OTczODksNjEuMTc5IEw2Ni45OTk3Mzg5LDYxLjE3OSBDNjcuMzQ3NzM4OSw2MS4xNzkgNjcuNjcxNzM4OSw2MC45OTggNjcuODUyNzM4OSw2MC43IEM2OC4wMzQ3Mzg5LDYwLjQwMyA2OC4wNDg3Mzg5LDYwLjAzMyA2Ny44ODg3Mzg5LDU5LjcyMiBMNjcuODg4NzM4OSw1OS43MjIgWiBNNDcuNTk4NzM4OSw1OS4xNzkgTDMyLjIxNDczODksMzAuMzMyIEwzNS4zNjU3Mzg5LDI1LjEyMSBMNTMuMzQwNzM4OSw1OS4xNzkgTDQ3LjU5ODczODksNTkuMTc5IFogTTM2LjMwOTczODksMjIuNjI0IEMzNi4xNDA3Mzg5LDIyLjMwNSAzNS44MTQ3Mzg5LDIyLjEwMSAzNS40NTQ3Mzg5LDIyLjA5MSBDMzUuMTA4NzM4OSwyMi4wNyAzNC43NTY3Mzg5LDIyLjI2NSAzNC41Njk3Mzg5LDIyLjU3MyBMMzAuMjA5NzM4OSwyOS43ODQgQzMwLjAyNjczODksMzAuMDg2IDMwLjAxNjczODksMzAuNDYxIDMwLjE4MTczODksMzAuNzcyIEw0Ni4xMTY3Mzg5LDYwLjY1IEM0Ni4yOTA3Mzg5LDYwLjk3NSA0Ni42MzA3Mzg5LDYxLjE3OSA0Ni45OTk3Mzg5LDYxLjE3OSBMNTQuOTk5NzM4OSw2MS4xNzkgQzU1LjM0OTczODksNjEuMTc5IDU1LjY3NDczODksNjAuOTk1IDU1Ljg1NTczODksNjAuNjk1IEM1Ni4wMzY3Mzg5LDYwLjM5NSA1Ni4wNDc3Mzg5LDYwLjAyMiA1NS44ODM3Mzg5LDU5LjcxMiBMMzYuMzA5NzM4OSwyMi42MjQgWiBNMTQuNzcyNzM4OSw1OS4xNzkgTDI4Ljg4NDczODksMzUuODQgTDMxLjc1OTczODksNDEuMjI5IEwyNS4xMzM3Mzg5LDUyLjY3OCBDMjQuOTU0NzM4OSw1Mi45ODggMjQuOTU0NzM4OSw1My4zNjkgMjUuMTMyNzM4OSw1My42NzkgQzI1LjMxMTczODksNTMuOTg4IDI1LjY0MTczODksNTQuMTc5IDI1Ljk5OTczODksNTQuMTc5IEwzOC42NjY3Mzg5LDU0LjE3OSBMNDEuMzMyNzM4OSw1OS4xNzkgTDE0Ljc3MjczODksNTkuMTc5IFogTTQwLjE0ODczODksNTIuNzA4IEMzOS45NzQ3Mzg5LDUyLjM4MyAzOS42MzQ3Mzg5LDUyLjE3OSAzOS4yNjU3Mzg5LDUyLjE3OSBMMjcuNzMzNzM4OSw1Mi4xNzkgTDMzLjc2ODczODksNDEuNzUgQzMzLjk0MjczODksNDEuNDUxIDMzLjk0ODczODksNDEuMDg0IDMzLjc4NjczODksNDAuNzc5IEwyOS44MjI3Mzg5LDMzLjM0NiBDMjkuNjUyNzM4OSwzMy4wMjkgMjkuMzI2NzM4OSwzMi44MjcgMjguOTY2NzM4OSwzMi44MTcgQzI4LjU4MjczODksMzIuOCAyOC4yNjk3Mzg5LDMyLjk5MiAyOC4wODQ3Mzg5LDMzLjI5OSBMMTIuMTQzNzM4OSw1OS42NjEgQzExLjk1NzczODksNTkuOTcxIDExLjk1MTczODksNjAuMzU2IDEyLjEyODczODksNjAuNjcgQzEyLjMwNTczODksNjAuOTg1IDEyLjYzNzczODksNjEuMTc5IDEyLjk5OTczODksNjEuMTc5IEw0Mi45OTk3Mzg5LDYxLjE3OSBDNDMuMzUwNzM4OSw2MS4xNzkgNDMuNjc1NzM4OSw2MC45OTUgNDMuODU2NzM4OSw2MC42OTQgQzQ0LjAzNzczODksNjAuMzkyIDQ0LjA0NzczODksNjAuMDE4IDQzLjg4MTczODksNTkuNzA4IEw0MC4xNDg3Mzg5LDUyLjcwOCBaIiBpZD0iQVdTLUFtcGxpZnlfSWNvbl82NF9TcXVpZCIgZmlsbD0iI0ZGRkZGRiI+PC9wYXRoPgogICAgPC9nPgo8L3N2Zz4K");
+      --icon-alb: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iNDhweCIgaGVpZ2h0PSI0OHB4IiB2aWV3Qm94PSIwIDAgNDggNDgiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1SZXNvdXJjZS9OZXR3b3JraW5nLWFuZC1Db250ZW50LURlbGl2ZXJ5L1Jlc19FbGFzdGljLUxvYWQtQmFsYW5jaW5nX0FwcGxpY2F0aW9uLUxvYWQtQmFsYW5jZXJfNDg8L3RpdGxlPgogICAgPGcgaWQ9Ikljb24tUmVzb3VyY2UvTmV0d29ya2luZy1hbmQtQ29udGVudC1EZWxpdmVyeS9SZXNfRWxhc3RpYy1Mb2FkLUJhbGFuY2luZ19BcHBsaWNhdGlvbi1Mb2FkLUJhbGFuY2VyXzQ4IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8cGF0aCBkPSJNMzMuNjksMzQuMzc1IEwzNi4wMzUsMzQuMzc1IEwzNi4wMzUsMzIgTDMzLjY5LDMyIEwzMy42OSwzNC4zNzUgWiBNMjYuNzUxLDM0LjM3NSBMMjkuMTI2LDM0LjM3NSBMMjkuMTI2LDMyIEwyNi43NTEsMzIgTDI2Ljc1MSwzNC4zNzUgWiBNMTguODc2LDM0LjM3NSBMMjEuMjUxLDM0LjM3NSBMMjEuMjUxLDMyIEwxOC44NzYsMzIgTDE4Ljg3NiwzNC4zNzUgWiBNMTEuOTY2LDM0LjM3NSBMMTQuMjUxLDM0LjM3NSBMMTQuMjUxLDMyIEwxMS45NjYsMzIgTDExLjk2NiwzNC4zNzUgWiBNMTguMDAxLDE2Ljg3NSBMMzAuMDAxLDE2Ljg3NSBMMzAuMDAxLDExIEwxOC4wMDEsMTEgTDE4LjAwMSwxNi44NzUgWiBNMzcuMDM1LDMwIEwzNS41MDEsMzAgTDM1LjUwMSwyNi42MjUgQzM1LjUwMSwyNi4wNzIgMzUuMDUzLDI1LjYyNSAzNC41MDEsMjUuNjI1IEwzMi4wMDEsMjUuNjI1IEwzMi4wMDEsMjIuMjUgQzMyLjAwMSwyMS42OTcgMzEuNTUzLDIxLjI1IDMxLjAwMSwyMS4yNSBMMjUuMDAxLDIxLjI1IEwyNS4wMDEsMTguODc1IEwzMS4wMDEsMTguODc1IEMzMS41NTMsMTguODc1IDMyLjAwMSwxOC40MjggMzIuMDAxLDE3Ljg3NSBMMzIuMDAxLDEwIEMzMi4wMDEsOS40NDcgMzEuNTUzLDkgMzEuMDAxLDkgTDE3LjAwMSw5IEMxNi40NDgsOSAxNi4wMDEsOS40NDcgMTYuMDAxLDEwIEwxNi4wMDEsMTcuODc1IEMxNi4wMDEsMTguNDI4IDE2LjQ0OCwxOC44NzUgMTcuMDAxLDE4Ljg3NSBMMjMuMDAxLDE4Ljg3NSBMMjMuMDAxLDIxLjI1IEwxNy4wMDEsMjEuMjUgQzE2LjQ0OCwyMS4yNSAxNi4wMDEsMjEuNjk3IDE2LjAwMSwyMi4yNSBMMTYuMDAxLDI1LjYyNSBMMTMuNTAxLDI1LjYyNSBDMTIuOTQ4LDI1LjYyNSAxMi41MDEsMjYuMDcyIDEyLjUwMSwyNi42MjUgTDEyLjUwMSwzMCBMMTAuOTY1LDMwIEMxMC40MTMsMzAgOS45NjUsMzAuNDQ3IDkuOTY1LDMxIEw5Ljk2NSwzNS4zNzUgQzkuOTY1LDM1LjkyOCAxMC40MTMsMzYuMzc1IDEwLjk2NSwzNi4zNzUgTDE1LjI1MSwzNi4zNzUgQzE1LjgwMywzNi4zNzUgMTYuMjUxLDM1LjkyOCAxNi4yNTEsMzUuMzc1IEwxNi4yNTEsMzEgQzE2LjI1MSwzMC40NDcgMTUuODAzLDMwIDE1LjI1MSwzMCBMMTQuNTAxLDMwIEwxNC41MDEsMjcuNjI1IEwxOC42MjYsMjcuNjI1IEwxOC42MjYsMzAgTDE3Ljg3NiwzMCBDMTcuMzIzLDMwIDE2Ljg3NiwzMC40NDcgMTYuODc2LDMxIEwxNi44NzYsMzUuMzc1IEMxNi44NzYsMzUuOTI4IDE3LjMyMywzNi4zNzUgMTcuODc2LDM2LjM3NSBMMjIuMjUxLDM2LjM3NSBDMjIuODAzLDM2LjM3NSAyMy4yNTEsMzUuOTI4IDIzLjI1MSwzNS4zNzUgTDIzLjI1MSwzMSBDMjMuMjUxLDMwLjQ0NyAyMi44MDMsMzAgMjIuMjUxLDMwIEwyMC42MjYsMzAgTDIwLjYyNiwyNi42MjUgQzIwLjYyNiwyNi4wNzIgMjAuMTc4LDI1LjYyNSAxOS42MjYsMjUuNjI1IEwxOC4wMDEsMjUuNjI1IEwxOC4wMDEsMjMuMjUgTDMwLjAwMSwyMy4yNSBMMzAuMDAxLDI1LjYyNSBMMjguMzc2LDI1LjYyNSBDMjcuODIzLDI1LjYyNSAyNy4zNzYsMjYuMDcyIDI3LjM3NiwyNi42MjUgTDI3LjM3NiwzMCBMMjUuNzUxLDMwIEMyNS4xOTgsMzAgMjQuNzUxLDMwLjQ0NyAyNC43NTEsMzEgTDI0Ljc1MSwzNS4zNzUgQzI0Ljc1MSwzNS45MjggMjUuMTk4LDM2LjM3NSAyNS43NTEsMzYuMzc1IEwzMC4xMjYsMzYuMzc1IEMzMC42NzgsMzYuMzc1IDMxLjEyNiwzNS45MjggMzEuMTI2LDM1LjM3NSBMMzEuMTI2LDMxIEMzMS4xMjYsMzAuNDQ3IDMwLjY3OCwzMCAzMC4xMjYsMzAgTDI5LjM3NiwzMCBMMjkuMzc2LDI3LjYyNSBMMzMuNTAxLDI3LjYyNSBMMzMuNTAxLDMwIEwzMi42OSwzMCBDMzIuMTM3LDMwIDMxLjY5LDMwLjQ0NyAzMS42OSwzMSBMMzEuNjksMzUuMzc1IEMzMS42OSwzNS45MjggMzIuMTM3LDM2LjM3NSAzMi42OSwzNi4zNzUgTDM3LjAzNSwzNi4zNzUgQzM3LjU4NywzNi4zNzUgMzguMDM1LDM1LjkyOCAzOC4wMzUsMzUuMzc1IEwzOC4wMzUsMzEgQzM4LjAzNSwzMC40NDcgMzcuNTg3LDMwIDM3LjAzNSwzMCBMMzcuMDM1LDMwIFogTTI0LjAwMSw0NCBDMTIuOTcyLDQ0IDQsMzUuMDI4IDQsMjQgQzQsMTIuOTcyIDEyLjk3Miw0IDI0LjAwMSw0IEMzNS4wMjksNCA0NC4wMDEsMTIuOTcyIDQ0LjAwMSwyNCBDNDQuMDAxLDM1LjAyOCAzNS4wMjksNDQgMjQuMDAxLDQ0IEwyNC4wMDEsNDQgWiBNMjQuMDAxLDIgQzExLjg2OSwyIDIsMTEuODY5IDIsMjQgQzIsMzYuMTMxIDExLjg2OSw0NiAyNC4wMDEsNDYgQzM2LjEzMSw0NiA0Ni4wMDEsMzYuMTMxIDQ2LjAwMSwyNCBDNDYuMDAxLDExLjg2OSAzNi4xMzEsMiAyNC4wMDEsMiBMMjQuMDAxLDIgWiIgaWQ9IkFXUy1FbGFzdGljLUxvYWQtQmFsYW5jaW5nXy1BcHBsaWNhdGlvbi1Mb2FkLUJhbGFuY2VyX1Jlc291cmNlLUljb25fbGlnaHQtYmciIGZpbGw9IiM4QzRGRkYiPjwvcGF0aD4KICAgIDwvZz4KPC9zdmc+Cg==");
+      --icon-ecs: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODBweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODAgODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tRWxhc3RpYy1Db250YWluZXItU2VydmljZV82NDwvdGl0bGU+CiAgICA8ZyBpZD0iSWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tRWxhc3RpYy1Db250YWluZXItU2VydmljZV82NCIgc3Ryb2tlPSJub25lIiBzdHJva2Utd2lkdGg9IjEiIGZpbGw9Im5vbmUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+CiAgICAgICAgPGcgaWQ9Ikljb24tQXJjaGl0ZWN0dXJlLUJHLzY0L0NvbXB1dGUiIGZpbGw9IiNFRDcxMDAiPgogICAgICAgICAgICA8cmVjdCBpZD0iUmVjdGFuZ2xlIiB4PSIwIiB5PSIwIiB3aWR0aD0iODAiIGhlaWdodD0iODAiPjwvcmVjdD4KICAgICAgICA8L2c+CiAgICAgICAgPHBhdGggZD0iTTY0LDQ4LjIzNDAwOTUgTDU2LDQzLjQzMzAxMTcgTDU2LDMyLjAwMDAxNjkgQzU2LDMxLjY0NDAxNzEgNTUuODEyLDMxLjMxNTAxNzIgNTUuNTA0LDMxLjEzNjAxNzMgTDQ0LDI0LjQyNjAyMDQgTDQ0LDE0Ljc1MjAyNDggTDY0LDI2LjU3MTAxOTQgTDY0LDQ4LjIzNDAwOTUgWiBNNjUuNTA5LDI1LjEzOTAyIEw0My41MDksMTIuMTM5MDI2IEM0My4xOTksMTEuOTU2MDI2MSA0Mi44MTgsMTEuOTU0MDI2MSA0Mi41MDQsMTIuMTMxMDI2IEM0Mi4xOTMsMTIuMzA5MDI1OSA0MiwxMi42NDEwMjU3IDQyLDEzLjAwMDAyNTYgTDQyLDI1LjAwMDAyMDEgQzQyLDI1LjM1NTAxOTkgNDIuMTg5LDI1LjY4NDAxOTggNDIuNDk2LDI1Ljg2NDAxOTcgTDU0LDMyLjU3NDAxNjYgTDU0LDQ0LjAwMDAxMTQgQzU0LDQ0LjM1MTAxMTMgNTQuMTg1LDQ0LjY3NzAxMTEgNTQuNDg2LDQ0Ljg1NzAxMSBMNjQuNDg2LDUwLjg1NzAwODMgQzY0LjY0NCw1MC45NTIwMDgyIDY0LjgyMiw1MSA2NSw1MSBDNjUuMTcsNTEgNjUuMzQsNTAuOTU3MDA4MiA2NS40OTMsNTAuODcwMDA4MyBDNjUuODA3LDUwLjY5MzAwODQgNjYsNTAuMzYwMDA4NSA2Niw1MCBMNjYsMjYuMDAwMDE5NiBDNjYsMjUuNjQ2MDE5OCA2NS44MTQsMjUuMzE5MDIgNjUuNTA5LDI1LjEzOTAyIEw2NS41MDksMjUuMTM5MDIgWiBNNDAuNDQ1LDY2Ljg2MzAwMSBMMTcsNTQuMzk5MDA2NyBMMTcsMjYuNTcxMDE5NCBMMzcsMTQuNzUyMDI0OCBMMzcsMjQuNDUxMDIwNCBMMjYuNDYzLDMxLjE1NjAxNzMgQzI2LjE3NSwzMS4zNDAwMTcyIDI2LDMxLjY1ODAxNzEgMjYsMzIuMDAwMDE2OSBMMjYsNDkuMDAwMDA5MSBDMjYsNDkuMzczMDA5IDI2LjIwOCw0OS43MTUwMDg4IDI2LjUzOCw0OS44ODcwMDg3IEwzOS45OTEsNTYuODg3MDA1NSBDNDAuMjgsNTcuMDM3MDA1NSA0MC42MjQsNTcuMDM4MDA1NSA0MC45MTIsNTYuODg4MDA1NSBMNTMuOTY0LDUwLjE0NDAwODYgTDYxLjk5Niw1NC45NjQwMDY0IEw0MC40NDUsNjYuODYzMDAxIFogTTY0LjUxNSw1NC4xNDIwMDY4IEw1NC41MTUsNDguMTQyMDA5NSBDNTQuMjE3LDQ3Ljk2NDAwOTYgNTMuODQ5LDQ3Ljk1MjAwOTYgNTMuNTQxLDQ4LjExMjAwOTUgTDQwLjQ1NSw1NC44NzMwMDY1IEwyOCw0OC4zOTMwMDk0IEwyOCwzMi41NDkwMTY3IEwzOC41MzcsMjUuODQ0MDE5NyBDMzguODI1LDI1LjY2MDAxOTggMzksMjUuMzQyMDE5OSAzOSwyNS4wMDAwMjAxIEwzOSwxMy4wMDAwMjU2IEMzOSwxMi42NDEwMjU3IDM4LjgwOCwxMi4zMDkwMjU5IDM4LjQ5NiwxMi4xMzEwMjYgQzM4LjE4NCwxMS45NTQwMjYxIDM3LjgwMiwxMS45NTYwMjYxIDM3LjQ5MSwxMi4xMzkwMjYgTDE1LjQ5MSwyNS4xMzkwMiBDMTUuMTg3LDI1LjMxOTAyIDE1LDI1LjY0NjAxOTggMTUsMjYuMDAwMDE5NiBMMTUsNTUgQzE1LDU1LjM2OTAwNjIgMTUuMjA0LDU1LjcwOTAwNjEgMTUuNTMsNTUuODgzMDA2IEwzOS45ODQsNjguODgzMDAwMSBDNDAuMTMxLDY4Ljk2MSA0MC4yOTIsNjkgNDAuNDUzLDY5IEM0MC42Miw2OSA0MC43ODYsNjguOTU4IDQwLjkzNyw2OC44NzUwMDAxIEw2NC40ODQsNTUuODc1MDA2IEM2NC43OTcsNTUuNzAyMDA2MSA2NC45OTMsNTUuMzc1MDA2MiA2NS4wMDAxNDE2LDU1LjAxODAwNjQgQzY1LjAwNiw1NC42NjAwMDY2IDY0LjgyMSw1NC4zMjYwMDY3IDY0LjUxNSw1NC4xNDIwMDY4IEw2NC41MTUsNTQuMTQyMDA2OCBaIiBpZD0iQW1hem9uLUVsYXN0aWMtQ29udGFpbmVyLVNlcnZpY2VfSWNvbl82NF9TcXVpZCIgZmlsbD0iI0ZGRkZGRiI+PC9wYXRoPgogICAgPC9nPgo8L3N2Zz4K");
+      --icon-ec2: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODBweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODAgODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tRUMyXzY0PC90aXRsZT4KICAgIDxnIGlkPSJJY29uLUFyY2hpdGVjdHVyZS82NC9BcmNoX0FtYXpvbi1FQzJfNjQiIHN0cm9rZT0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPgogICAgICAgIDxnIGlkPSJJY29uLUFyY2hpdGVjdHVyZS1CRy82NC9Db21wdXRlIiBmaWxsPSIjRUQ3MTAwIj4KICAgICAgICAgICAgPHJlY3QgaWQ9IlJlY3RhbmdsZSIgeD0iMCIgeT0iMCIgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIj48L3JlY3Q+CiAgICAgICAgPC9nPgogICAgICAgIDxwYXRoIGQ9Ik0yNyw1MyBMNTIsNTMgTDUyLDI4IEwyNywyOCBMMjcsNTMgWiBNNTQsMjggTDU4LDI4IEw1OCwzMCBMNTQsMzAgTDU0LDM0IEw1OCwzNCBMNTgsMzYgTDU0LDM2IEw1NCwzOSBMNTgsMzkgTDU4LDQxIEw1NCw0MSBMNTQsNDUgTDU4LDQ1IEw1OCw0NyBMNTQsNDcgTDU0LDUxIEw1OCw1MSBMNTgsNTMgTDU0LDUzIEw1NCw1My4xMzYgQzU0LDU0LjE2NCA1My4xNjQsNTUgNTIuMTM2LDU1IEw1Miw1NSBMNTIsNTkgTDUwLDU5IEw1MCw1NSBMNDYsNTUgTDQ2LDU5IEw0NCw1OSBMNDQsNTUgTDQxLDU1IEw0MSw1OSBMMzksNTkgTDM5LDU1IEwzNSw1NSBMMzUsNTkgTDMzLDU5IEwzMyw1NSBMMjksNTUgTDI5LDU5IEwyNyw1OSBMMjcsNTUgTDI2Ljg2NCw1NSBDMjUuODM2LDU1IDI1LDU0LjE2NCAyNSw1My4xMzYgTDI1LDUzIEwyMiw1MyBMMjIsNTEgTDI1LDUxIEwyNSw0NyBMMjIsNDcgTDIyLDQ1IEwyNSw0NSBMMjUsNDEgTDIyLDQxIEwyMiwzOSBMMjUsMzkgTDI1LDM2IEwyMiwzNiBMMjIsMzQgTDI1LDM0IEwyNSwzMCBMMjIsMzAgTDIyLDI4IEwyNSwyOCBMMjUsMjcuODY0IEMyNSwyNi44MzYgMjUuODM2LDI2IDI2Ljg2NCwyNiBMMjcsMjYgTDI3LDIyIEwyOSwyMiBMMjksMjYgTDMzLDI2IEwzMywyMiBMMzUsMjIgTDM1LDI2IEwzOSwyNiBMMzksMjIgTDQxLDIyIEw0MSwyNiBMNDQsMjYgTDQ0LDIyIEw0NiwyMiBMNDYsMjYgTDUwLDI2IEw1MCwyMiBMNTIsMjIgTDUyLDI2IEw1Mi4xMzYsMjYgQzUzLjE2NCwyNiA1NCwyNi44MzYgNTQsMjcuODY0IEw1NCwyOCBaIE00MSw2NS44NzYgQzQxLDY1Ljk0NCA0MC45NDQsNjYgNDAuODc2LDY2IEwxNC4xMjQsNjYgQzE0LjA1Niw2NiAxNCw2NS45NDQgMTQsNjUuODc2IEwxNCwzOS4xMjQgQzE0LDM5LjA1NiAxNC4wNTYsMzkgMTQuMTI0LDM5IEwyMCwzOSBMMjAsMzcgTDE0LjEyNCwzNyBDMTIuOTUzLDM3IDEyLDM3Ljk1MyAxMiwzOS4xMjQgTDEyLDY1Ljg3NiBDMTIsNjcuMDQ3IDEyLjk1Myw2OCAxNC4xMjQsNjggTDQwLjg3Niw2OCBDNDIuMDQ3LDY4IDQzLDY3LjA0NyA0Myw2NS44NzYgTDQzLDYxIEw0MSw2MSBMNDEsNjUuODc2IFogTTY4LDE0LjEyNCBMNjgsNDAuODc2IEM2OCw0Mi4wNDcgNjcuMDQ3LDQzIDY1Ljg3Niw0MyBMNjAsNDMgTDYwLDQxIEw2NS44NzYsNDEgQzY1Ljk0NCw0MSA2Niw0MC45NDQgNjYsNDAuODc2IEw2NiwxNC4xMjQgQzY2LDE0LjA1NiA2NS45NDQsMTQgNjUuODc2LDE0IEwzOS4xMjQsMTQgQzM5LjA1NiwxNCAzOSwxNC4wNTYgMzksMTQuMTI0IEwzOSwyMCBMMzcsMjAgTDM3LDE0LjEyNCBDMzcsMTIuOTUzIDM3Ljk1MywxMiAzOS4xMjQsMTIgTDY1Ljg3NiwxMiBDNjcuMDQ3LDEyIDY4LDEyLjk1MyA2OCwxNC4xMjQgTDY4LDE0LjEyNCBaIiBpZD0iQW1hem9uLUVDMl9JY29uXzY0X1NxdWlkIiBmaWxsPSIjRkZGRkZGIj48L3BhdGg+CiAgICA8L2c+Cjwvc3ZnPgo=");
+      --icon-rds: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODBweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODAgODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tUkRTXzY0PC90aXRsZT4KICAgIDxnIGlkPSJJY29uLUFyY2hpdGVjdHVyZS82NC9BcmNoX0FtYXpvbi1SRFNfNjQiIHN0cm9rZT0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPgogICAgICAgIDxnIGlkPSJJY29uLUFyY2hpdGVjdHVyZS1CRy82NC9EYXRhYmFzZSIgZmlsbD0iI0M5MjVEMSI+CiAgICAgICAgICAgIDxyZWN0IGlkPSJSZWN0YW5nbGUiIHg9IjAiIHk9IjAiIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PC9yZWN0PgogICAgICAgIDwvZz4KICAgICAgICA8cGF0aCBkPSJNMTUuNDE0LDE0IEwyNC43MDcsMjMuMjkzIEwyMy4yOTMsMjQuNzA3IEwxNCwxNS40MTQgTDE0LDIzIEwxMiwyMyBMMTIsMTMgQzEyLDEyLjQ0OCAxMi40NDcsMTIgMTMsMTIgTDIzLDEyIEwyMywxNCBMMTUuNDE0LDE0IFogTTY4LDEzIEw2OCwyMyBMNjYsMjMgTDY2LDE1LjQxNCBMNTYuNzA3LDI0LjcwNyBMNTUuMjkzLDIzLjI5MyBMNjQuNTg2LDE0IEw1NywxNCBMNTcsMTIgTDY3LDEyIEM2Ny41NTMsMTIgNjgsMTIuNDQ4IDY4LDEzIEw2OCwxMyBaIE02Niw1NyBMNjgsNTcgTDY4LDY3IEM2OCw2Ny41NTIgNjcuNTUzLDY4IDY3LDY4IEw1Nyw2OCBMNTcsNjYgTDY0LjU4Niw2NiBMNTUuMjkzLDU2LjcwNyBMNTYuNzA3LDU1LjI5MyBMNjYsNjQuNTg2IEw2Niw1NyBaIE02NS41LDM5LjIxMyBDNjUuNSwzNS44OTQgNjEuNjY4LDMyLjYxNSA1NS4yNSwzMC40NDIgTDU1Ljg5MSwyOC41NDggQzYzLjI2OCwzMS4wNDUgNjcuNSwzNC45MzIgNjcuNSwzOS4yMTMgQzY3LjUsNDMuNDk1IDYzLjI2OCw0Ny4zODMgNTUuODksNDkuODc5IEw1NS4yNDksNDcuOTg0IEM2MS42NjgsNDUuODEyIDY1LjUsNDIuNTM0IDY1LjUsMzkuMjEzIEw2NS41LDM5LjIxMyBaIE0xNC41NTYsMzkuMjEzIEMxNC41NTYsNDIuMzkzIDE4LjE0Myw0NS41ODUgMjQuMTUyLDQ3Ljc1MyBMMjMuNDczLDQ5LjYzNCBDMTYuNTM1LDQ3LjEzMSAxMi41NTYsNDMuMzMzIDEyLjU1NiwzOS4yMTMgQzEyLjU1NiwzNS4wOTQgMTYuNTM1LDMxLjI5NiAyMy40NzMsMjguNzkyIEwyNC4xNTIsMzAuNjczIEMxOC4xNDMsMzIuODQyIDE0LjU1NiwzNi4wMzQgMTQuNTU2LDM5LjIxMyBMMTQuNTU2LDM5LjIxMyBaIE0yNC43MDcsNTYuNzA3IEwxNS40MTQsNjYgTDIzLDY2IEwyMyw2OCBMMTMsNjggQzEyLjQ0Nyw2OCAxMiw2Ny41NTIgMTIsNjcgTDEyLDU3IEwxNCw1NyBMMTQsNjQuNTg2IEwyMy4yOTMsNTUuMjkzIEwyNC43MDcsNTYuNzA3IFogTTQwLDMxLjI4NiBDMzIuODU0LDMxLjI4NiAyOSwyOS40NCAyOSwyOC42ODYgQzI5LDI3LjkzMSAzMi44NTQsMjYuMDg2IDQwLDI2LjA4NiBDNDcuMTQ1LDI2LjA4NiA1MSwyNy45MzEgNTEsMjguNjg2IEM1MSwyOS40NCA0Ny4xNDUsMzEuMjg2IDQwLDMxLjI4NiBMNDAsMzEuMjg2IFogTTQwLjAyOSwzOS4wMzEgQzMzLjE4NywzOS4wMzEgMjksMzcuMTYyIDI5LDM2LjE0NSBMMjksMzEuMjg0IEMzMS40NjMsMzIuNjQzIDM1LjgzMiwzMy4yODYgNDAsMzMuMjg2IEM0NC4xNjgsMzMuMjg2IDQ4LjUzNywzMi42NDMgNTEsMzEuMjg0IEw1MSwzNi4xNDUgQzUxLDM3LjE2MyA0Ni44MzUsMzkuMDMxIDQwLjAyOSwzOS4wMzEgTDQwLjAyOSwzOS4wMzEgWiBNNDAuMDI5LDQ2LjY2NyBDMzMuMTg3LDQ2LjY2NyAyOSw0NC43OTggMjksNDMuNzgxIEwyOSwzOC44NjIgQzMxLjQzMSw0MC4yOTEgMzUuNzQyLDQxLjAzMSA0MC4wMjksNDEuMDMxIEM0NC4yOTIsNDEuMDMxIDQ4LjU3OCw0MC4yOTIgNTEsMzguODY3IEw1MSw0My43ODEgQzUxLDQ0Ljc5OSA0Ni44MzUsNDYuNjY3IDQwLjAyOSw0Ni42NjcgTDQwLjAyOSw0Ni42NjcgWiBNNDAsNTMuNTE4IEMzMi44ODMsNTMuNTE4IDI5LDUxLjYwNSAyOSw1MC42MjIgTDI5LDQ2LjQ5OCBDMzEuNDMxLDQ3LjkyNyAzNS43NDIsNDguNjY3IDQwLjAyOSw0OC42NjcgQzQ0LjI5Miw0OC42NjcgNDguNTc4LDQ3LjkyOSA1MSw0Ni41MDMgTDUxLDUwLjYyMiBDNTEsNTEuNjA1IDQ3LjExNyw1My41MTggNDAsNTMuNTE4IEw0MCw1My41MTggWiBNNDAsMjQuMDg2IEMzMy43MzksMjQuMDg2IDI3LDI1LjUyNSAyNywyOC42ODYgTDI3LDUwLjYyMiBDMjcsNTMuODM2IDMzLjU0LDU1LjUxOCA0MCw1NS41MTggQzQ2LjQ2LDU1LjUxOCA1Myw1My44MzYgNTMsNTAuNjIyIEw1MywyOC42ODYgQzUzLDI1LjUyNSA0Ni4yNjEsMjQuMDg2IDQwLDI0LjA4NiBMNDAsMjQuMDg2IFoiIGlkPSJBbWF6b24tUkRTX0ljb25fNjRfU3F1aWQiIGZpbGw9IiNGRkZGRkYiPjwvcGF0aD4KICAgIDwvZz4KPC9zdmc+Cg==");
+      --icon-redis: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODBweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODAgODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tRWxhc3RpQ2FjaGVfNjQ8L3RpdGxlPgogICAgPGcgaWQ9Ikljb24tQXJjaGl0ZWN0dXJlLzY0L0FyY2hfQW1hem9uLUVsYXN0aUNhY2hlXzY0IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8ZyBpZD0iSWNvbi1BcmNoaXRlY3R1cmUtQkcvNjQvRGF0YWJhc2UiIGZpbGw9IiNDOTI1RDEiPgogICAgICAgICAgICA8cmVjdCBpZD0iUmVjdGFuZ2xlIiB4PSIwIiB5PSIwIiB3aWR0aD0iODAiIGhlaWdodD0iODAiPjwvcmVjdD4KICAgICAgICA8L2c+CiAgICAgICAgPHBhdGggZD0iTTUxLDYxLjU1NTQ4NjQgTDUxLDU1LjcwMjkzNDIgQzQ4LjQ2Niw1Ny4zNDAwODg3IDQzLjkwNCw1OC4xMTMxNjE2IDM5LjU1Niw1OC4xMTMxNjE2IEMzNC44MTYsNTguMTEzMTYxNiAzMS4xMjEsNTcuMjg2MDgzNiAyOSw1NS44Njc5NDk4IEwyOSw2MS41NTU0ODY0IEMyOSw2My4yNDg2NDYxIDMyLjk0OCw2NC45OTk4MTEzIDM5LjU1Niw2NC45OTk4MTEzIEM0Ni4zLDY0Ljk5OTgxMTMgNTEsNjMuMTg0NjQwMSA1MSw2MS41NTU0ODY0IEw1MSw2MS41NTU0ODY0IFogTTM5LjU1Niw0OS4yMjAzMjI3IEMzNC44MTYsNDkuMjIwMzIyNyAzMS4xMjEsNDguMzk0MjQ0NyAyOSw0Ni45NzYxMTEgTDI5LDUyLjY4NjY0OTcgQzI5LjAzMSw1NC4zNzM4MDg4IDMyLjk3Myw1Ni4xMTI5NzI5IDM5LjU1Niw1Ni4xMTI5NzI5IEM0Ni4yNzksNTYuMTEyOTcyOSA1MC45NjksNTQuMzA4ODAyNyA1MSw1Mi42ODI2NDkzIEw1MSw0Ni44MTAwOTUzIEM0OC40NjYsNDguNDQ4MjQ5OCA0My45MDQsNDkuMjIwMzIyNyAzOS41NTYsNDkuMjIwMzIyNyBMMzkuNTU2LDQ5LjIyMDMyMjcgWiBNNTEsNDMuNzkwODEwNSBMNTEsMzcuMDI5MTcyNiBDNDguNDY2LDM4LjY2NjMyNyA0My45MDQsMzkuNDM5Mzk5OSAzOS41NTYsMzkuNDM5Mzk5OSBDMzQuODE2LDM5LjQzOTM5OTkgMzEuMTIxLDM4LjYxMzMyMiAyOSwzNy4xOTUxODgyIEwyOSw0My43OTQ4MTA4IEMyOS4wMzEsNDUuNDgxOTcgMzIuOTczLDQ3LjIyMDEzNCAzOS41NTYsNDcuMjIwMTM0IEM0Ni4yNzksNDcuMjIwMTM0IDUwLjk2OSw0NS40MTU5NjM4IDUxLDQzLjc5MDgxMDUgTDUxLDQzLjc5MDgxMDUgWiBNMjguOTk3LDMzLjk5Mjg4NjEgQzI4Ljk5NywzMy45OTU4ODY0IDI4Ljk5OCwzMy45OTg4ODY3IDI4Ljk5OCwzNC4wMDE4ODcgTDI5LDM0LjAwMTg4NyBMMjksMzQuMDEyODg4IEMyOS4wMzEsMzUuNzAwMDQ3MiAzMi45NzMsMzcuNDM5MjExMiAzOS41NTYsMzcuNDM5MjExMiBDNDYuODk4LDM3LjQzOTIxMTIgNTAuOTY5LDM1LjQxNzAyMDUgNTEsMzQuMDA5ODg3NyBMNTEsMzQuMDAxODg3IEw1MS4wMDIsMzQuMDAxODg3IEM1MS4wMDIsMzMuOTk4ODg2NyA1MS4wMDMsMzMuOTk1ODg2NCA1MS4wMDMsMzMuOTkyODg2MSBDNTEuMDAzLDMyLjU4NDc1MzMgNDYuOTI3LDMwLjU0NjU2MSAzOS41NTYsMzAuNTQ2NTYxIEMzMi45NDYsMzAuNTQ2NTYxIDI4Ljk5NywzMi4yOTg3MjYzIDI4Ljk5NywzMy45OTI4ODYxIEwyOC45OTcsMzMuOTkyODg2MSBaIE01MywzNC4wMTc4ODg1IEw1Myw0My43NzM4MDg4IEw1My4wMDMsNDMuNzczODA4OCBDNTMuMDAzLDQzLjc4MjgwOTcgNTMsNDMuNzg5ODEwNCA1Myw0My43OTg4MTEyIEw1Myw1Mi42NjY2NDc4IEw1My4wMDMsNTIuNjY2NjQ3OCBDNTMuMDAzLDUyLjY3NTY0ODYgNTMsNTIuNjgyNjQ5MyA1Myw1Mi42OTE2NTAyIEw1Myw2MS41NTU0ODY0IEM1Myw2NS4yOTY4MzkzIDQ2LjAzMSw2NyAzOS41NTYsNjcgQzMxLjkyOSw2NyAyNyw2NC44NjI3OTg0IDI3LDYxLjU1NTQ4NjQgTDI3LDUyLjY5NzY1MDcgQzI3LDUyLjY4NjY0OTcgMjYuOTk3LDUyLjY3NzY0ODggMjYuOTk3LDUyLjY2NjY0NzggTDI3LDUyLjY2NjY0NzggTDI3LDQzLjgwNDgxMTggQzI3LDQzLjc5NDgxMDggMjYuOTk3LDQzLjc4NDgwOTkgMjYuOTk3LDQzLjc3MzgwODggTDI3LDQzLjc3MzgwODggTDI3LDM0LjAyMzg4OSBDMjcsMzQuMDEyODg4IDI2Ljk5NywzNC4wMDM4ODcyIDI2Ljk5NywzMy45OTI4ODYxIEMyNi45OTcsMzAuNjg0NTc0IDMxLjkyNywyOC41NDYzNzIzIDM5LjU1NiwyOC41NDYzNzIzIEM0Ni4wMzIsMjguNTQ2MzcyMyA1My4wMDMsMzAuMjUwNTMzMSA1My4wMDMsMzMuOTkyODg2MSBDNTMuMDAzLDM0LjAwMTg4NyA1MywzNC4wMDg4ODc2IDUzLDM0LjAxNzg4ODUgTDUzLDM0LjAxNzg4ODUgWiBNNjcsMjEuMTIwNjcxOCBDNjcuNTUzLDIxLjEyMDY3MTggNjgsMjAuNjcyNjI5NSA2OCwyMC4xMjA1Nzc0IEw2OCwxNS4wMDAwOTQzIEM2OCwxNC40NDcwNDIyIDY3LjU1MywxNCA2NywxNCBMMTMsMTQgQzEyLjQ0NywxNCAxMiwxNC40NDcwNDIyIDEyLDE1LjAwMDA5NDMgTDEyLDIwLjEyMDU3NzQgQzEyLDIwLjY3MjYyOTUgMTIuNDQ3LDIxLjEyMDY3MTggMTMsMjEuMTIwNjcxOCBDMTQuMjIxLDIxLjEyMDY3MTggMTUuMjE0LDIyLjEwNzc2NDkgMTUuMjE0LDIzLjMyMDg3OTMgQzE1LjIxNCwyNC41MzM5OTM4IDE0LjIyMSwyNS41MjEwODY5IDEzLDI1LjUyMTA4NjkgQzEyLjQ0NywyNS41MjEwODY5IDEyLDI1Ljk2OTEyOTIgMTIsMjYuNTIxMTgxMiBMMTIsNDcuMDAzMTEzNSBDMTIsNDcuNTU1MTY1NiAxMi40NDcsNDguMDAzMjA3OCAxMyw0OC4wMDMyMDc4IEwyMyw0OC4wMDMyMDc4IEwyMyw0Ni4wMDMwMTkyIEwxOCw0Ni4wMDMwMTkyIEwxOCw0My4wMDI3MzYxIEwyMyw0My4wMDI3MzYxIEwyMyw0MS4wMDI1NDc0IEwxNyw0MS4wMDI1NDc0IEMxNi40NDcsNDEuMDAyNTQ3NCAxNiw0MS40NDk1ODk2IDE2LDQyLjAwMjY0MTggTDE2LDQ2LjAwMzAxOTIgTDE0LDQ2LjAwMzAxOTIgTDE0LDI3LjQwMTI2NDMgQzE1Ljg0MywyNi45NTIyMjE5IDE3LjIxNCwyNS4yOTMwNjU0IDE3LjIxNCwyMy4zMjA4NzkzIEMxNy4yMTQsMjEuMzQ3NjkzMiAxNS44NDMsMTkuNjg4NTM2NyAxNCwxOS4yMzk0OTQzIEwxNCwxNi4wMDAxODg3IEw2NiwxNi4wMDAxODg3IEw2NiwxOS4yMzk0OTQzIEM2NC4xNTcsMTkuNjg4NTM2NyA2Mi43ODYsMjEuMzQ3NjkzMiA2Mi43ODYsMjMuMzIwODc5MyBDNjIuNzg2LDI1LjI5MzA2NTQgNjQuMTU3LDI2Ljk1MjIyMTkgNjYsMjcuNDAxMjY0MyBMNjYsNDYuMDAzMDE5MiBMNjQsNDYuMDAzMDE5MiBMNjQsNDIuMDAyNjQxOCBDNjQsNDEuNDQ5NTg5NiA2My41NTMsNDEuMDAyNTQ3NCA2Myw0MS4wMDI1NDc0IEw1Nyw0MS4wMDI1NDc0IEw1Nyw0My4wMDI3MzYxIEw2Miw0My4wMDI3MzYxIEw2Miw0Ni4wMDMwMTkyIEw1Nyw0Ni4wMDMwMTkyIEw1Nyw0OC4wMDMyMDc4IEw2Nyw0OC4wMDMyMDc4IEM2Ny41NTMsNDguMDAzMjA3OCA2OCw0Ny41NTUxNjU2IDY4LDQ3LjAwMzExMzUgTDY4LDI2LjUyMTE4MTIgQzY4LDI1Ljk2OTEyOTIgNjcuNTUzLDI1LjUyMTA4NjkgNjcsMjUuNTIxMDg2OSBDNjUuNzc5LDI1LjUyMTA4NjkgNjQuNzg2LDI0LjUzMzk5MzggNjQuNzg2LDIzLjMyMDg3OTMgQzY0Ljc4NiwyMi4xMDc3NjQ5IDY1Ljc3OSwyMS4xMjA2NzE4IDY3LDIxLjEyMDY3MTggTDY3LDIxLjEyMDY3MTggWiBNMjgsMjguMDAxMzIwOSBMMjgsMjAuMDAwNTY2MSBDMjgsMTkuNDQ3NTEzOSAyNy41NTMsMTkuMDAwNDcxNyAyNywxOS4wMDA0NzE3IEwyMSwxOS4wMDA0NzE3IEMyMC40NDcsMTkuMDAwNDcxNyAyMCwxOS40NDc1MTM5IDIwLDIwLjAwMDU2NjEgTDIwLDM3LjAwMjE3IEMyMCwzNy41NTQyMjIxIDIwLjQ0NywzOC4wMDIyNjQ0IDIxLDM4LjAwMjI2NDQgTDI0LDM4LjAwMjI2NDQgTDI0LDM2LjAwMjA3NTcgTDIyLDM2LjAwMjA3NTcgTDIyLDIxLjAwMDY2MDQgTDI2LDIxLjAwMDY2MDQgTDI2LDI4LjAwMTMyMDkgTDI4LDI4LjAwMTMyMDkgWiBNNTgsMzYuMDAyMDc1NyBMNTcsMzYuMDAyMDc1NyBMNTcsMzguMDAyMjY0NCBMNTksMzguMDAyMjY0NCBDNTkuNTUzLDM4LjAwMjI2NDQgNjAsMzcuNTU0MjIyMSA2MCwzNy4wMDIxNyBMNjAsMjAuMDAwNTY2MSBDNjAsMTkuNDQ3NTEzOSA1OS41NTMsMTkuMDAwNDcxNyA1OSwxOS4wMDA0NzE3IEw1MywxOS4wMDA0NzE3IEM1Mi40NDcsMTkuMDAwNDcxNyA1MiwxOS40NDc1MTM5IDUyLDIwLjAwMDU2NjEgTDUyLDI4LjAwMTMyMDkgTDU0LDI4LjAwMTMyMDkgTDU0LDIxLjAwMDY2MDQgTDU4LDIxLjAwMDY2MDQgTDU4LDM2LjAwMjA3NTcgWiBNNTAsMjcuMDAxMjI2NSBMNTAsMjAuMDAwNTY2MSBDNTAsMTkuNDQ3NTEzOSA0OS41NTMsMTkuMDAwNDcxNyA0OSwxOS4wMDA0NzE3IEw0MiwxOS4wMDA0NzE3IEM0MS40NDcsMTkuMDAwNDcxNyA0MSwxOS40NDc1MTM5IDQxLDIwLjAwMDU2NjEgTDQxLDI2LjAwMTEzMjIgTDQzLDI2LjAwMTEzMjIgTDQzLDIxLjAwMDY2MDQgTDQ4LDIxLjAwMDY2MDQgTDQ4LDI3LjAwMTIyNjUgTDUwLDI3LjAwMTIyNjUgWiBNMzcsMjYuMDAxMTMyMiBMMzcsMjEuMDAwNjYwNCBMMzIsMjEuMDAwNjYwNCBMMzIsMjcuMDAxMjI2NSBMMzAsMjcuMDAxMjI2NSBMMzAsMjAuMDAwNTY2MSBDMzAsMTkuNDQ3NTEzOSAzMC40NDcsMTkuMDAwNDcxNyAzMSwxOS4wMDA0NzE3IEwzOCwxOS4wMDA0NzE3IEMzOC41NTMsMTkuMDAwNDcxNyAzOSwxOS40NDc1MTM5IDM5LDIwLjAwMDU2NjEgTDM5LDI2LjAwMTEzMjIgTDM3LDI2LjAwMTEzMjIgWiIgaWQ9IkFtYXpvbi1FbGFzdGlDYWNoZV9JY29uXzY0X1NxdWlkIiBmaWxsPSIjRkZGRkZGIj48L3BhdGg+CiAgICA8L2c+Cjwvc3ZnPgo=");
+      --icon-s3: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODBweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODAgODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tU2ltcGxlLVN0b3JhZ2UtU2VydmljZV82NDwvdGl0bGU+CiAgICA8ZyBpZD0iSWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tU2ltcGxlLVN0b3JhZ2UtU2VydmljZV82NCIgc3Ryb2tlPSJub25lIiBzdHJva2Utd2lkdGg9IjEiIGZpbGw9Im5vbmUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+CiAgICAgICAgPGcgaWQ9Ikljb24tQXJjaGl0ZWN0dXJlLUJHLzY0L1N0b3JhZ2UiIGZpbGw9IiM3QUExMTYiPgogICAgICAgICAgICA8cmVjdCBpZD0iUmVjdGFuZ2xlIiB4PSIwIiB5PSIwIiB3aWR0aD0iODAiIGhlaWdodD0iODAiPjwvcmVjdD4KICAgICAgICA8L2c+CiAgICAgICAgPGcgaWQ9Ikljb24tU2VydmljZS82NC9BbWF6b24tU2ltcGxlLVN0b3JhZ2UtU2VydmljZV82NCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTIuOTk5OTAwLCAxMS45OTk2MDApIiBmaWxsPSIjRkZGRkZGIj4KICAgICAgICAgICAgPHBhdGggZD0iTTQ3LjgzNiwzMC44OTMgTDQ4LjIyLDI4LjE4OSBDNTEuNzYxLDMwLjMxIDUxLjgwNywzMS4xODYgNTEuODA2MDEzMiwzMS4yMSBDNTEuOCwzMS4yMTUgNTEuMTk2LDMxLjcxOSA0Ny44MzYsMzAuODkzIEw0Ny44MzYsMzAuODkzIFogTTQ1Ljg5MywzMC4zNTMgQzM5Ljc3MywyOC41MDEgMzEuMjUsMjQuNTkxIDI3LjgwMSwyMi45NjEgQzI3LjgwMSwyMi45NDcgMjcuODA1LDIyLjkzNCAyNy44MDUsMjIuOTIgQzI3LjgwNSwyMS41OTUgMjYuNzI3LDIwLjUxNyAyNS40MDEsMjAuNTE3IEMyNC4wNzcsMjAuNTE3IDIyLjk5OSwyMS41OTUgMjIuOTk5LDIyLjkyIEMyMi45OTksMjQuMjQ1IDI0LjA3NywyNS4zMjMgMjUuNDAxLDI1LjMyMyBDMjUuOTgzLDI1LjMyMyAyNi41MTEsMjUuMTA2IDI2LjkyOCwyNC43NjEgQzMwLjk4NiwyNi42ODIgMzkuNDQzLDMwLjUzNSA0NS42MDgsMzIuMzU1IEw0My4xNyw0OS41NjEgQzQzLjE2Myw0OS42MDggNDMuMTYsNDkuNjU1IDQzLjE2LDQ5LjcwMiBDNDMuMTYsNTEuMjE3IDM2LjQ1Myw1NCAyNS40OTQsNTQgQzE0LjQxOSw1NCA3LjY0MSw1MS4yMTcgNy42NDEsNDkuNzAyIEM3LjY0MSw0OS42NTYgNy42MzgsNDkuNjExIDcuNjMyLDQ5LjU2NiBMMi41MzgsMTIuMzU5IEM2Ljk0NywxNS4zOTQgMTYuNDMsMTcgMjUuNSwxNyBDMzQuNTU2LDE3IDQ0LjAyMywxNS40IDQ4LjQ0MSwxMi4zNzQgTDQ1Ljg5MywzMC4zNTMgWiBNMiw4LjQ3OCBDMi4wNzIsNy4xNjIgOS42MzQsMiAyNS41LDIgQzQxLjM2NCwyIDQ4LjkyNyw3LjE2MSA0OSw4LjQ3OCBMNDksOC45MjcgQzQ4LjEzLDExLjg3OCAzOC4zMywxNSAyNS41LDE1IEMxMi42NDgsMTUgMi44NDMsMTEuODY4IDIsOC45MTMgTDIsOC40NzggWiBNNTEsOC41IEM1MSw1LjAzNSA0MS4wNjYsMCAyNS41LDAgQzkuOTM0LDAgMCw1LjAzNSAwLDguNSBMMC4wOTQsOS4yNTQgTDUuNjQyLDQ5Ljc3OCBDNS43NzUsNTQuMzEgMTcuODYxLDU2IDI1LjQ5NCw1NiBDMzQuOTY2LDU2IDQ1LjAyOSw1My44MjIgNDUuMTU5LDQ5Ljc4MSBMNDcuNTU1LDMyLjg4NCBDNDguODg4LDMzLjIwMyA0OS45ODUsMzMuMzY2IDUwLjg2NiwzMy4zNjYgQzUyLjA0OSwzMy4zNjYgNTIuODQ5LDMzLjA3NyA1My4zMzQsMzIuNDk5IEM1My43MzIsMzIuMDI1IDUzLjg4NCwzMS40NTEgNTMuNzcsMzAuODQgQzUzLjUxMSwyOS40NTYgNTEuODY4LDI3Ljk2NCA0OC41MjIsMjYuMDU1IEw1MC44OTgsOS4yOTMgTDUxLDguNSBaIiBpZD0iQW1hem9uLVNpbXBsZS1TdG9yYWdlLVNlcnZpY2UtSWNvbl82NF9TcXVpZCI+PC9wYXRoPgogICAgICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+Cg==");
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--canvas); }
+
+    body {
+      margin: 0;
+      min-width: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(49, 90, 203, .09), transparent 31rem),
+        var(--canvas);
+      font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      width: min(100%, 1720px);
+      margin: 0 auto;
+      padding: clamp(16px, 2.4vw, 38px);
+    }
+
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow,
+    .environment-label,
+    .boundary-label,
+    .flow-kind {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow { margin: 0 0 8px; color: var(--public); }
+    h1 { margin: 0; font-size: clamp(25px, 3.2vw, 46px); line-height: 1.08; letter-spacing: -.04em; }
+    .subtitle { max-width: 760px; margin: 10px 0 0; color: var(--muted); }
+
+    .revision {
+      flex: 0 0 auto;
+      padding: 9px 12px;
+      border: 1px solid #cbd5e4;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .8);
+      color: #34425b;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin: 0 0 18px;
+      padding: 12px 15px;
+      border: 1px solid #dbe2ee;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .76);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .swatch { width: 11px; height: 11px; border-radius: 3px; background: currentColor; }
+    .legend .public { color: var(--public); }
+    .legend .prod { color: var(--prod); }
+    .legend .dev { color: var(--dev); }
+    .legend .ops { color: var(--ops); }
+    .arrow-sample { color: var(--ink); font-weight: 900; }
+
+    .diagram {
+      display: grid;
+      grid-template-columns: minmax(190px, .72fr) minmax(430px, 1.75fr) minmax(250px, 1fr) minmax(230px, .9fr);
+      grid-template-areas: "public prod dev ops";
+      gap: 16px;
+      align-items: start;
+    }
+
+    .environment {
+      min-width: 0;
+      padding: 13px;
+      border: 2px solid var(--env-color);
+      border-radius: 20px;
+      background: linear-gradient(155deg, var(--env-soft), rgba(255, 255, 255, .92) 52%);
+      box-shadow: var(--shadow);
+    }
+
+    .environment[data-environment="공통"] { --env-color: var(--public); --env-soft: var(--public-soft); grid-area: public; }
+    .environment[data-environment="운영"] { --env-color: var(--prod); --env-soft: var(--prod-soft); grid-area: prod; }
+    .environment[data-environment="개발"] { --env-color: var(--dev); --env-soft: var(--dev-soft); grid-area: dev; }
+    .environment[data-environment="관측성"] { --env-color: var(--ops); --env-soft: var(--ops-soft); grid-area: ops; }
+
+    .environment-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 2px 12px;
+      color: var(--env-color);
+    }
+
+    .environment-heading strong { color: var(--ink); font-size: 14px; }
+
+    .node {
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid #c8d2e2;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: 0 5px 14px rgba(27, 42, 68, .06);
+    }
+
+    .node-head {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .node-copy { min-width: 0; }
+    .node strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+    .node small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+    .aws-icon,
+    .generic-icon,
+    .user-icon {
+      flex: 0 0 36px;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+
+    .aws-icon.amplify { background-image: var(--icon-amplify); }
+    .aws-icon.alb { background-image: var(--icon-alb); }
+    .aws-icon.ecs { background-image: var(--icon-ecs); }
+    .aws-icon.ec2 { background-image: var(--icon-ec2); }
+    .aws-icon.rds { background-image: var(--icon-rds); }
+    .aws-icon.redis { background-image: var(--icon-redis); }
+    .aws-icon.s3 { background-image: var(--icon-s3); }
+
+    .generic-icon,
+    .user-icon {
+      display: grid;
+      place-items: center;
+      border: 2px solid currentColor;
+      background: #fff;
+      color: var(--task);
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .05em;
+    }
+
+    .generic-icon::before { content: "CTR"; }
+    .user-icon::before { content: "WEB"; }
+
+    .public-stack { display: grid; gap: 8px; }
+
+    .cluster {
+      padding: 10px;
+      border: 1px dashed color-mix(in srgb, var(--env-color) 66%, white);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, .52);
+    }
+
+    .cluster > .node { margin-bottom: 10px; border-color: var(--env-color); }
+    .boundary-label { margin: 0 0 8px; color: var(--env-color); }
+
+    .compute-grid,
+    .task-grid,
+    .data-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .compute-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .task-grid { margin-top: 8px; }
+    .data-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 10px; }
+    .environment[data-environment="개발"] .data-grid { grid-template-columns: minmax(0, 1fr); }
+
+    .compute {
+      padding: 8px;
+      border: 1px solid #aebbd0;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .78);
+    }
+
+    .compute > .node-head { padding: 2px; }
+    .task { border-color: #9eabc0; background: #fff; }
+    .sidecar { margin-top: 7px; padding: 7px; border-style: dashed; background: #f7f9fc; box-shadow: none; }
+    .sidecar .generic-icon { flex-basis: 28px; width: 28px; height: 28px; font-size: 7px; }
+    .data-node .aws-icon { flex-basis: 31px; width: 31px; height: 31px; }
+    .data-node { padding: 8px; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+      padding: 7px 8px;
+      border: 1px solid #d3dbe8;
+      border-radius: 10px;
+      background: #fff;
+      color: #33415a;
+      font-size: 9px;
+    }
+
+    .flow span { min-width: 0; overflow-wrap: anywhere; }
+    .flow .target { text-align: right; }
+    .flow .arrow { color: var(--env-color, var(--public)); font-size: 16px; font-weight: 900; }
+    .flow-kind { grid-column: 1 / -1; color: var(--muted); font-size: 8px; text-align: center; }
+
+    .edge-stack { display: grid; gap: 6px; margin: 9px 0; }
+    .edge-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 9px; }
+
+    .task-routes,
+    .log-routes {
+      margin-top: 18px;
+      padding: 15px;
+      border: 1px solid #cbd5e4;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .88);
+      box-shadow: var(--shadow);
+    }
+
+    .task-routes h2,
+    .log-routes h2 { margin: 0 0 4px; font-size: 15px; }
+    .task-routes p,
+    .log-routes p { margin: 0 0 10px; color: var(--muted); font-size: 11px; }
+    .route-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+    .log-routes .route-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .route-grid .flow { --env-color: var(--public); }
+    .log-routes .flow { --env-color: var(--ops); }
+
+    .ops-stack { display: grid; gap: 8px; }
+    .ops-stack .compute { display: grid; gap: 8px; }
+
+    .note {
+      margin: 18px 0 0;
+      padding: 12px 15px;
+      border-left: 4px solid #8593aa;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    footer {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid #cbd5e4;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    footer p { margin: 4px 0; }
+    footer a { color: #315acb; }
+
+    @media (max-width: 1199px) {
+      .diagram {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas:
+          "public public"
+          "prod dev"
+          "ops ops";
+      }
+      .public-stack { grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; }
+      .public-stack .flow { display: grid; min-width: 0; }
+      .public-stack .flow .flow-kind { display: none; }
+      .route-grid,
+      .log-routes .route-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 767px) {
+      main { padding: 12px; }
+      .hero { display: block; }
+      .revision { display: inline-block; margin-top: 12px; }
+      .diagram {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "public" "prod" "dev" "ops";
+      }
+      .public-stack { grid-template-columns: minmax(0, 1fr); }
+      .public-stack .flow { display: grid; min-width: 0; }
+      .public-stack .flow .flow-kind { display: block; }
+      .compute-grid,
+      .data-grid,
+      .edge-grid,
+      .route-grid,
+      .log-routes .route-grid { grid-template-columns: minmax(0, 1fr); }
+      .flow { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main data-document-type="ArchitecturePlan" data-schema-version="2.0.0" aria-label="런타임·인프라 배치 구조도">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">ArchitecturePlan · Section 7</p>
+        <h1>런타임·인프라 배치 구조도</h1>
+        <p class="subtitle">사용자 진입부터 환경별 ECS 배치·데이터 계층·로그 조회까지, Markdown 정본의 30개 컴포넌트와 21개 흐름을 고유한 제목 경로로 표현한다.</p>
+      </div>
+      <span class="revision">schema 2.0.0 · 2026-08-12</span>
+    </header>
+
+    <aside class="legend" aria-label="범례">
+      <span class="public"><i class="swatch"></i>공통 · 외부/공통 진입</span>
+      <span class="prod"><i class="swatch"></i>운영 · 운영 환경</span>
+      <span class="dev"><i class="swatch"></i>개발 · 개발 환경</span>
+      <span class="ops"><i class="swatch"></i>관측성 · 관측성 환경</span>
+      <span><b class="arrow-sample">→</b> 요청·데이터·로그의 방향</span>
+      <span><b>중첩 상자</b> 포함·배치 관계</span>
+    </aside>
+
+    <section class="diagram" aria-label="환경별 물리 배치">
+      <section class="environment" data-environment="공통" aria-label="공통 환경">
+        <div class="environment-heading"><strong>공통</strong><span class="environment-label">외부 · 공통</span></div>
+        <div class="public-stack">
+          <article class="node" data-component-title-path="공통 > Web/Mobile 사용자">
+            <div class="node-head"><span class="user-icon" aria-hidden="true"></span><div class="node-copy"><strong>Web / Mobile 사용자</strong><small>AWS 경계 외부</small></div></div>
+          </article>
+          <div class="flow" data-source-title-path="공통 > Web/Mobile 사용자" data-target-title-path="공통 > Amplify Web Apps" data-flow-title="정적 콘텐츠 요청" aria-label="Web/Mobile 사용자에서 Amplify Web Apps로 정적 콘텐츠 요청"><span>Web/Mobile 사용자</span><b class="arrow">→</b><span class="target">Amplify Web Apps</span><span class="flow-kind">정적 콘텐츠 요청</span></div>
+          <article class="node" data-component-title-path="공통 > Amplify Web Apps">
+            <div class="node-head"><span class="aws-icon amplify" aria-hidden="true"></span><div class="node-copy"><strong>Amplify Web Apps</strong><small>정적 웹 자산</small></div></div>
+          </article>
+          <div class="flow" data-source-title-path="공통 > Amplify Web Apps" data-target-title-path="공통 > Application Load Balancer" data-flow-title="API 요청" aria-label="Amplify Web Apps에서 Application Load Balancer로 API 요청"><span>Amplify Web Apps</span><b class="arrow">→</b><span class="target">Application Load Balancer</span><span class="flow-kind">API 요청</span></div>
+          <article class="node" data-component-title-path="공통 > Application Load Balancer">
+            <div class="node-head"><span class="aws-icon alb" aria-hidden="true"></span><div class="node-copy"><strong>Application Load Balancer</strong><small>Public Subnet · 2 AZ</small></div></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="environment" data-environment="운영" aria-label="운영 환경">
+        <div class="environment-heading"><strong>운영</strong><span class="environment-label">운영 · 2 AZ</span></div>
+        <section class="cluster" data-component-title-path="운영 > ECS Cluster">
+          <p class="boundary-label">ECS Cluster → AZ / EC2 → Task / Sidecar</p>
+          <article class="node">
+            <div class="node-head"><span class="aws-icon ecs" aria-hidden="true"></span><div class="node-copy"><strong>prod ECS Cluster</strong><small>Private Subnet · Task 2 replicas/service</small></div></div>
+          </article>
+
+          <div class="compute-grid">
+            <section class="compute" data-component-title-path="운영 > ECS Cluster > AZ A EC2" aria-label="운영 Availability Zone A EC2">
+              <div class="node-head"><span class="aws-icon ec2" aria-hidden="true"></span><div class="node-copy"><strong>AZ A · EC2</strong></div></div>
+              <div class="task-grid">
+                <article class="node task" data-component-title-path="운영 > ECS Cluster > AZ A EC2 > pickme Task">
+                  <div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>pickme Task A</strong><small>replica 1 / 2</small></div></div>
+                  <div class="node sidecar" data-component-title-path="운영 > ECS Cluster > AZ A EC2 > pickme Task > Promtail sidecar"><div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>Promtail sidecar</strong></div></div></div>
+                </article>
+                <article class="node task" data-component-title-path="운영 > ECS Cluster > AZ A EC2 > pudding Task">
+                  <div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>pudding Task A</strong><small>replica 1 / 2</small></div></div>
+                  <div class="node sidecar" data-component-title-path="운영 > ECS Cluster > AZ A EC2 > pudding Task > Promtail sidecar"><div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>Promtail sidecar</strong></div></div></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="compute" data-component-title-path="운영 > ECS Cluster > AZ C EC2" aria-label="운영 Availability Zone C EC2">
+              <div class="node-head"><span class="aws-icon ec2" aria-hidden="true"></span><div class="node-copy"><strong>AZ C · EC2</strong></div></div>
+              <div class="task-grid">
+                <article class="node task" data-component-title-path="운영 > ECS Cluster > AZ C EC2 > pickme Task">
+                  <div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>pickme Task C</strong><small>replica 2 / 2</small></div></div>
+                  <div class="node sidecar" data-component-title-path="운영 > ECS Cluster > AZ C EC2 > pickme Task > Promtail sidecar"><div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>Promtail sidecar</strong></div></div></div>
+                </article>
+                <article class="node task" data-component-title-path="운영 > ECS Cluster > AZ C EC2 > pudding Task">
+                  <div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>pudding Task C</strong><small>replica 2 / 2</small></div></div>
+                  <div class="node sidecar" data-component-title-path="운영 > ECS Cluster > AZ C EC2 > pudding Task > Promtail sidecar"><div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>Promtail sidecar</strong></div></div></div>
+                </article>
+              </div>
+            </section>
+          </div>
+
+          <div class="edge-grid" aria-label="운영 데이터 연결">
+            <div class="flow" data-source-title-path="운영 > ECS Cluster" data-target-title-path="운영 > ECS Cluster > RDS" data-flow-title="관계형 데이터 접근" aria-label="운영 ECS Cluster에서 운영 RDS로 관계형 데이터 접근"><span>운영 ECS Cluster</span><b class="arrow">→</b><span class="target">운영 RDS</span><span class="flow-kind">관계형 데이터 접근</span></div>
+            <div class="flow" data-source-title-path="운영 > ECS Cluster" data-target-title-path="운영 > ECS Cluster > Redis" data-flow-title="캐시 접근" aria-label="운영 ECS Cluster에서 운영 Redis로 캐시 접근"><span>운영 ECS Cluster</span><b class="arrow">→</b><span class="target">운영 Redis</span><span class="flow-kind">캐시 접근</span></div>
+            <div class="flow" data-source-title-path="운영 > ECS Cluster" data-target-title-path="운영 > ECS Cluster > S3 객체 저장소" data-flow-title="애플리케이션 객체 접근" aria-label="운영 ECS Cluster에서 운영 S3 객체 저장소로 애플리케이션 객체 접근"><span>운영 ECS Cluster</span><b class="arrow">→</b><span class="target">운영 S3 객체 저장소</span><span class="flow-kind">애플리케이션 객체 접근</span></div>
+          </div>
+          <div class="data-grid">
+            <article class="node data-node" data-component-title-path="운영 > ECS Cluster > RDS"><div class="node-head"><span class="aws-icon rds" aria-hidden="true"></span><div class="node-copy"><strong>RDS</strong><small>Multi-AZ · backup</small></div></div></article>
+            <article class="node data-node" data-component-title-path="운영 > ECS Cluster > Redis"><div class="node-head"><span class="aws-icon redis" aria-hidden="true"></span><div class="node-copy"><strong>Redis</strong><small>replica · failover</small></div></div></article>
+            <article class="node data-node" data-component-title-path="운영 > ECS Cluster > S3 객체 저장소"><div class="node-head"><span class="aws-icon s3" aria-hidden="true"></span><div class="node-copy"><strong>S3 Objects</strong><small>regional · SSE-KMS</small></div></div></article>
+          </div>
+        </section>
+      </section>
+
+      <section class="environment" data-environment="개발" aria-label="개발 환경">
+        <div class="environment-heading"><strong>개발</strong><span class="environment-label">개발 · 1 AZ</span></div>
+        <section class="cluster" data-component-title-path="개발 > ECS Cluster">
+          <p class="boundary-label">별도 ECS Cluster → 단일 AZ / EC2</p>
+          <article class="node"><div class="node-head"><span class="aws-icon ecs" aria-hidden="true"></span><div class="node-copy"><strong>dev ECS Cluster</strong><small>Private Subnet · Task 1/service</small></div></div></article>
+          <section class="compute" data-component-title-path="개발 > ECS Cluster > AZ A EC2" aria-label="개발 Availability Zone A EC2">
+            <div class="node-head"><span class="aws-icon ec2" aria-hidden="true"></span><div class="node-copy"><strong>AZ A · EC2</strong></div></div>
+            <div class="task-grid">
+              <article class="node task" data-component-title-path="개발 > ECS Cluster > AZ A EC2 > pickme Task">
+                <div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>pickme Dev Task</strong></div></div>
+                <div class="node sidecar" data-component-title-path="개발 > ECS Cluster > AZ A EC2 > pickme Task > Promtail sidecar"><div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>Promtail sidecar</strong></div></div></div>
+              </article>
+              <article class="node task" data-component-title-path="개발 > ECS Cluster > AZ A EC2 > pudding Task">
+                <div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>pudding Dev Task</strong></div></div>
+                <div class="node sidecar" data-component-title-path="개발 > ECS Cluster > AZ A EC2 > pudding Task > Promtail sidecar"><div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>Promtail sidecar</strong></div></div></div>
+              </article>
+            </div>
+          </section>
+          <div class="edge-stack" aria-label="개발 데이터 연결">
+            <div class="flow" data-source-title-path="개발 > ECS Cluster" data-target-title-path="개발 > ECS Cluster > RDS" data-flow-title="관계형 데이터 접근" aria-label="개발 ECS Cluster에서 개발 RDS로 관계형 데이터 접근"><span>개발 ECS Cluster</span><b class="arrow">→</b><span class="target">개발 RDS</span><span class="flow-kind">관계형 데이터 접근</span></div>
+            <div class="flow" data-source-title-path="개발 > ECS Cluster" data-target-title-path="개발 > ECS Cluster > Redis" data-flow-title="캐시 접근" aria-label="개발 ECS Cluster에서 개발 Redis로 캐시 접근"><span>개발 ECS Cluster</span><b class="arrow">→</b><span class="target">개발 Redis</span><span class="flow-kind">캐시 접근</span></div>
+            <div class="flow" data-source-title-path="개발 > ECS Cluster" data-target-title-path="개발 > ECS Cluster > S3 객체 저장소" data-flow-title="애플리케이션 객체 접근" aria-label="개발 ECS Cluster에서 개발 S3 객체 저장소로 애플리케이션 객체 접근"><span>개발 ECS Cluster</span><b class="arrow">→</b><span class="target">개발 S3 객체 저장소</span><span class="flow-kind">애플리케이션 객체 접근</span></div>
+          </div>
+          <div class="data-grid">
+            <article class="node data-node" data-component-title-path="개발 > ECS Cluster > RDS"><div class="node-head"><span class="aws-icon rds" aria-hidden="true"></span><div class="node-copy"><strong>RDS dev</strong><small>dev network only</small></div></div></article>
+            <article class="node data-node" data-component-title-path="개발 > ECS Cluster > Redis"><div class="node-head"><span class="aws-icon redis" aria-hidden="true"></span><div class="node-copy"><strong>Redis dev</strong><small>isolated credentials</small></div></div></article>
+            <article class="node data-node" data-component-title-path="개발 > ECS Cluster > S3 객체 저장소"><div class="node-head"><span class="aws-icon s3" aria-hidden="true"></span><div class="node-copy"><strong>S3 dev</strong><small>separate bucket</small></div></div></article>
+          </div>
+        </section>
+      </section>
+
+      <section class="environment" data-environment="관측성" aria-label="관측성 환경">
+        <div class="environment-heading"><strong>관측성</strong><span class="environment-label">관측성 · 격리</span></div>
+        <section class="cluster ops-stack" data-component-title-path="관측성 > ECS Cluster">
+          <p class="boundary-label">ops ECS / EC2 → generic containers</p>
+          <article class="node"><div class="node-head"><span class="aws-icon ecs" aria-hidden="true"></span><div class="node-copy"><strong>ops ECS Cluster</strong><small>관측성 전용</small></div></div></article>
+          <section class="compute" data-component-title-path="관측성 > ECS Cluster > EC2">
+            <div class="node-head"><span class="aws-icon ec2" aria-hidden="true"></span><div class="node-copy"><strong>ops EC2</strong></div></div>
+            <article class="node" data-component-title-path="관측성 > ECS Cluster > EC2 > Loki Container"><div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>Loki Container</strong><small>prod 30일 · dev 7일</small></div></div></article>
+            <article class="node" data-component-title-path="관측성 > ECS Cluster > EC2 > Grafana Container"><div class="node-head"><span class="generic-icon" aria-hidden="true"></span><div class="node-copy"><strong>Grafana Container</strong><small>사내 접근 · 로그 조회</small></div></div></article>
+            <div class="flow" data-source-title-path="관측성 > ECS Cluster > EC2 > Grafana Container" data-target-title-path="관측성 > ECS Cluster > EC2 > Loki Container" data-flow-title="로그 조회" aria-label="Grafana Container에서 Loki Container로 로그 조회"><span>Grafana Container</span><b class="arrow">→</b><span class="target">Loki Container</span><span class="flow-kind">로그 조회</span></div>
+          </section>
+        </section>
+      </section>
+    </section>
+
+    <section class="task-routes" aria-label="ALB 환경별 Task 라우팅">
+      <h2>ALB → 환경별 Task 라우팅</h2>
+      <p>공통 ALB가 Host·Path 규칙으로 운영 4개 Task와 개발 2개 Task에 서비스 트래픽을 전달한다.</p>
+      <div class="route-grid">
+        <div class="flow" data-source-title-path="공통 > Application Load Balancer" data-target-title-path="운영 > ECS Cluster > AZ A EC2 > pickme Task" data-flow-title="운영 서비스 요청 전달" aria-label="Application Load Balancer에서 운영 AZ A pickme Task로 운영 서비스 요청 전달"><span>Application Load Balancer</span><b class="arrow">→</b><span class="target">운영 AZ A pickme Task</span><span class="flow-kind">운영 서비스 요청 전달</span></div>
+        <div class="flow" data-source-title-path="공통 > Application Load Balancer" data-target-title-path="운영 > ECS Cluster > AZ A EC2 > pudding Task" data-flow-title="운영 서비스 요청 전달" aria-label="Application Load Balancer에서 운영 AZ A pudding Task로 운영 서비스 요청 전달"><span>Application Load Balancer</span><b class="arrow">→</b><span class="target">운영 AZ A pudding Task</span><span class="flow-kind">운영 서비스 요청 전달</span></div>
+        <div class="flow" data-source-title-path="공통 > Application Load Balancer" data-target-title-path="운영 > ECS Cluster > AZ C EC2 > pickme Task" data-flow-title="운영 서비스 요청 전달" aria-label="Application Load Balancer에서 운영 AZ C pickme Task로 운영 서비스 요청 전달"><span>Application Load Balancer</span><b class="arrow">→</b><span class="target">운영 AZ C pickme Task</span><span class="flow-kind">운영 서비스 요청 전달</span></div>
+        <div class="flow" data-source-title-path="공통 > Application Load Balancer" data-target-title-path="운영 > ECS Cluster > AZ C EC2 > pudding Task" data-flow-title="운영 서비스 요청 전달" aria-label="Application Load Balancer에서 운영 AZ C pudding Task로 운영 서비스 요청 전달"><span>Application Load Balancer</span><b class="arrow">→</b><span class="target">운영 AZ C pudding Task</span><span class="flow-kind">운영 서비스 요청 전달</span></div>
+        <div class="flow" data-source-title-path="공통 > Application Load Balancer" data-target-title-path="개발 > ECS Cluster > AZ A EC2 > pickme Task" data-flow-title="제한된 개발 서비스 요청 전달" aria-label="Application Load Balancer에서 개발 pickme Task로 제한된 개발 서비스 요청 전달"><span>Application Load Balancer</span><b class="arrow">→</b><span class="target">개발 pickme Task</span><span class="flow-kind">제한된 개발 서비스 요청 전달</span></div>
+        <div class="flow" data-source-title-path="공통 > Application Load Balancer" data-target-title-path="개발 > ECS Cluster > AZ A EC2 > pudding Task" data-flow-title="제한된 개발 서비스 요청 전달" aria-label="Application Load Balancer에서 개발 pudding Task로 제한된 개발 서비스 요청 전달"><span>Application Load Balancer</span><b class="arrow">→</b><span class="target">개발 pudding Task</span><span class="flow-kind">제한된 개발 서비스 요청 전달</span></div>
+      </div>
+    </section>
+
+    <section class="log-routes" aria-label="Task sidecar Loki 로그 전송">
+      <h2>Task sidecar → Loki 로그 전송</h2>
+      <p>Promtail은 EC2 agent가 아니라 각 Task의 sidecar다. Grafana는 Loki를 조회하며, 로그 전송 방향과 명확히 구분한다.</p>
+      <div class="route-grid">
+        <div class="flow" data-source-title-path="운영 > ECS Cluster > AZ A EC2 > pickme Task > Promtail sidecar" data-target-title-path="관측성 > ECS Cluster > EC2 > Loki Container" data-flow-title="구조화 로그 전송" aria-label="운영 AZ A pickme Promtail에서 Loki Container로 구조화 로그 전송"><span>운영 AZ A pickme Promtail</span><b class="arrow">→</b><span class="target">Loki Container</span><span class="flow-kind">구조화 로그 전송</span></div>
+        <div class="flow" data-source-title-path="운영 > ECS Cluster > AZ A EC2 > pudding Task > Promtail sidecar" data-target-title-path="관측성 > ECS Cluster > EC2 > Loki Container" data-flow-title="구조화 로그 전송" aria-label="운영 AZ A pudding Promtail에서 Loki Container로 구조화 로그 전송"><span>운영 AZ A pudding Promtail</span><b class="arrow">→</b><span class="target">Loki Container</span><span class="flow-kind">구조화 로그 전송</span></div>
+        <div class="flow" data-source-title-path="운영 > ECS Cluster > AZ C EC2 > pickme Task > Promtail sidecar" data-target-title-path="관측성 > ECS Cluster > EC2 > Loki Container" data-flow-title="구조화 로그 전송" aria-label="운영 AZ C pickme Promtail에서 Loki Container로 구조화 로그 전송"><span>운영 AZ C pickme Promtail</span><b class="arrow">→</b><span class="target">Loki Container</span><span class="flow-kind">구조화 로그 전송</span></div>
+        <div class="flow" data-source-title-path="운영 > ECS Cluster > AZ C EC2 > pudding Task > Promtail sidecar" data-target-title-path="관측성 > ECS Cluster > EC2 > Loki Container" data-flow-title="구조화 로그 전송" aria-label="운영 AZ C pudding Promtail에서 Loki Container로 구조화 로그 전송"><span>운영 AZ C pudding Promtail</span><b class="arrow">→</b><span class="target">Loki Container</span><span class="flow-kind">구조화 로그 전송</span></div>
+        <div class="flow" data-source-title-path="개발 > ECS Cluster > AZ A EC2 > pickme Task > Promtail sidecar" data-target-title-path="관측성 > ECS Cluster > EC2 > Loki Container" data-flow-title="구조화 로그 전송" aria-label="개발 pickme Promtail에서 Loki Container로 구조화 로그 전송"><span>개발 pickme Promtail</span><b class="arrow">→</b><span class="target">Loki Container</span><span class="flow-kind">구조화 로그 전송</span></div>
+        <div class="flow" data-source-title-path="개발 > ECS Cluster > AZ A EC2 > pudding Task > Promtail sidecar" data-target-title-path="관측성 > ECS Cluster > EC2 > Loki Container" data-flow-title="구조화 로그 전송" aria-label="개발 pudding Promtail에서 Loki Container로 구조화 로그 전송"><span>개발 pudding Promtail</span><b class="arrow">→</b><span class="target">Loki Container</span><span class="flow-kind">구조화 로그 전송</span></div>
+      </div>
+    </section>
+
+    <p class="note"><strong>미결정 항목:</strong> Loki 장기 보관용 S3는 승인된 결정이 아니므로 이 구조도와 연결 집합에서 제외했다. 운영과 개발 데이터 저장소 사이에도 연결이 없다.</p>
+
+    <footer>
+      <p><strong>AWS Architecture Icons © Amazon Web Services, Inc. or its affiliates.</strong> 아이콘은 원본 색상·비율·구성을 변경하지 않고 HTML에 data URI로 포함했다.</p>
+      <p>Source: <a href="https://aws.amazon.com/architecture/icons/">AWS Architecture Icons</a> (icon package 2026-04-30). License reference: <a href="https://creativecommons.org/licenses/by-nd/2.0/">CC BY-ND 2.0</a>. Non-AWS components use generic container shapes.</p>
+    </footer>
+  </main>
+</body>
+</html>
