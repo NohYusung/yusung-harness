@@ -25,7 +25,7 @@
 | 구성 요소 | 역할 |
 | --- | --- |
 | Agent Team | Architect, Coder, Designer 등 8개 역할이 작업을 분담합니다. |
-| Workflow Skills | 기획, 설계, 구현, 테스트와 통합을 15개 스킬로 표준화합니다. |
+| Workflow Skills | 기획, 설계, 구현, 테스트와 통합을 14개 스킬로 표준화합니다. |
 | Installer | 대상 에이전트에 맞는 프로필을 프로젝트에 안전하게 배포합니다. |
 | Document MCP | 에이전트 산출물을 43개 MCP 도구로 조회·생성·수정합니다. |
 | Project Workbench | 프로젝트의 요청, 계획, 태스크, 설계와 작업 기록을 웹에서 탐색합니다. |
@@ -96,7 +96,7 @@ flowchart LR
 | 발견 | `curate`, `research`, `draft` | 프로젝트 등록, 근거 조사, 초기 제안 |
 | 설계 | `plan`, `architecturePlan`, `domain`, `db`, `erd` | 실행 계획, 아키텍처, 도메인과 데이터 구조 |
 | 제작 | `asset`, `wireframe`, `design`, `code` | 디자인 자산, 인터랙션, UI와 실제 코드 |
-| 검증·관리 | `test`, `document`, `integration` | 테스트, 문서 갱신, 커밋과 병합 |
+| 검증·관리 | `test`, `integration` | 테스트, 커밋과 병합 |
 
 ## 빠른 설치
 
