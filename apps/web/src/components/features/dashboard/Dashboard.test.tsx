@@ -173,7 +173,7 @@ describe("Dashboard", () => {
     expect(document.querySelector("#relations-panel")).toBeNull();
 
     const preview = within(detailPane).getByTitle(
-      "Preview design HTML preview",
+      "Preview design HTML preview · Desktop 1440 × 900",
     );
     expect(preview).toHaveAttribute(
       "srcdoc",

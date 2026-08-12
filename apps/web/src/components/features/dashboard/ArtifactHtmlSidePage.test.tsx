@@ -4,9 +4,57 @@ import { createDesign } from "@/test/fixtures/dashboard";
 import {
   ArtifactHtmlPreviewFrame,
   ArtifactHtmlSidePage,
+  previewViewportPresets,
 } from "./ArtifactHtmlSidePage";
 
 describe("ArtifactHtmlSidePage", () => {
+  it("viewport를 생략하면 기존 full-size iframe과 title 계약을 유지한다", () => {
+    const design = createDesign({ title: "Default viewport preview" });
+
+    render(<ArtifactHtmlPreviewFrame record={design} />);
+
+    const preview = screen.getByTitle(
+      "Default viewport preview HTML preview",
+    );
+
+    expect(preview).toHaveClass("h-full", "w-full");
+    expect(preview).not.toHaveStyle({
+      height: `${previewViewportPresets.desktop.height}px`,
+      width: `${previewViewportPresets.desktop.width}px`,
+    });
+  });
+
+  it("viewport 전환은 같은 iframe과 srcDoc을 유지하면서 실제 크기와 title만 바꾼다", () => {
+    const design = createDesign({ title: "Responsive design preview" });
+    const { rerender } = render(
+      <ArtifactHtmlPreviewFrame record={design} viewport="desktop" />,
+    );
+    const desktopPreset = previewViewportPresets.desktop;
+    const desktopTitle = `Responsive design preview HTML preview · ${desktopPreset.label} ${desktopPreset.width} × ${desktopPreset.height}`;
+    const preview = screen.getByTitle(desktopTitle);
+    const originalSrcDoc = preview.getAttribute("srcdoc");
+
+    expect(preview).toHaveStyle({
+      height: `${desktopPreset.height}px`,
+      width: `${desktopPreset.width}px`,
+    });
+    expect(preview).toHaveClass("box-content");
+
+    rerender(<ArtifactHtmlPreviewFrame record={design} viewport="mobile" />);
+
+    const mobilePreset = previewViewportPresets.mobile;
+    const mobilePreview = screen.getByTitle(
+      `Responsive design preview HTML preview · ${mobilePreset.label} ${mobilePreset.width} × ${mobilePreset.height}`,
+    );
+
+    expect(mobilePreview).toBe(preview);
+    expect(mobilePreview).toHaveAttribute("srcdoc", originalSrcDoc);
+    expect(mobilePreview).toHaveStyle({
+      height: `${mobilePreset.height}px`,
+      width: `${mobilePreset.width}px`,
+    });
+  });
+
   it.each([
     {
       html: '<!doctype html><html lang="ko"><head><title>Original complete title</title></head><body><main data-original-content="complete"><span>Complete source marker</span></main></body></html>',

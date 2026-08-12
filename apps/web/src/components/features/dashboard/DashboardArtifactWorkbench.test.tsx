@@ -2,8 +2,10 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createArtifact,
+  createArchitecturePlan,
   createAsset,
   createDesign,
+  createErd,
   createPlan,
   createProjectContext,
   createProjectSummary,
@@ -234,6 +236,11 @@ function dispatchPreviewScroll(
   );
 }
 
+/** Wireframe과 Design의 기본 Dashboard viewport title을 일관되게 조회한다. */
+function getDesktopHtmlPreviewTitle(title: string): string {
+  return `${title} HTML preview · Desktop 1440 × 900`;
+}
+
 describe("Dashboard artifact workbench visual contract", () => {
   beforeEach(() => {
     routerReplace.mockClear();
@@ -243,6 +250,148 @@ describe("Dashboard artifact workbench visual contract", () => {
   afterEach(() => {
     setWindowInnerWidth(originalInnerWidth);
   });
+
+  it("Wireframe preview는 Desktop이 기본이고 같은 iframe에서 Mobile viewport로 전환한다", () => {
+    renderWorkbench();
+    fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
+    fireEvent.click(
+      screen.getByRole("option", { name: /Artifact workbench flow/ }),
+    );
+
+    const detailPane = screen.getByRole("complementary", {
+      name: "Artifact workbench flow",
+    });
+    const viewportControls = within(detailPane).getByRole("group", {
+      name: "Preview viewport",
+    });
+    const desktopButton = within(viewportControls).getByRole("button", {
+      name: "Desktop 1440 × 900",
+    });
+    const mobileButton = within(viewportControls).getByRole("button", {
+      name: "Mobile 390 × 844",
+    });
+    const desktopPreview = within(detailPane).getByTitle(
+      "Artifact workbench flow HTML preview · Desktop 1440 × 900",
+    );
+    const originalSrcDoc = desktopPreview.getAttribute("srcdoc");
+    const previewCanvas = desktopPreview.closest("[data-preview-canvas]");
+
+    expect(desktopButton).toHaveAttribute("aria-pressed", "true");
+    expect(mobileButton).toHaveAttribute("aria-pressed", "false");
+    expect(desktopPreview).toHaveStyle({ height: "900px", width: "1440px" });
+    expect(previewCanvas).toHaveClass("min-w-0", "max-w-full", "overflow-auto");
+    expect(previewCanvas?.parentElement).toHaveClass(
+      "w-full",
+      "min-w-0",
+      "max-w-full",
+    );
+    expect(previewCanvas?.closest("[data-record-preview]")).toHaveClass(
+      "min-w-0",
+    );
+
+    if (!(previewCanvas instanceof HTMLElement)) {
+      throw new Error("Preview viewport canvas is missing");
+    }
+    previewCanvas.scrollLeft = 120;
+    previewCanvas.scrollTop = 80;
+    fireEvent.click(mobileButton);
+
+    const mobilePreview = within(detailPane).getByTitle(
+      "Artifact workbench flow HTML preview · Mobile 390 × 844",
+    );
+    expect(mobilePreview).toBe(desktopPreview);
+    expect(mobilePreview).toHaveAttribute("srcdoc", originalSrcDoc);
+    expect(mobilePreview).toHaveStyle({ height: "844px", width: "390px" });
+    expect(previewCanvas.scrollLeft).toBe(0);
+    expect(previewCanvas.scrollTop).toBe(0);
+  });
+
+  it("선택 record가 바뀌어도 Wireframe과 Design preview viewport를 세션 동안 유지한다", () => {
+    renderWorkbench();
+    fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
+    fireEvent.click(
+      screen.getByRole("option", { name: /Artifact workbench flow/ }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mobile 390 × 844" }),
+    );
+    fireEvent.click(
+      screen.getByRole("option", { name: /ID target wireframe/ }),
+    );
+
+    let detailPane = screen.getByRole("complementary", {
+      name: "ID target wireframe",
+    });
+    expect(
+      within(detailPane).getByRole("button", { name: "Mobile 390 × 844" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(detailPane).getByTitle(
+        "ID target wireframe HTML preview · Mobile 390 × 844",
+      ),
+    ).toHaveStyle({ height: "844px", width: "390px" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
+    fireEvent.click(
+      screen.getByRole("option", { name: /Workbench production UI/ }),
+    );
+    detailPane = screen.getByRole("complementary", {
+      name: "Workbench production UI",
+    });
+    expect(
+      within(detailPane).getByRole("button", { name: "Mobile 390 × 844" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(detailPane).getByTitle(
+        "Workbench production UI HTML preview · Mobile 390 × 844",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      activeRelation: "assets" as const,
+      contextKey: "assets" as const,
+      record: createAsset({ id: 301, title: "Viewport-free asset" }),
+    },
+    {
+      activeRelation: "architecturePlans" as const,
+      contextKey: "architecturePlans" as const,
+      record: createArchitecturePlan({
+        html: "<!doctype html><html><head></head><body>Architecture diagram</body></html>",
+        id: 302,
+        title: "Viewport-free architecture plan",
+      }),
+    },
+    {
+      activeRelation: "erds" as const,
+      contextKey: "erds" as const,
+      record: createErd({ id: 303, title: "Viewport-free ERD" }),
+    },
+  ])(
+    "$activeRelation preview에는 viewport 토글을 노출하지 않는다",
+    ({ activeRelation, contextKey, record }) => {
+      const context = createProjectContext({ [contextKey]: [record] });
+
+      render(
+        <Dashboard
+          activeRelation={activeRelation}
+          context={context}
+          projects={[createProjectSummary(context)]}
+          selectedArtifactId={record.id}
+          selectedTaskId={null}
+        />,
+      );
+
+      const detailPane = screen.getByRole("complementary", {
+        name: record.title,
+      });
+      expect(
+        within(detailPane).queryByRole("group", { name: "Preview viewport" }),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it("전폭 header 아래 230px Explorer·Records·detail을 body grid로 조립한다", () => {
     renderWorkbench();
@@ -960,7 +1109,7 @@ describe("Dashboard artifact workbench visual contract", () => {
         typeLabel: "Draft",
       },
       {
-        contentTitle: "Artifact workbench flow HTML preview",
+        contentTitle: getDesktopHtmlPreviewTitle("Artifact workbench flow"),
         relationName: /Wireframes/,
         rowName: /Artifact workbench flow/,
         typeLabel: "Wireframe",
@@ -972,7 +1121,7 @@ describe("Dashboard artifact workbench visual contract", () => {
         typeLabel: "Asset",
       },
       {
-        contentTitle: "Workbench production UI HTML preview",
+        contentTitle: getDesktopHtmlPreviewTitle("Workbench production UI"),
         relationName: /Designs/,
         rowName: /Workbench production UI/,
         typeLabel: "Design",
@@ -1261,7 +1410,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
 
     const initialPreview = screen.getByTitle(
-      "Artifact workbench flow HTML preview",
+      getDesktopHtmlPreviewTitle("Artifact workbench flow"),
     ) as HTMLIFrameElement;
     fireEvent(
       window,
@@ -1284,7 +1433,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
 
     const idTargetPreview = screen.getByTitle(
-      "ID target wireframe HTML preview",
+      getDesktopHtmlPreviewTitle("ID target wireframe"),
     ) as HTMLIFrameElement;
     fireEvent(
       window,
@@ -1313,7 +1462,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     const { sourceDesign, targetDesign, targetWireframe } =
       renderPreviewNavigationWorkbench();
     const sourcePreview = screen.getByTitle(
-      `${sourceDesign.title} HTML preview`,
+      getDesktopHtmlPreviewTitle(sourceDesign.title),
     ) as HTMLIFrameElement;
 
     expect(sourcePreview).toHaveAttribute(
@@ -1346,7 +1495,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     const { sourceWireframe, targetWireframe } =
       renderPreviewNavigationWorkbench({ initialRelation: "wireframes" });
     const sourcePreview = screen.getByTitle(
-      `${sourceWireframe.title} HTML preview`,
+      getDesktopHtmlPreviewTitle(sourceWireframe.title),
     ) as HTMLIFrameElement;
 
     fireEvent(
@@ -1374,7 +1523,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       includeTargetDesign: false,
     });
     const sourcePreview = screen.getByTitle(
-      `${sourceDesign.title} HTML preview`,
+      getDesktopHtmlPreviewTitle(sourceDesign.title),
     ) as HTMLIFrameElement;
 
     fireEvent(
@@ -1512,7 +1661,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     const metadataContent = getMetadataContent(detailPane);
     expect(
       within(metadataContent).getByTitle(
-        "Workbench production UI HTML preview",
+        getDesktopHtmlPreviewTitle("Workbench production UI"),
       ),
     ).toHaveAttribute("srcdoc", expect.stringContaining("Production design"));
     expect(
@@ -1554,7 +1703,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       "[data-record-preview]",
     );
     const previewFrame = within(recordDetails).getByTitle(
-      "Workbench production UI HTML preview",
+      getDesktopHtmlPreviewTitle("Workbench production UI"),
     ) as HTMLIFrameElement;
 
     expect(metadataWrapper).not.toBeNull();
@@ -1580,7 +1729,7 @@ describe("Dashboard artifact workbench visual contract", () => {
   it("다른 HTML record를 선택하면 Metadata 접힘 상태를 초기화한다", () => {
     const { sourceDesign, targetDesign } = renderPreviewNavigationWorkbench();
     const sourcePreview = screen.getByTitle(
-      `${sourceDesign.title} HTML preview`,
+      getDesktopHtmlPreviewTitle(sourceDesign.title),
     ) as HTMLIFrameElement;
 
     dispatchPreviewScroll(sourcePreview, 160);
@@ -1720,7 +1869,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     },
   ])(
     "$kind Metadata에 record HTML iframe을 즉시 렌더한다",
-    ({ activeRelation, buildContext, marker }) => {
+    ({ activeRelation, buildContext, kind, marker }) => {
       const { context, record } = buildContext();
 
       render(
@@ -1738,7 +1887,9 @@ describe("Dashboard artifact workbench visual contract", () => {
       });
       const metadataContent = getMetadataContent(detailPane);
       const previewFrame = within(metadataContent).getByTitle(
-        `${record.title} HTML preview`,
+        kind === "Asset"
+          ? `${record.title} HTML preview`
+          : getDesktopHtmlPreviewTitle(record.title),
       );
       expect(previewFrame).toHaveAttribute(
         "srcdoc",
@@ -1968,7 +2119,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     });
     const metadataContent = getMetadataContent(detailPane);
     const previewFrame = within(metadataContent).getByTitle(
-      "Selected inline wireframe HTML preview",
+      getDesktopHtmlPreviewTitle("Selected inline wireframe"),
     );
     expect(previewFrame).toHaveAttribute(
       "srcdoc",
@@ -2036,7 +2187,9 @@ describe("Dashboard artifact workbench visual contract", () => {
       name: "Inline design",
     });
     expect(
-      within(detailPane).getByTitle("Inline design HTML preview"),
+      within(detailPane).getByTitle(
+        getDesktopHtmlPreviewTitle("Inline design"),
+      ),
     ).toHaveAttribute(
       "srcdoc",
       expect.stringContaining("Inline design marker"),

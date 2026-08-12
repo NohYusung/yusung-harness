@@ -30,6 +30,18 @@ export interface HtmlPreviewWireframeNavigation {
   wireframeIndex?: string;
 }
 
+/** Dashboard HTML preview가 제공하는 고정 device viewport 모드. */
+export type PreviewViewportMode = "mobile" | "desktop";
+
+/** 실제 iframe viewport에 적용하는 접근 가능한 preset 메타데이터. */
+export const previewViewportPresets: Record<
+  PreviewViewportMode,
+  { height: number; label: string; width: number }
+> = {
+  mobile: { height: 844, label: "Mobile", width: 390 },
+  desktop: { height: 900, label: "Desktop", width: 1440 },
+};
+
 interface ArtifactHtmlSidePageProps {
   onClose: () => void;
   selection: HtmlArtifactSelection | null;
@@ -42,6 +54,7 @@ interface ArtifactHtmlPreviewFrameProps {
   onNavigateWireframe?: (target: HtmlPreviewWireframeNavigation) => void;
   onScrollStateChange?: (scrollTop: number) => void;
   record: HtmlArtifactDocument;
+  viewport?: PreviewViewportMode;
 }
 
 interface WidthBounds {
@@ -191,6 +204,7 @@ export function ArtifactHtmlPreviewFrame({
   onNavigateWireframe,
   onScrollStateChange,
   record,
+  viewport,
 }: ArtifactHtmlPreviewFrameProps) {
   const internalFrameRef = useRef<HTMLIFrameElement>(null);
   const resolvedFrameRef = frameRef ?? internalFrameRef;
@@ -278,15 +292,34 @@ export function ArtifactHtmlPreviewFrame({
       window.removeEventListener("message", updateScrollStateFromPreview);
   }, [onScrollStateChange, resolvedFrameRef]);
 
+  /** viewport가 없으면 기존 full-size embed 계약을 그대로 사용한다. */
+  const viewportPreset = viewport
+    ? previewViewportPresets[viewport]
+    : undefined;
+  const previewTitle = viewportPreset
+    ? `${record.title} HTML preview · ${viewportPreset.label} ${viewportPreset.width} × ${viewportPreset.height}`
+    : `${record.title} HTML preview`;
+  const viewportStyle = viewportPreset
+    ? {
+        height: `${viewportPreset.height}px`,
+        width: `${viewportPreset.width}px`,
+      }
+    : undefined;
+
   return (
     <iframe
       ref={resolvedFrameRef}
       id={id}
-      className="h-full w-full rounded-control border bg-surface"
+      className={
+        viewportPreset
+          ? "box-content shrink-0 rounded-control border bg-surface"
+          : "h-full w-full rounded-control border bg-surface"
+      }
       referrerPolicy="no-referrer"
       sandbox="allow-scripts"
       srcDoc={buildSandboxedPreviewHtml(record.html)}
-      title={`${record.title} HTML preview`}
+      style={viewportStyle}
+      title={previewTitle}
     />
   );
 }

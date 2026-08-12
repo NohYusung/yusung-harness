@@ -16,6 +16,8 @@ import {
   type HtmlArtifactKind,
   type HtmlArtifactSelection,
   type HtmlPreviewWireframeNavigation,
+  type PreviewViewportMode,
+  previewViewportPresets,
 } from "@/components/features/dashboard/ArtifactHtmlSidePage";
 import { MarkdownContent } from "@/components/features/dashboard/MarkdownContent";
 import { RequestDocumentEditor } from "@/components/features/dashboard/RequestDocumentEditor";
@@ -448,19 +450,77 @@ function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
 function WorkbenchHtmlPreview({
   onNavigateWireframe,
   onScrollStateChange,
+  onViewportChange,
   record,
+  viewport,
 }: {
   onNavigateWireframe: (target: HtmlPreviewWireframeNavigation) => void;
   onScrollStateChange: (scrollTop: number) => void;
+  onViewportChange?: (viewport: PreviewViewportMode) => void;
   record: HtmlArtifactDocument;
+  viewport?: PreviewViewportMode;
 }) {
+  const previewCanvasRef = useRef<HTMLDivElement>(null);
+
+  /** viewport 전환 시 바깥 canvas를 원점으로 복원하고 iframe 자체는 재사용한다. */
+  function selectViewport(nextViewport: PreviewViewportMode) {
+    const previewCanvas = previewCanvasRef.current;
+
+    if (previewCanvas) {
+      previewCanvas.scrollLeft = 0;
+      previewCanvas.scrollTop = 0;
+    }
+    onViewportChange?.(nextViewport);
+  }
+
   return (
-    <div className="h-full min-h-0 overflow-hidden rounded-card border border-line bg-surface shadow-card">
-      <ArtifactHtmlPreviewFrame
-        onNavigateWireframe={onNavigateWireframe}
-        onScrollStateChange={onScrollStateChange}
-        record={record}
-      />
+    <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card">
+      {viewport && onViewportChange ? (
+        <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line bg-surface-muted px-3 py-2">
+          <span className="text-xs font-semibold text-muted">Viewport</span>
+          <div
+            aria-label="Preview viewport"
+            className="flex rounded-control border border-line bg-surface p-1"
+            role="group"
+          >
+            {(["mobile", "desktop"] as const).map((mode) => {
+              const preset = previewViewportPresets[mode];
+
+              return (
+                <button
+                  aria-label={`${preset.label} ${preset.width} × ${preset.height}`}
+                  aria-pressed={viewport === mode}
+                  className="flex min-h-11 min-w-16 flex-col items-center justify-center rounded-control px-2 text-xs font-semibold text-muted transition-colors aria-pressed:bg-primary aria-pressed:text-white focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none motion-reduce:transition-none"
+                  key={mode}
+                  onClick={() => selectViewport(mode)}
+                  type="button"
+                >
+                  <span>{preset.label}</span>
+                  <span className="font-mono text-micro font-normal opacity-75">
+                    {preset.width} × {preset.height}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <div
+        ref={previewCanvasRef}
+        className={
+          viewport
+            ? "min-h-0 min-w-0 max-w-full flex-1 overflow-auto bg-canvas p-3"
+            : "min-h-0 flex-1 overflow-hidden"
+        }
+        data-preview-canvas={viewport ? "true" : undefined}
+      >
+        <ArtifactHtmlPreviewFrame
+          onNavigateWireframe={onNavigateWireframe}
+          onScrollStateChange={onScrollStateChange}
+          record={record}
+          viewport={viewport}
+        />
+      </div>
     </div>
   );
 }
@@ -712,6 +772,8 @@ export function ArtifactWorkbench({
     defaultDetailPaneRatio,
   );
   const [isHtmlMetadataCollapsed, setIsHtmlMetadataCollapsed] = useState(false);
+  const [previewViewport, setPreviewViewport] =
+    useState<PreviewViewportMode>("desktop");
   const [requestEditorMode, setRequestEditorMode] =
     useState<RequestEditorMode | null>(null);
 
@@ -1548,7 +1610,7 @@ export function ArtifactWorkbench({
           </div>
 
           <div
-            className={`min-h-0 flex-1 p-[18px] ${selectedHtmlArtifact ? "overflow-hidden" : "overflow-auto"}`}
+            className={`min-h-0 min-w-0 flex-1 p-[18px] ${selectedHtmlArtifact ? "overflow-hidden" : "overflow-auto"}`}
           >
             {requestEditorMode ? (
               <RequestDocumentEditor
@@ -1567,7 +1629,7 @@ export function ArtifactWorkbench({
                 aria-label="Record details"
                 className={
                   selectedHtmlArtifact
-                    ? "grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)]"
+                    ? "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)]"
                     : undefined
                 }
                 data-metadata-collapsed={
@@ -1642,7 +1704,7 @@ export function ArtifactWorkbench({
                 </div>
                 {selectedHtmlArtifact ? (
                   <div
-                    className={`min-h-0 transition-[margin] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "h-full" : "mt-[18px]"}`}
+                    className={`min-h-0 min-w-0 transition-[margin] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "h-full" : "mt-[18px]"}`}
                     data-preview-expanded={isHtmlMetadataCollapsed}
                     data-record-preview
                   >
@@ -1657,7 +1719,19 @@ export function ArtifactWorkbench({
                       <WorkbenchHtmlPreview
                         onNavigateWireframe={navigateToWireframe}
                         onScrollStateChange={updateHtmlPreviewScrollState}
+                        onViewportChange={
+                          selectedEntry.relation === "wireframes" ||
+                          selectedEntry.relation === "designs"
+                            ? setPreviewViewport
+                            : undefined
+                        }
                         record={selectedHtmlArtifact.record}
+                        viewport={
+                          selectedEntry.relation === "wireframes" ||
+                          selectedEntry.relation === "designs"
+                            ? previewViewport
+                            : undefined
+                        }
                       />
                     )}
                   </div>
