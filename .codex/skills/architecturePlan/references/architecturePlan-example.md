@@ -3,6 +3,41 @@
 > 이 문서는 `create_architecturePlan`의 `content` 필드에 저장되는 고정 형식 예시다.
 > 모든 ArchitecturePlan은 아래 0~15번 섹션을 같은 순서로 작성하며, 해당 사항이 없으면 `해당 없음`과 근거를 남긴다.
 
+## 목차
+
+- [0. 문서 메타데이터](#0-문서-메타데이터)
+- [1. 목표와 KPI](#1-목표와-kpi)
+  - [1.1 목표](#11-목표)
+  - [1.2 KPI](#12-kpi)
+- [2. 범위와 비범위](#2-범위와-비범위)
+  - [2.1 포함 범위](#21-포함-범위)
+  - [2.2 제외 범위](#22-제외-범위)
+- [3. 전제와 제약](#3-전제와-제약)
+- [4. 품질 속성 우선순위](#4-품질-속성-우선순위)
+- [5. 아키텍처 결정 요약](#5-아키텍처-결정-요약)
+- [6. 시스템 컨텍스트](#6-시스템-컨텍스트)
+- [7. 런타임·인프라 구성](#7-런타임인프라-구성)
+  - [7.1 런타임·인프라 배치 구조도](#71-런타임인프라-배치-구조도)
+  - [7.2 컴포넌트 배치 표](#72-컴포넌트-배치-표)
+  - [7.3 서비스 배치 규칙](#73-서비스-배치-규칙)
+  - [7.4 코드·런타임 매핑](#74-코드런타임-매핑)
+- [8. 기술 스택](#8-기술-스택)
+- [9. 데이터·보안 설계](#9-데이터보안-설계)
+  - [9.1 데이터 수명주기](#91-데이터-수명주기)
+  - [9.2 보안 통제](#92-보안-통제)
+- [10. 배포·롤백 전략](#10-배포롤백-전략)
+- [11. 관측성·로그 관리](#11-관측성로그-관리)
+  - [11.1 로그 계약](#111-로그-계약)
+  - [11.2 대시보드·알림](#112-대시보드알림)
+- [12. 장애·복구 전략](#12-장애복구-전략)
+- [13. 리스크와 완화책](#13-리스크와-완화책)
+- [14. 구현 단계](#14-구현-단계)
+- [15. 승인 기준과 변경 이력](#15-승인-기준과-변경-이력)
+  - [15.1 KPI 검증 매트릭스](#151-kpi-검증-매트릭스)
+  - [15.2 승인 체크리스트](#152-승인-체크리스트)
+  - [15.3 미결정 사항](#153-미결정-사항)
+  - [15.4 변경 이력](#154-변경-이력)
+
 ## 0. 문서 메타데이터
 
 | 항목 | 값 |
@@ -141,15 +176,14 @@
 
 - 신뢰 경계는 `Public`, `prod`, `dev`, `ops` 네 영역으로 구분한다.
 - 운영 서비스는 개발 데이터 저장소에 접근할 수 없고, 개발 서비스도 운영 저장소에 접근할 수 없다.
-- HTML 구조도는 위 컴포넌트명과 연결 방향을 동일하게 표현해야 한다.
 
 ## 7. 런타임·인프라 구성
 
 ### 7.1 런타임·인프라 배치 구조도
 
-- 아래 ASCII 구조도가 Markdown 정본이며, `html` 필드는 같은 토폴로지를 시각화한 파생 산출물이다.
+- 아래 ASCII 구조도는 전체 배치와 주요 흐름을 빠르게 파악하기 위한 요약이다.
 - 대괄호 안에는 코드형 ID가 아니라 사람이 읽는 컴포넌트 제목을 표시한다.
-- 정합성 비교에는 환경부터 현재 노드까지의 제목을 ` > `로 결합한 제목 경로를 사용한다.
+- 같은 제목의 컴포넌트를 구분할 때는 환경부터 현재 노드까지의 제목을 ` > `로 결합한 제목 경로를 사용한다.
 
 ```text
 [공통]
@@ -274,39 +308,6 @@ ecs_service_defaults:
 
 - 실제 프로젝트에서 경로가 다르면 위 표를 먼저 갱신하고, 존재하지 않는 경로를 승인 상태로 남기지 않는다.
 - 컴포넌트명은 레포 경로, ECS Service, 구조도, 로그의 `service` 필드에서 동일하게 사용한다.
-
-### 7.5 Markdown·HTML 일치 규칙
-
-| 출발 제목 경로 | 도착 제목 경로 | 흐름 제목·데이터 |
-| --- | --- | --- |
-| `공통 > Web/Mobile 사용자` | `공통 > Amplify Web Apps` | 정적 콘텐츠 요청 |
-| `공통 > Amplify Web Apps` | `공통 > Application Load Balancer` | API 요청 |
-| `공통 > Application Load Balancer` | `운영 > ECS Cluster > AZ A EC2 > pickme Task` | 운영 서비스 요청 전달 |
-| `공통 > Application Load Balancer` | `운영 > ECS Cluster > AZ A EC2 > pudding Task` | 운영 서비스 요청 전달 |
-| `공통 > Application Load Balancer` | `운영 > ECS Cluster > AZ C EC2 > pickme Task` | 운영 서비스 요청 전달 |
-| `공통 > Application Load Balancer` | `운영 > ECS Cluster > AZ C EC2 > pudding Task` | 운영 서비스 요청 전달 |
-| `공통 > Application Load Balancer` | `개발 > ECS Cluster > AZ A EC2 > pickme Task` | 제한된 개발 서비스 요청 전달 |
-| `공통 > Application Load Balancer` | `개발 > ECS Cluster > AZ A EC2 > pudding Task` | 제한된 개발 서비스 요청 전달 |
-| `운영 > ECS Cluster` | `운영 > ECS Cluster > RDS` | 관계형 데이터 접근 |
-| `운영 > ECS Cluster` | `운영 > ECS Cluster > Redis` | 캐시 접근 |
-| `운영 > ECS Cluster` | `운영 > ECS Cluster > S3 객체 저장소` | 애플리케이션 객체 접근 |
-| `개발 > ECS Cluster` | `개발 > ECS Cluster > RDS` | 관계형 데이터 접근 |
-| `개발 > ECS Cluster` | `개발 > ECS Cluster > Redis` | 캐시 접근 |
-| `개발 > ECS Cluster` | `개발 > ECS Cluster > S3 객체 저장소` | 애플리케이션 객체 접근 |
-| `운영 > ECS Cluster > AZ A EC2 > pickme Task > Promtail sidecar` | `관측성 > ECS Cluster > EC2 > Loki Container` | 구조화 로그 전송 |
-| `운영 > ECS Cluster > AZ A EC2 > pudding Task > Promtail sidecar` | `관측성 > ECS Cluster > EC2 > Loki Container` | 구조화 로그 전송 |
-| `운영 > ECS Cluster > AZ C EC2 > pickme Task > Promtail sidecar` | `관측성 > ECS Cluster > EC2 > Loki Container` | 구조화 로그 전송 |
-| `운영 > ECS Cluster > AZ C EC2 > pudding Task > Promtail sidecar` | `관측성 > ECS Cluster > EC2 > Loki Container` | 구조화 로그 전송 |
-| `개발 > ECS Cluster > AZ A EC2 > pickme Task > Promtail sidecar` | `관측성 > ECS Cluster > EC2 > Loki Container` | 구조화 로그 전송 |
-| `개발 > ECS Cluster > AZ A EC2 > pudding Task > Promtail sidecar` | `관측성 > ECS Cluster > EC2 > Loki Container` | 구조화 로그 전송 |
-| `관측성 > ECS Cluster > EC2 > Grafana Container` | `관측성 > ECS Cluster > EC2 > Loki Container` | 로그 조회 |
-
-- 7.2의 컴포넌트 제목과 부모 제목을 결합한 제목 경로 집합은 HTML의 컴포넌트 제목 경로 집합과 같아야 한다.
-- 7.1 ASCII 구조도는 7.2와 같은 부모·자식 포함 관계와 7.5의 흐름 방향·제목을 짧은 표시 제목으로 표현해야 한다.
-- 7.5와 HTML의 `(출발 제목 경로, 도착 제목 경로, 흐름 제목)` 튜플 집합은 같아야 한다.
-- HTML 노드는 `data-component-title-path`, 연결은 `data-source-title-path`, `data-target-title-path`, `data-flow-title`, 경계는 `data-environment`를 사용한다.
-- Task 수, AZ 수, 부모·자식 포함 관계는 7.2와 7.3을 따른다.
-- `content` 또는 `html` 중 하나만 변경하는 업데이트는 허용하지 않는다.
 
 ## 8. 기술 스택
 
@@ -448,7 +449,6 @@ ecs_service_defaults:
 ### 15.2 승인 체크리스트
 
 - [ ] 1.2의 모든 KPI 제목에 검증 증거가 연결되어 있다.
-- [ ] Markdown 컨텍스트 구조와 HTML 구조도의 노드·연결 방향이 일치한다.
 - [ ] 운영·개발·관측성 경계와 접근 규칙이 구현 가능한 수준으로 명시되어 있다.
 - [ ] 배포 실패와 데이터 장애에 대한 롤백·복구 절차가 있다.
 - [ ] 기술 스택, 데이터 보존, 로그 필드에 미결정 placeholder가 없다.
@@ -465,6 +465,7 @@ ecs_service_defaults:
 
 | 버전 | 일자 | 변경 내용 | 작성자 |
 | --- | --- | --- | --- |
+| 2.0.1 | 2026-08-12 | Markdown·HTML 일치 규칙과 연결 튜플 정본 제거 | Architecture Team |
 | 2.0.0 | 2026-08-12 | 사용자 표시를 제목 중심으로 전환하고 컴포넌트 제목 경로와 연결 튜플 계약 적용 | Architecture Team |
 | 1.2.0 | 2026-08-12 | 7번 런타임·인프라 ASCII 구조도와 Markdown·HTML 정합성 계약 추가 | Architecture Team |
 | 1.1.0 | 2026-08-12 | 목표 제목을 굵게 표시하고 측정 기준을 KPI로 전환 | Architecture Team |

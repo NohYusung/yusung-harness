@@ -1,9 +1,52 @@
+"use client";
+
 import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
+import type { MouseEvent as ReactMouseEvent } from "react";
+
+/** sanitize가 사용자 제공 heading id에 붙이는 DOM clobbering 방지 접두사. */
+const safeHeadingIdPrefix = "user-content-";
 
 /** 저장된 Markdown 본문을 표시하기 위한 컴포넌트 입력. */
 interface MarkdownContentProps {
   content: string;
+}
+
+/** 보기 좋은 `#slug` 링크를 sanitize가 만든 안전한 heading id로 연결한다. */
+function handleMarkdownLinkClick(
+  event: ReactMouseEvent<HTMLAnchorElement>,
+  href: string | undefined,
+): void {
+  /** 외부 링크와 빈 fragment는 브라우저의 기존 링크 동작을 유지한다. */
+  if (!href?.startsWith("#") || href.length === 1) return;
+
+  let headingSlug: string;
+
+  /** 잘못 인코딩된 fragment는 탐색하지 않고 기존 링크 동작에 맡긴다. */
+  try {
+    headingSlug = decodeURIComponent(href.slice(1)).toLowerCase();
+  } catch {
+    return;
+  }
+
+  const markdownRoot =
+    event.currentTarget.closest<HTMLElement>("[data-markdown-content]");
+
+  /** 같은 Markdown 문서 안에서만 접두사가 적용된 안전한 heading을 찾는다. */
+  const heading = Array.from(
+    markdownRoot?.querySelectorAll<HTMLElement>("[id]") ?? [],
+  ).find(
+    (candidate) => candidate.id === `${safeHeadingIdPrefix}${headingSlug}`,
+  );
+
+  /** 대응 heading이 없으면 fragment의 기본 동작을 보존한다. */
+  if (!heading) return;
+
+  event.preventDefault();
+  heading.scrollIntoView();
+  heading.focus({ preventScroll: true });
 }
 
 /** Markdown 의미 요소를 dashboard의 dark theme typography로 변환한다. */
@@ -12,6 +55,7 @@ const markdownComponents: Components = {
     <a
       className="break-words font-medium text-primary underline decoration-primary underline-offset-4 hover:decoration-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
       href={href}
+      onClick={(event) => handleMarkdownLinkClick(event, href)}
     >
       {children}
     </a>
@@ -26,23 +70,39 @@ const markdownComponents: Components = {
       {children}
     </code>
   ),
-  h1: ({ children }) => (
-    <h1 className="mt-0 mb-6 text-2xl leading-tight font-bold tracking-[-0.025em] text-ink">
+  h1: ({ children, id }) => (
+    <h1
+      className="mt-0 mb-6 text-2xl leading-tight font-bold tracking-[-0.025em] text-ink"
+      id={id}
+      tabIndex={-1}
+    >
       {children}
     </h1>
   ),
-  h2: ({ children }) => (
-    <h2 className="mt-8 mb-4 border-b border-line pb-2 text-xl leading-snug font-semibold text-ink">
+  h2: ({ children, id }) => (
+    <h2
+      className="mt-8 mb-4 border-b border-line pb-2 text-xl leading-snug font-semibold text-ink"
+      id={id}
+      tabIndex={-1}
+    >
       {children}
     </h2>
   ),
-  h3: ({ children }) => (
-    <h3 className="mt-6 mb-3 text-base leading-snug font-semibold text-ink">
+  h3: ({ children, id }) => (
+    <h3
+      className="mt-6 mb-3 text-base leading-snug font-semibold text-ink"
+      id={id}
+      tabIndex={-1}
+    >
       {children}
     </h3>
   ),
-  h4: ({ children }) => (
-    <h4 className="mt-5 mb-2 text-sm leading-snug font-semibold text-ink">
+  h4: ({ children, id }) => (
+    <h4
+      className="mt-5 mb-2 text-sm leading-snug font-semibold text-ink"
+      id={id}
+      tabIndex={-1}
+    >
       {children}
     </h4>
   ),
@@ -100,9 +160,13 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
   }
 
   return (
-    <div className="min-w-0 text-sm leading-7 text-ink">
+    <div
+      className="min-w-0 text-sm leading-7 text-ink"
+      data-markdown-content
+    >
       <ReactMarkdown
         components={markdownComponents}
+        rehypePlugins={[rehypeSlug, rehypeSanitize]}
         remarkPlugins={[remarkGfm]}
         skipHtml
       >
