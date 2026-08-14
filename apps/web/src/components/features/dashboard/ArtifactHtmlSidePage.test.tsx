@@ -11,7 +11,7 @@ describe("ArtifactHtmlSidePage", () => {
   it("viewport를 생략하면 기존 full-size iframe과 title 계약을 유지한다", () => {
     const design = createDesign({ title: "Default viewport preview" });
 
-    render(<ArtifactHtmlPreviewFrame record={design} />);
+    const { container } = render(<ArtifactHtmlPreviewFrame record={design} />);
 
     const preview = screen.getByTitle(
       "Default viewport preview HTML preview",
@@ -22,11 +22,53 @@ describe("ArtifactHtmlSidePage", () => {
       height: `${previewViewportPresets.desktop.height}px`,
       width: `${previewViewportPresets.desktop.width}px`,
     });
+    expect(container.querySelector("[data-mobile-device-frame]")).toBeNull();
   });
 
-  it("viewport 전환은 같은 iframe과 srcDoc을 유지하면서 실제 크기와 title만 바꾼다", () => {
+  it("Mobile 390 × 844 iframe을 장식이 접근성 트리에서 숨겨진 휴대폰 frame 안에 렌더한다", () => {
+    const design = createDesign({ title: "Mobile device preview" });
+    const { container } = render(
+      <ArtifactHtmlPreviewFrame record={design} viewport="mobile" />,
+    );
+    const mobilePreset = previewViewportPresets.mobile;
+    const preview = screen.getByTitle(
+      `Mobile device preview HTML preview · ${mobilePreset.label} ${mobilePreset.width} × ${mobilePreset.height}`,
+    );
+    const deviceFrame = preview.closest("[data-mobile-device-frame]");
+
+    expect(deviceFrame).not.toBeNull();
+    expect(deviceFrame).toContainElement(preview);
+    expect(deviceFrame).toHaveClass(
+      "box-content",
+      "border-2",
+      "px-[12px]",
+      "pt-[28px]",
+      "pb-[24px]",
+      "pointer-events-none",
+    );
+    expect(preview).toHaveStyle({
+      height: `${mobilePreset.height}px`,
+      width: `${mobilePreset.width}px`,
+    });
+    expect(preview).toHaveClass(
+      "block",
+      "border-0",
+      "pointer-events-auto",
+    );
+
+    const decorativeHardware = container.querySelectorAll(
+      "[data-mobile-device-hardware]",
+    );
+    expect(decorativeHardware.length).toBeGreaterThan(0);
+    decorativeHardware.forEach((element) => {
+      expect(element).toHaveAttribute("aria-hidden", "true");
+      expect(element).toHaveClass("pointer-events-none");
+    });
+  });
+
+  it("mobile↔desktop 전환은 phone frame만 바꾸고 같은 iframe과 srcDoc을 유지한다", () => {
     const design = createDesign({ title: "Responsive design preview" });
-    const { rerender } = render(
+    const { container, rerender } = render(
       <ArtifactHtmlPreviewFrame record={design} viewport="desktop" />,
     );
     const desktopPreset = previewViewportPresets.desktop;
@@ -39,6 +81,7 @@ describe("ArtifactHtmlSidePage", () => {
       width: `${desktopPreset.width}px`,
     });
     expect(preview).toHaveClass("box-content");
+    expect(container.querySelector("[data-mobile-device-frame]")).toBeNull();
 
     rerender(<ArtifactHtmlPreviewFrame record={design} viewport="mobile" />);
 
@@ -53,6 +96,14 @@ describe("ArtifactHtmlSidePage", () => {
       height: `${mobilePreset.height}px`,
       width: `${mobilePreset.width}px`,
     });
+    expect(mobilePreview.closest("[data-mobile-device-frame]")).not.toBeNull();
+
+    rerender(<ArtifactHtmlPreviewFrame record={design} viewport="desktop" />);
+
+    const restoredDesktopPreview = screen.getByTitle(desktopTitle);
+    expect(restoredDesktopPreview).toBe(preview);
+    expect(restoredDesktopPreview).toHaveAttribute("srcdoc", originalSrcDoc);
+    expect(container.querySelector("[data-mobile-device-frame]")).toBeNull();
   });
 
   it.each([

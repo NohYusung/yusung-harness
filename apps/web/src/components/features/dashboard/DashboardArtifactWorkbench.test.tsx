@@ -280,6 +280,9 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(mobileButton).toHaveAttribute("aria-pressed", "false");
     expect(desktopPreview).toHaveStyle({ height: "900px", width: "1440px" });
     expect(previewCanvas).toHaveClass("min-w-0", "max-w-full", "overflow-auto");
+    expect(previewCanvas).toHaveAttribute("aria-label", "Artifact workbench flow preview canvas");
+    expect(previewCanvas).toHaveAttribute("role", "region");
+    expect(previewCanvas).toHaveAttribute("tabindex", "0");
     expect(previewCanvas?.parentElement).toHaveClass(
       "w-full",
       "min-w-0",

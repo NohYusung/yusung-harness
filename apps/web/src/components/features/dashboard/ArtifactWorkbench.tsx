@@ -471,6 +471,14 @@ function WorkbenchHtmlPreview({
       previewCanvas.scrollTop = 0;
     }
     onViewportChange?.(nextViewport);
+    window.requestAnimationFrame(() => {
+      const updatedPreviewCanvas = previewCanvasRef.current;
+
+      if (updatedPreviewCanvas) {
+        updatedPreviewCanvas.scrollLeft = 0;
+        updatedPreviewCanvas.scrollTop = 0;
+      }
+    });
   }
 
   return (
@@ -507,12 +515,15 @@ function WorkbenchHtmlPreview({
       ) : null}
       <div
         ref={previewCanvasRef}
+        aria-label={viewport ? `${record.title} preview canvas` : undefined}
         className={
           viewport
-            ? "min-h-0 min-w-0 max-w-full flex-1 overflow-auto bg-canvas p-3"
+            ? "min-h-0 min-w-0 max-w-full flex-1 overflow-auto bg-canvas p-3 [overflow-anchor:none]"
             : "min-h-0 flex-1 overflow-hidden"
         }
         data-preview-canvas={viewport ? "true" : undefined}
+        role={viewport ? "region" : undefined}
+        tabIndex={viewport ? 0 : undefined}
       >
         <ArtifactHtmlPreviewFrame
           onNavigateWireframe={onNavigateWireframe}

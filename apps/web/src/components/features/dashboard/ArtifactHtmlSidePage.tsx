@@ -305,15 +305,17 @@ export function ArtifactHtmlPreviewFrame({
         width: `${viewportPreset.width}px`,
       }
     : undefined;
-
-  return (
+  /** viewport 전환 중 같은 위치에서 재조정될 실제 sandbox iframe. */
+  const previewFrame = (
     <iframe
       ref={resolvedFrameRef}
       id={id}
       className={
-        viewportPreset
-          ? "box-content shrink-0 rounded-control border bg-surface"
-          : "h-full w-full rounded-control border bg-surface"
+        viewport === "mobile"
+          ? "pointer-events-auto block shrink-0 border-0 bg-surface"
+          : viewportPreset
+            ? "box-content block shrink-0 rounded-control border bg-surface"
+            : "h-full w-full rounded-control border bg-surface"
       }
       referrerPolicy="no-referrer"
       sandbox="allow-scripts"
@@ -321,6 +323,37 @@ export function ArtifactHtmlPreviewFrame({
       style={viewportStyle}
       title={previewTitle}
     />
+  );
+
+  /** viewport 미지정 embed는 sizing stage 없이 기존 full-size iframe을 유지한다. */
+  if (!viewportPreset) {
+    return previewFrame;
+  }
+
+  return (
+    <div className="flex min-h-full w-max min-w-full items-start justify-center">
+      <div
+        className={
+          viewport === "mobile"
+            ? "pointer-events-none relative box-content shrink-0 overflow-hidden rounded-[2rem] border-2 border-sidebar-line bg-sidebar px-[12px] pt-[28px] pb-[24px] shadow-2xl"
+            : "relative shrink-0"
+        }
+        data-mobile-device-frame={viewport === "mobile" ? "true" : undefined}
+      >
+        {previewFrame}
+        {viewport === "mobile" ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            data-mobile-device-hardware="true"
+          >
+            <span className="absolute top-2 left-1/2 h-1.5 w-14 -translate-x-1/2 rounded-full bg-sidebar-muted" />
+            <span className="absolute top-1.5 left-[calc(50%+2.4rem)] size-2 rounded-full border border-sidebar-line bg-sidebar-hover" />
+            <span className="absolute bottom-2 left-1/2 h-1 w-24 -translate-x-1/2 rounded-full bg-sidebar-muted" />
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

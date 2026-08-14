@@ -84,6 +84,7 @@ doc-curator 가 yusung-harness-doc mcp 서버에 먼저 조회를 실행하고, 
   - 기본 mode는 `Desktop`이며, 사용자가 선택한 mode는 같은 dashboard Workbench mount에서 record나 relation을 이동해도 유지한다. full reload 또는 Workbench remount 시에는 `Desktop`으로 초기화한다.
   - viewport 전환은 같은 record, Design version, `wireframeId`, `assetId`와 `html`을 유지하고 iframe의 실제 width와 height만 변경한다.
   - preview mode는 HTML 내부 control이나 저장 payload가 아니라 dashboard preview chrome의 UI 상태이다.
+  - `Mobile` mode는 `390 × 844` iframe을 비율 축소하지 않고 dashboard chrome의 장식용 휴대폰 frame 안에 렌더링한다. bezel, speaker·camera와 home indicator는 iframe 바깥에 배치하고 접근성 트리와 pointer interaction에서 제외한다.
   - host pane보다 iframe이 크면 preview canvas가 overflow를 소유한다. iframe을 host 폭에 강제로 맞추거나 실제 iframe 크기 변경 없이 `transform: scale()`만 적용해서는 안 된다.
   - control은 `Preview viewport`라는 접근 가능한 단일 선택 그룹으로 제공하고 현재 mode와 치수를 시각적 label 및 접근성 상태로 노출한다.
   - Asset, Architecture Plan과 ERD preview에는 이 모바일·데스크톱 토글을 적용하지 않는다.
