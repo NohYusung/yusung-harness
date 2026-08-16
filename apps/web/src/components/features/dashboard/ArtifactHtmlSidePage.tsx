@@ -16,8 +16,7 @@ export type HtmlArtifactKind =
   | "Asset"
   | "Wireframe"
   | "Design"
-  | "Architecture Plan"
-  | "ERD";
+  | "Architecture Plan";
 
 export interface HtmlArtifactSelection {
   kind: HtmlArtifactKind;

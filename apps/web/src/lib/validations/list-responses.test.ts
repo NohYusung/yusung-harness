@@ -19,6 +19,7 @@ import {
   createDatabase,
   createDesign,
   createErd,
+  createErdScene,
   createPlan,
   createProjectContext,
   createProjectSummary,
@@ -209,14 +210,30 @@ describe("project-scoped list response schemas", () => {
     });
   });
 
-  it("ERD는 sandbox preview에 사용할 완성형 HTML만 허용한다", () => {
+  it("ERD는 nullable Excalidraw scene 문자열을 보존하고 legacy html 필드를 공개 shape에서 제거한다", () => {
     expect(
       erdListResponseSchema.safeParse({ data: [createErd()] }).success,
     ).toBe(true);
     expect(
       erdListResponseSchema.safeParse({
-        data: [createErd({ html: "entity User relates to Project" })],
+        data: [createErd({ scene: null })],
       }).success,
-    ).toBe(false);
+    ).toBe(true);
+    const parsedLegacyFields = erdListResponseSchema.parse({
+      data: [
+        {
+          ...createErd(),
+          html: "<!doctype html><html><head></head><body>Legacy ERD</body></html>",
+          legacyHtml: "<!doctype html><html><body>Private legacy ERD</body></html>",
+        },
+      ],
+    });
+    expect(parsedLegacyFields.data[0]).not.toHaveProperty("html");
+    expect(parsedLegacyFields.data[0]).not.toHaveProperty("legacyHtml");
+    expect(
+      erdListResponseSchema.parse({
+        data: [createErd({ scene: JSON.stringify(createErdScene()) })],
+      }).data[0]?.scene,
+    ).toBe(JSON.stringify(createErdScene()));
   });
 });

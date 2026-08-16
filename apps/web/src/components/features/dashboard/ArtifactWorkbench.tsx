@@ -19,6 +19,7 @@ import {
   type PreviewViewportMode,
   previewViewportPresets,
 } from "@/components/features/dashboard/ArtifactHtmlSidePage";
+import { ErdExcalidrawPreview } from "@/components/features/dashboard/ErdExcalidrawPreview";
 import { MarkdownContent } from "@/components/features/dashboard/MarkdownContent";
 import { RequestDocumentEditor } from "@/components/features/dashboard/RequestDocumentEditor";
 import { formatDashboardDate } from "@/lib/date";
@@ -43,6 +44,7 @@ type WorkbenchRelation = WorkspaceRelation | "tasks" | "reviews";
 type WorkbenchRecord =
   | ArtifactDocument
   | HtmlArtifactDocument
+  | Erd
   | Plan
   | Review
   | Task;
@@ -431,11 +433,6 @@ function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
     return { kind: "Architecture Plan", record: architecturePlan };
   }
 
-  /** ERD는 저장된 완성형 HTML을 공용 sandbox preview에 직접 전달한다. */
-  if (entry.relation === "erds") {
-    return { kind: "ERD", record: entry.record as Erd };
-  }
-
   const kindByRelation: Partial<Record<WorkbenchRelation, HtmlArtifactKind>> = {
     assets: "Asset",
     designs: "Design",
@@ -799,6 +796,14 @@ export function ArtifactWorkbench({
   const selectedHtmlArtifact = selectedEntry
     ? getHtmlSelection(selectedEntry)
     : null;
+  const selectedErd =
+    selectedEntry?.relation === "erds"
+      ? (selectedEntry.record as Erd)
+      : null;
+  const hasVisualPreview =
+    selectedHtmlArtifact !== null || selectedErd !== null;
+  const isVisualMetadataCollapsed =
+    selectedHtmlArtifact !== null && isHtmlMetadataCollapsed;
   /** Architecture Plan에서만 content/html 탭 preview에 원본 레코드를 제공한다. */
   const selectedArchitecturePlan =
     selectedEntry?.relation === "architecturePlans"
@@ -1621,7 +1626,7 @@ export function ArtifactWorkbench({
           </div>
 
           <div
-            className={`min-h-0 min-w-0 flex-1 p-[18px] ${selectedHtmlArtifact ? "overflow-hidden" : "overflow-auto"}`}
+            className={`min-h-0 min-w-0 flex-1 p-[18px] ${hasVisualPreview ? "overflow-hidden" : "overflow-auto"}`}
           >
             {requestEditorMode ? (
               <RequestDocumentEditor
@@ -1639,21 +1644,21 @@ export function ArtifactWorkbench({
               <section
                 aria-label="Record details"
                 className={
-                  selectedHtmlArtifact
+                  hasVisualPreview
                     ? "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)]"
                     : undefined
                 }
                 data-metadata-collapsed={
-                  selectedHtmlArtifact ? isHtmlMetadataCollapsed : undefined
+                  hasVisualPreview ? isVisualMetadataCollapsed : undefined
                 }
               >
                 <p
                   aria-hidden={
-                    selectedHtmlArtifact ? isHtmlMetadataCollapsed : false
+                    hasVisualPreview ? isVisualMetadataCollapsed : false
                   }
                   className={`mt-0 font-mono text-[10px] font-semibold tracking-[0.1em] text-muted uppercase ${
-                    selectedHtmlArtifact
-                      ? `overflow-hidden transition-[max-height,margin,opacity] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "mb-0 max-h-0 opacity-0" : "mb-[9px] max-h-8 opacity-100"}`
+                    hasVisualPreview
+                      ? `overflow-hidden transition-[max-height,margin,opacity] duration-200 motion-reduce:transition-none ${isVisualMetadataCollapsed ? "mb-0 max-h-0 opacity-0" : "mb-[9px] max-h-8 opacity-100"}`
                       : "mb-[9px]"
                   }`}
                 >
@@ -1661,11 +1666,11 @@ export function ArtifactWorkbench({
                 </p>
                 <div
                   aria-hidden={
-                    selectedHtmlArtifact ? isHtmlMetadataCollapsed : false
+                    hasVisualPreview ? isVisualMetadataCollapsed : false
                   }
                   className={
-                    selectedHtmlArtifact
-                      ? `overflow-hidden rounded-card border bg-surface px-4 shadow-card transition-[max-height,padding,opacity] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "max-h-0 border-transparent py-0 opacity-0" : "max-h-96 border-line py-4 opacity-100"}`
+                    hasVisualPreview
+                      ? `overflow-hidden rounded-card border bg-surface px-4 shadow-card transition-[max-height,padding,opacity] duration-200 motion-reduce:transition-none ${isVisualMetadataCollapsed ? "max-h-0 border-transparent py-0 opacity-0" : "max-h-96 border-line py-4 opacity-100"}`
                       : "rounded-card border border-line bg-surface p-4 shadow-card"
                   }
                   data-record-metadata
@@ -1713,10 +1718,21 @@ export function ArtifactWorkbench({
                     </dd>
                   </dl>
                 </div>
-                {selectedHtmlArtifact ? (
+                {selectedErd ? (
                   <div
-                    className={`min-h-0 min-w-0 transition-[margin] duration-200 motion-reduce:transition-none ${isHtmlMetadataCollapsed ? "h-full" : "mt-[18px]"}`}
-                    data-preview-expanded={isHtmlMetadataCollapsed}
+                    className="mt-[18px] min-h-0 min-w-0"
+                    data-preview-expanded="false"
+                    data-record-preview
+                  >
+                    <ErdExcalidrawPreview
+                      key={`${selectedErd.id}-${selectedErd.updatedAt}`}
+                      record={selectedErd}
+                    />
+                  </div>
+                ) : selectedHtmlArtifact ? (
+                  <div
+                    className={`min-h-0 min-w-0 transition-[margin] duration-200 motion-reduce:transition-none ${isVisualMetadataCollapsed ? "h-full" : "mt-[18px]"}`}
+                    data-preview-expanded={isVisualMetadataCollapsed}
                     data-record-preview
                   >
                     {selectedArchitecturePlan ? (

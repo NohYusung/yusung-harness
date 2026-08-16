@@ -14,6 +14,13 @@ const ts = require("typescript");
 const serverRoot = join(__dirname, "..");
 const controllerPath = join(serverRoot, "src", "mcp", "mcp.controller.ts");
 const servicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
+const excalidrawScenePath = join(
+  serverRoot,
+  "src",
+  "services",
+  "erd",
+  "excalidraw-scene.ts",
+);
 const expectedToolNames = [
   "get_context",
   "get_project",
@@ -88,7 +95,14 @@ const loadMcpController = () =>
       JsonExceptionFilter: class JsonExceptionFilter {},
     },
   });
-const loadMcpService = () => loadTypescriptExport(servicePath, "McpService");
+const excalidrawSceneSchema = loadTypescriptExport(
+  excalidrawScenePath,
+  "excalidrawSceneSchema",
+);
+const loadMcpService = () =>
+  loadTypescriptExport(servicePath, "McpService", {
+    "../services/erd/excalidraw-scene": { excalidrawSceneSchema },
+  });
 const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
 
 const readJsonBody = async (request) => {

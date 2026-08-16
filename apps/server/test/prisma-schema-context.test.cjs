@@ -10,40 +10,46 @@ const ts = require("typescript");
 const serverRoot = join(__dirname, "..");
 const prismaServicePath = join(serverRoot, "src", "prisma", "prisma.service.ts");
 const mcpServicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
+const excalidrawScenePath = join(
+  serverRoot,
+  "src",
+  "services",
+  "erd",
+  "excalidraw-scene.ts",
+);
 
-const loadPrismaService = () => {
-  const output = ts.transpileModule(readFileSync(prismaServicePath, "utf8"), {
+const loadTypescriptExport = (filePath, exportName, moduleStubs = {}) => {
+  const output = ts.transpileModule(readFileSync(filePath, "utf8"), {
     compilerOptions: {
       experimentalDecorators: true,
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
     },
-    fileName: prismaServicePath,
+    fileName: filePath,
   }).outputText;
-  const loadedModule = new Module(prismaServicePath, module);
+  const loadedModule = new Module(filePath, module);
 
-  loadedModule.filename = prismaServicePath;
-  loadedModule.paths = Module._nodeModulePaths(dirname(prismaServicePath));
-  loadedModule._compile(output, prismaServicePath);
-  return loadedModule.exports.PrismaService;
+  loadedModule.filename = filePath;
+  loadedModule.paths = Module._nodeModulePaths(dirname(filePath));
+  const originalRequire = loadedModule.require.bind(loadedModule);
+  loadedModule.require = (specifier) =>
+    Object.hasOwn(moduleStubs, specifier)
+      ? moduleStubs[specifier]
+      : originalRequire(specifier);
+  loadedModule._compile(output, filePath);
+  return loadedModule.exports[exportName];
 };
 
-const loadMcpService = () => {
-  const output = ts.transpileModule(readFileSync(mcpServicePath, "utf8"), {
-    compilerOptions: {
-      experimentalDecorators: true,
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: mcpServicePath,
-  }).outputText;
-  const loadedModule = new Module(mcpServicePath, module);
-
-  loadedModule.filename = mcpServicePath;
-  loadedModule.paths = Module._nodeModulePaths(dirname(mcpServicePath));
-  loadedModule._compile(output, mcpServicePath);
-  return loadedModule.exports.McpService;
-};
+const loadPrismaService = () =>
+  loadTypescriptExport(prismaServicePath, "PrismaService");
+const excalidrawSceneSchema = loadTypescriptExport(
+  excalidrawScenePath,
+  "excalidrawSceneSchema",
+);
+const loadMcpService = () =>
+  loadTypescriptExport(mcpServicePath, "McpService", {
+    "../services/erd/excalidraw-scene": { excalidrawSceneSchema },
+  });
 
 test("McpService는 table, column, index, FK, view, trigger schema를 조회한다", async () => {
   const directory = mkdtempSync(join(tmpdir(), "prisma-schema-context-"));

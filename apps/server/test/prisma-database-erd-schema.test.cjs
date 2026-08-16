@@ -51,11 +51,13 @@ test("legacy Database 모델은 존재하지 않는다", () => {
   assert.doesNotMatch(schema, /(?:^|\n)\s*model\s+Database\s*\{/);
 });
 
-test("ERD는 프로젝트별 스키마 HTML 계약을 제공한다", () => {
+test("ERD는 공개 Excalidraw scene과 비공개 legacy HTML 보존 계약을 제공한다", () => {
   const erd = modelBody("ERD");
 
   assertProjectOwnedArtifact("ERD");
-  assert.match(erd, /^\s*html\s+String\s*$/m);
+  assert.match(erd, /^\s*scene\s+String\?\s*$/m);
+  assert.match(erd, /^\s*legacyHtml\s+String\?\s*$/m);
+  assert.doesNotMatch(erd, /^\s*html\s+String\??\s*$/m);
 });
 
 test("schema.prisma에는 처리되지 않은 AGENT 주석이 남지 않는다", () => {

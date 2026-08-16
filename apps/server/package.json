@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "predev": "prisma generate && node scripts/prepare-sqlite.mjs && prisma migrate deploy",
+    "predev": "prisma generate && node scripts/prepare-sqlite.mjs && prisma migrate deploy && node scripts/backfill-erd-scenes.mjs",
     "dev": "nest start --watch",
     "prebuild": "prisma generate",
     "build": "nest build",
@@ -11,10 +11,10 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.cjs",
     "test:boundary": "node --test test/*-boundary.test.cjs",
-    "prestart": "node scripts/prepare-sqlite.mjs && prisma migrate deploy",
+    "prestart": "node scripts/prepare-sqlite.mjs && prisma migrate deploy && node scripts/backfill-erd-scenes.mjs",
     "start": "node dist/main.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev && node scripts/backfill-erd-scenes.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -23,6 +23,8 @@
     "@nestjs/platform-express": "^11.1.28",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "better-sqlite3": "^12.11.1",
+    "cheerio": "^1.2.0",
     "dotenv": "^17.4.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",

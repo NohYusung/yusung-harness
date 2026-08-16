@@ -113,8 +113,10 @@ const architecturePlanSchema: z.ZodType<ArchitecturePlan> =
     html: z.string(),
   });
 
-/** ERD는 sandbox preview에 전달할 완성형 HTML document만 허용한다. */
-const erdSchema: z.ZodType<Erd> = htmlArtifactSchema;
+/** ERD scene은 record 단위 오류 격리를 위해 nullable JSON 문자열로 수신한다. */
+const erdSchema: z.ZodType<Erd> = artifactRecordSchema.extend({
+  scene: z.string().nullable(),
+});
 
 /** Request 목록의 lifecycle status를 포함한 document schema. */
 const requestSchema: z.ZodType<Request> = artifactDocumentSchema.extend({

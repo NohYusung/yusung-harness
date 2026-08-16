@@ -16,6 +16,7 @@ import {
   type HtmlArtifactKind,
   type HtmlArtifactSelection,
 } from "@/components/features/dashboard/ArtifactHtmlSidePage";
+import { ErdExcalidrawPreview } from "@/components/features/dashboard/ErdExcalidrawPreview";
 import { formatDashboardDate } from "@/lib/date";
 import type {
   Architecture,
@@ -23,6 +24,7 @@ import type {
   ArtifactRecord,
   Domain,
   Draft,
+  Erd,
   HtmlArtifactDocument,
   Plan,
   ProjectContext,
@@ -51,6 +53,7 @@ type WorkspaceArtifact =
   | Draft
   | Domain
   | Architecture
+  | Erd
   | Request
   | HtmlArtifactDocument;
 
@@ -82,7 +85,8 @@ type RecordStatusFilter =
   | "In progress"
   | "Pending"
   | "Document"
-  | "HTML";
+  | "HTML"
+  | "Excalidraw";
 
 /** 우측 record inspector가 노출하는 세부 정보 surface. */
 type DetailTab = "metadata" | "relations" | "preview";
@@ -94,6 +98,7 @@ const recordStatusFilters: readonly RecordStatusFilter[] = [
   "Pending",
   "Document",
   "HTML",
+  "Excalidraw",
 ];
 
 const detailTabs: ReadonlyArray<{ id: DetailTab; label: string }> = [
@@ -221,7 +226,7 @@ function getEntries(
     return context.databases.map((artifact) => ({ artifact, relation }));
   }
 
-  /** ERD workspace는 현행 schema 관계 HTML 문서를 제공한다. */
+  /** ERD workspace는 현행 schema 관계 Excalidraw scene을 제공한다. */
   if (relation === "erds") {
     return context.erds.map((artifact) => ({ artifact, relation }));
   }
@@ -237,14 +242,12 @@ function isHtmlWorkspaceRelation(
   | "wireframes"
   | "assets"
   | "designs"
-  | "architecturePlans"
-  | "erds" {
+  | "architecturePlans" {
   return (
     relation === "wireframes" ||
     relation === "assets" ||
     relation === "designs" ||
-    relation === "architecturePlans" ||
-    relation === "erds"
+    relation === "architecturePlans"
   );
 }
 
@@ -281,6 +284,7 @@ function getEntryStatus(
     return "Pending";
   }
 
+  if (entry.relation === "erds") return "Excalidraw";
   return isHtmlWorkspaceRelation(entry.relation) ? "HTML" : "Document";
 }
 
@@ -304,7 +308,6 @@ function getHtmlArtifactKind(
   if (relation === "designs") return "Design";
   if (relation === "assets") return "Asset";
   if (relation === "architecturePlans") return "Architecture Plan";
-  if (relation === "erds") return "ERD";
 
   throw new Error(`${relation} does not contain an HTML artifact.`);
 }
@@ -340,7 +343,7 @@ function getHtmlArtifactSelection(
           }
         : undefined;
     }
-    return context.erds.find((erd) => erd.id === key.id);
+    return undefined;
   })();
 
   return record ? { kind: key.kind, record } : null;
@@ -567,6 +570,37 @@ function FlatDetails({
   );
 }
 
+/** ERD record의 metadata와 읽기 전용 Excalidraw scene을 함께 표시한다. */
+function ErdArtifactDetails({
+  entry,
+  headingRef,
+}: {
+  entry: ArtifactEntry;
+  headingRef: RefObject<HTMLHeadingElement | null>;
+}) {
+  const artifact = entry.artifact as Erd;
+
+  return (
+    <article className="min-w-0 p-5 sm:p-7">
+      <TypeBadge relation="erds" />
+      <h3
+        ref={headingRef}
+        tabIndex={-1}
+        className="mt-4 text-2xl font-semibold tracking-[-0.035em] text-balance focus-visible:outline-none"
+      >
+        {artifact.title}
+      </h3>
+      <RecordMetadata record={artifact} />
+      <div className="mt-7 h-[32rem] min-h-72">
+        <ErdExcalidrawPreview
+          key={`${artifact.id}-${artifact.updatedAt}`}
+          record={artifact}
+        />
+      </div>
+    </article>
+  );
+}
+
 /** Wireframe/Asset/Design의 HTML을 본문 문자열로 노출하지 않고 side preview로 연다. */
 function HtmlArtifactDetails({
   entry,
@@ -684,6 +718,18 @@ function RecordPreview({
     trigger: HTMLButtonElement,
   ) => void;
 }) {
+  if (entry.relation === "erds") {
+    const artifact = entry.artifact as Erd;
+    return (
+      <div className="h-[32rem] min-h-72">
+        <ErdExcalidrawPreview
+          key={`${artifact.id}-${artifact.updatedAt}`}
+          record={artifact}
+        />
+      </div>
+    );
+  }
+
   if (!isHtmlWorkspaceRelation(entry.relation)) {
     return (
       <div className="rounded-control border border-dashed bg-canvas px-4 py-5">
@@ -1104,6 +1150,11 @@ export function ArtifactBrowser({
                           plan={selectedPlan}
                         />
                       )
+                    ) : selectedEntry.relation === "erds" ? (
+                      <ErdArtifactDetails
+                        entry={selectedEntry}
+                        headingRef={detailHeadingRef}
+                      />
                     ) : isHtmlWorkspaceRelation(selectedEntry.relation) ? (
                       <HtmlArtifactDetails
                         entry={selectedEntry}

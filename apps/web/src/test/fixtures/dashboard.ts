@@ -148,10 +148,72 @@ export function createDatabase(
   return createArtifact({ title: "DB", ...overrides });
 }
 
+/** ERD parser와 Excalidraw renderer 테스트가 공유하는 최소 canonical scene. */
+export function createErdScene(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    type: "excalidraw",
+    version: 2,
+    source: "yusung-harness:erd",
+    elements: [
+      {
+        id: "users-table",
+        type: "rectangle",
+        x: 80,
+        y: 80,
+        width: 260,
+        height: 180,
+        customData: {
+          contract: "ERDExcalidraw/1.0",
+          kind: "table",
+          qualifiedName: "users",
+          columns: [
+            {
+              name: "id",
+              type: "INTEGER",
+              nullable: false,
+              primaryKey: true,
+              foreignKey: false,
+              unique: true,
+              default: null,
+            },
+          ],
+        },
+      },
+      {
+        id: "users-title",
+        type: "text",
+        x: 104,
+        y: 104,
+        width: 72,
+        height: 24,
+        text: "users",
+      },
+      {
+        id: "erd-metadata",
+        type: "text",
+        x: 80,
+        y: 24,
+        width: 320,
+        height: 24,
+        text: "Project database ERD",
+        customData: {
+          contract: "ERDExcalidraw/1.0",
+          kind: "erd-metadata",
+        },
+      },
+    ],
+    appState: { viewBackgroundColor: "#ffffff" },
+    files: {},
+    ...overrides,
+  };
+}
+
 export function createErd(overrides: Partial<Erd> = {}): Erd {
   return {
     ...createArtifactRecord({ title: "ERD" }),
-    html: "<!doctype html><html><head><title>ERD</title></head><body><main>ERD</main></body></html>",
+    scene: JSON.stringify(createErdScene()),
     ...overrides,
   };
 }

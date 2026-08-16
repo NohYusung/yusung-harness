@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getPlans, getProjectDashboard, getProjects, getTasks } from "@/lib/api";
 import {
   createArtifact,
+  createErd,
   createProjectContext,
   createProjectSummary,
 } from "@/test/fixtures/dashboard";
@@ -155,16 +156,7 @@ describe("dashboard API helpers", () => {
       databases: [
         createArtifact({ id: 301, title: "Project database schema" }),
       ],
-      erds: [
-        {
-          id: 401,
-          projectId: 1,
-          createdAt: "2026-07-18T01:00:00.000Z",
-          updatedAt: "2026-07-18T02:00:00.000Z",
-          title: "Project database ERD",
-          html: "<!doctype html><html><head><title>ERD</title></head><body><main>Project ERD</main></body></html>",
-        },
-      ],
+      erds: [createErd({ id: 401, title: "Project database ERD" })],
     });
     const project = createProjectSummary(context);
     Object.assign(project._count, {

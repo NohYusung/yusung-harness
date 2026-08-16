@@ -34,6 +34,153 @@ const loadTypeScriptExport = (relativePath, exportName, moduleStubs = {}) => {
   return loadedModule.exports[exportName];
 };
 
+const erdScene = {
+  type: "excalidraw",
+  version: 2,
+  source: "yusung-harness:erd",
+  elements: [
+    {
+      id: "users-table",
+      type: "rectangle",
+      x: 40,
+      y: 40,
+      width: 240,
+      height: 160,
+      angle: 0,
+      strokeColor: "#1e1e1e",
+      backgroundColor: "#ffffff",
+      fillStyle: "solid",
+      strokeWidth: 1,
+      strokeStyle: "solid",
+      roughness: 0,
+      opacity: 100,
+      groupIds: ["users-group"],
+      frameId: null,
+      roundness: { type: 3 },
+      seed: 1,
+      version: 1,
+      versionNonce: 2,
+      isDeleted: false,
+      boundElements: null,
+      updated: 1,
+      link: null,
+      locked: true,
+      customData: {
+        contract: "ERDExcalidraw/1.0",
+        kind: "table",
+        qualifiedName: "users",
+        columns: [
+          {
+            name: "id",
+            type: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+            foreignKey: false,
+            unique: true,
+            default: null,
+          },
+        ],
+      },
+    },
+    {
+      id: "users-title",
+      type: "text",
+      x: 64,
+      y: 64,
+      width: 64,
+      height: 24,
+      angle: 0,
+      strokeColor: "#1e1e1e",
+      backgroundColor: "transparent",
+      fillStyle: "solid",
+      strokeWidth: 1,
+      strokeStyle: "solid",
+      roughness: 0,
+      opacity: 100,
+      groupIds: ["users-group"],
+      frameId: null,
+      roundness: null,
+      seed: 3,
+      version: 1,
+      versionNonce: 4,
+      isDeleted: false,
+      boundElements: null,
+      updated: 1,
+      text: "users",
+      originalText: "users",
+      fontSize: 18,
+      fontFamily: 1,
+      textAlign: "left",
+      verticalAlign: "top",
+      containerId: null,
+      autoResize: true,
+      lineHeight: 1.25,
+      link: null,
+      locked: true,
+    },
+    {
+      id: "erd-metadata",
+      type: "text",
+      x: 40,
+      y: 8,
+      width: 320,
+      height: 24,
+      angle: 0,
+      strokeColor: "#1e1e1e",
+      backgroundColor: "transparent",
+      fillStyle: "solid",
+      strokeWidth: 1,
+      strokeStyle: "solid",
+      roughness: 0,
+      opacity: 100,
+      groupIds: [],
+      frameId: null,
+      roundness: null,
+      seed: 5,
+      version: 1,
+      versionNonce: 6,
+      isDeleted: false,
+      boundElements: null,
+      updated: 1,
+      text: "Project database ERD",
+      originalText: "Project database ERD",
+      fontSize: 18,
+      fontFamily: 1,
+      textAlign: "left",
+      verticalAlign: "top",
+      containerId: null,
+      autoResize: true,
+      lineHeight: 1.25,
+      link: null,
+      locked: true,
+      customData: {
+        contract: "ERDExcalidraw/1.0",
+        kind: "erd-metadata",
+        name: "Project database ERD",
+        scope: "main",
+        engine: "SQLite",
+        sourceRevision: "test-revision",
+        inventoryFingerprint: "0".repeat(64),
+      },
+    },
+  ],
+  appState: {},
+  files: {},
+};
+const canonicalizeExcalidrawScene = loadTypeScriptExport(
+  "services/erd/excalidraw-scene.ts",
+  "canonicalizeExcalidrawScene",
+);
+const canonicalErdScene = canonicalizeExcalidrawScene(erdScene);
+const publicErdSelect = {
+  id: true,
+  projectId: true,
+  createdAt: true,
+  updatedAt: true,
+  title: true,
+  scene: true,
+};
+
 const contracts = [
   {
     resource: "db",
@@ -42,15 +189,17 @@ const contracts = [
     idField: "dbId",
     bodyField: "content",
     bodyValue: "# users\n\n| column | type |",
+    storedBodyValue: "# users\n\n| column | type |",
   },
   {
     resource: "erd",
     delegate: "eRD",
     className: "Erd",
     idField: "erdId",
-    bodyField: "html",
-    bodyValue:
-      "<!doctype html><html><head></head><body><main>ERD</main></body></html>",
+    bodyField: "scene",
+    bodyValue: erdScene,
+    storedBodyValue: canonicalErdScene,
+    publicSelect: publicErdSelect,
   },
 ];
 
@@ -63,7 +212,7 @@ test("DB와 ERD service는 프로젝트 소유권 경계 안에서 목록·생�
           id: 31,
           projectId: 17,
           title: `${contract.className} artifact`,
-          [contract.bodyField]: contract.bodyValue,
+          [contract.bodyField]: contract.storedBodyValue,
         },
       ];
       const created = { ...rows[0], id: 32 };
@@ -107,22 +256,26 @@ test("DB와 ERD service는 프로젝트 소유권 경계 안에서 목록·생�
           "../projects/projects.service": {
             ProjectsService: class ProjectsService {},
           },
+          ...(contract.resource === "erd"
+            ? {
+                "./excalidraw-scene": {
+                  canonicalizeExcalidrawScene,
+                },
+              }
+            : {}),
         },
       );
       const service = new Service(prisma, projectsService);
 
       assert.deepEqual(await service.list({ projectId: 17 }), rows);
+      const listQuery = {
+        where: { projectId: 17 },
+        orderBy: { updatedAt: "desc" },
+        ...(contract.publicSelect ? { select: contract.publicSelect } : {}),
+      };
       assert.deepEqual(calls, [
         ["projectsService", "ensureProject", 17],
-        [
-          "prisma",
-          contract.delegate,
-          "findMany",
-          {
-            where: { projectId: 17 },
-            orderBy: { updatedAt: "desc" },
-          },
-        ],
+        ["prisma", contract.delegate, "findMany", listQuery],
       ]);
 
       calls.length = 0;
@@ -139,7 +292,14 @@ test("DB와 ERD service는 프로젝트 소유권 경계 안에서 목록·생�
           "prisma",
           contract.delegate,
           "create",
-          { data: createInput },
+          {
+            data: {
+              projectId: createInput.projectId,
+              title: createInput.title,
+              [contract.bodyField]: contract.storedBodyValue,
+            },
+            ...(contract.publicSelect ? { select: contract.publicSelect } : {}),
+          },
         ],
       ]);
 
@@ -154,7 +314,17 @@ test("DB와 ERD service는 프로젝트 소유권 경계 안에서 목록·생�
       assert.deepEqual(await service.update(updateInput), updated);
       assert.deepEqual(calls, [
         ["projectsService", "ensureProject", 17],
-        ["prisma", contract.delegate, "findUnique", { where: { id: 31 } }],
+        [
+          "prisma",
+          contract.delegate,
+          "findUnique",
+          {
+            where: { id: 31 },
+            ...(contract.publicSelect
+              ? { select: { id: true, projectId: true } }
+              : {}),
+          },
+        ],
         [
           "prisma",
           contract.delegate,
@@ -163,8 +333,9 @@ test("DB와 ERD service는 프로젝트 소유권 경계 안에서 목록·생�
             where: { id: 31 },
             data: {
               title: updateInput.title,
-              [contract.bodyField]: contract.bodyValue,
+              [contract.bodyField]: contract.storedBodyValue,
             },
+            ...(contract.publicSelect ? { select: contract.publicSelect } : {}),
           },
         ],
       ]);
@@ -179,7 +350,17 @@ test("DB와 ERD service는 프로젝트 소유권 경계 안에서 목록·생�
       );
       assert.deepEqual(calls, [
         ["projectsService", "ensureProject", 17],
-        ["prisma", contract.delegate, "findUnique", { where: { id: 31 } }],
+        [
+          "prisma",
+          contract.delegate,
+          "findUnique",
+          {
+            where: { id: 31 },
+            ...(contract.publicSelect
+              ? { select: { id: true, projectId: true } }
+              : {}),
+          },
+        ],
       ]);
 
       calls.length = 0;
@@ -193,7 +374,17 @@ test("DB와 ERD service는 프로젝트 소유권 경계 안에서 목록·생�
       );
       assert.deepEqual(calls, [
         ["projectsService", "ensureProject", 17],
-        ["prisma", contract.delegate, "findUnique", { where: { id: 31 } }],
+        [
+          "prisma",
+          contract.delegate,
+          "findUnique",
+          {
+            where: { id: 31 },
+            ...(contract.publicSelect
+              ? { select: { id: true, projectId: true } }
+              : {}),
+          },
+        ],
       ]);
     });
   }

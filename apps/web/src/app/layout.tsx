@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
+import "@excalidraw/excalidraw/index.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

@@ -12,6 +12,33 @@ const { z } = require("zod/v4");
 
 const serverRoot = join(__dirname, "..");
 const servicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
+const excalidrawScenePath = join(
+  serverRoot,
+  "src",
+  "services",
+  "erd",
+  "excalidraw-scene.ts",
+);
+
+const loadTypeScriptExport = (filename, exportName) => {
+  const output = ts.transpileModule(readFileSync(filename, "utf8"), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+    fileName: filename,
+  }).outputText;
+  const loadedModule = new Module(filename, module);
+
+  loadedModule.filename = filename;
+  loadedModule.paths = Module._nodeModulePaths(dirname(filename));
+  loadedModule._compile(output, filename);
+  return loadedModule.exports[exportName];
+};
+const excalidrawSceneSchema = loadTypeScriptExport(
+  excalidrawScenePath,
+  "excalidrawSceneSchema",
+);
 const architecturePlanContent = [
   "# 기술 스택",
   "",
@@ -34,6 +61,139 @@ const architecturePlanHtml = [
   '<html lang="ko"><head><meta charset="utf-8"><title>배포 인프라 구조도</title></head>',
   '<body><main><h1>배포 인프라 구조도</h1><svg role="img" aria-label="GitHub Pages 리소스 아이콘" viewBox="0 0 24 24"><title>GitHub Pages</title><path d="M4 4h16v16H4z"></path></svg><p>Repository → Actions → Pages</p></main></body></html>',
 ].join("");
+const erdScene = {
+  type: "excalidraw",
+  version: 2,
+  source: "yusung-harness:erd",
+  elements: [
+    {
+      id: "users-table",
+      type: "rectangle",
+      x: 40,
+      y: 40,
+      width: 240,
+      height: 160,
+      angle: 0,
+      strokeColor: "#1e1e1e",
+      backgroundColor: "#ffffff",
+      fillStyle: "solid",
+      strokeWidth: 1,
+      strokeStyle: "solid",
+      roughness: 0,
+      opacity: 100,
+      groupIds: ["users-group"],
+      frameId: null,
+      roundness: { type: 3 },
+      seed: 1,
+      version: 1,
+      versionNonce: 2,
+      isDeleted: false,
+      boundElements: null,
+      updated: 1,
+      link: null,
+      locked: true,
+      customData: {
+        contract: "ERDExcalidraw/1.0",
+        kind: "table",
+        qualifiedName: "users",
+        columns: [
+          {
+            name: "id",
+            type: "INTEGER",
+            nullable: false,
+            primaryKey: true,
+            foreignKey: false,
+            unique: true,
+            default: null,
+          },
+        ],
+      },
+    },
+    {
+      id: "users-title",
+      type: "text",
+      x: 64,
+      y: 64,
+      width: 64,
+      height: 24,
+      angle: 0,
+      strokeColor: "#1e1e1e",
+      backgroundColor: "transparent",
+      fillStyle: "solid",
+      strokeWidth: 1,
+      strokeStyle: "solid",
+      roughness: 0,
+      opacity: 100,
+      groupIds: ["users-group"],
+      frameId: null,
+      roundness: null,
+      seed: 3,
+      version: 1,
+      versionNonce: 4,
+      isDeleted: false,
+      boundElements: null,
+      updated: 1,
+      text: "users",
+      originalText: "users",
+      fontSize: 18,
+      fontFamily: 1,
+      textAlign: "left",
+      verticalAlign: "top",
+      containerId: null,
+      autoResize: true,
+      lineHeight: 1.25,
+      link: null,
+      locked: true,
+    },
+    {
+      id: "erd-metadata",
+      type: "text",
+      x: 40,
+      y: 8,
+      width: 320,
+      height: 24,
+      angle: 0,
+      strokeColor: "#1e1e1e",
+      backgroundColor: "transparent",
+      fillStyle: "solid",
+      strokeWidth: 1,
+      strokeStyle: "solid",
+      roughness: 0,
+      opacity: 100,
+      groupIds: [],
+      frameId: null,
+      roundness: null,
+      seed: 5,
+      version: 1,
+      versionNonce: 6,
+      isDeleted: false,
+      boundElements: null,
+      updated: 1,
+      text: "Project database ERD",
+      originalText: "Project database ERD",
+      fontSize: 18,
+      fontFamily: 1,
+      textAlign: "left",
+      verticalAlign: "top",
+      containerId: null,
+      autoResize: true,
+      lineHeight: 1.25,
+      link: null,
+      locked: true,
+      customData: {
+        contract: "ERDExcalidraw/1.0",
+        kind: "erd-metadata",
+        name: "Project database ERD",
+        scope: "main",
+        engine: "SQLite",
+        sourceRevision: "test-revision",
+        inventoryFingerprint: "0".repeat(64),
+      },
+    },
+  ],
+  appState: {},
+  files: {},
+};
 
 const expectedToolNames = [
   "get_context",
@@ -123,6 +283,10 @@ const loadMcpService = () => {
           .object({ kind: z.literal("deployment-architecture") })
           .passthrough(),
       };
+    }
+
+    if (request === "../services/erd/excalidraw-scene") {
+      return { excalidrawSceneSchema };
     }
 
     return defaultRequire(request);
@@ -1232,7 +1396,7 @@ const createToolCases = [
     input: {
       projectId: 1,
       title: "ERD",
-      html: "<!doctype html><html><head></head><body>ERD</body></html>",
+      scene: erdScene,
     },
   },
   {
@@ -1672,9 +1836,8 @@ const databaseArtifactToolCases = [
     createName: "create_erd",
     updateName: "update_erd",
     idField: "erdId",
-    bodyField: "html",
-    bodyValue:
-      "<!doctype html><html><head></head><body><main>ERD</main></body></html>",
+    bodyField: "scene",
+    bodyValue: erdScene,
   },
 ];
 
@@ -1781,6 +1944,39 @@ test("DB와 ERD 생성·수정 도구는 입력 schema, annotations, service 위
         openWorldHint: false,
       });
     });
+  }
+});
+
+test("ERD mutation 도구는 canonical Excalidraw scene만 service에 전달한다", () => {
+  const harness = createHarness();
+  const createTool = harness.tools.get("create_erd");
+  const baseInput = {
+    projectId: 17,
+    title: "Project ERD",
+    scene: erdScene,
+  };
+
+  assert.equal(createTool.definition.inputSchema.safeParse(baseInput).success, true);
+  for (const invalidScene of [
+    "<!doctype html><html><body>Legacy ERD</body></html>",
+    { ...erdScene, source: "https://example.invalid" },
+    { ...erdScene, files: { image: { dataURL: "data:image/png;base64,AA==" } } },
+    {
+      ...erdScene,
+      elements: erdScene.elements.map((element, index) =>
+        index === 0
+          ? { ...element, link: "https://example.invalid/users" }
+          : element,
+      ),
+    },
+  ]) {
+    assert.equal(
+      createTool.definition.inputSchema.safeParse({
+        ...baseInput,
+        scene: invalidScene,
+      }).success,
+      false,
+    );
   }
 });
 

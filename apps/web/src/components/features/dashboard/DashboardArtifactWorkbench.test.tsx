@@ -16,6 +16,10 @@ import {
 import { Dashboard } from "./Dashboard";
 
 const routerReplace = vi.hoisted(() => vi.fn());
+const excalidrawMocks = vi.hoisted(() => ({
+  loadFromBlob: vi.fn(),
+  render: vi.fn(),
+}));
 const originalInnerWidth = window.innerWidth;
 
 function setWindowInnerWidth(width: number) {
@@ -31,6 +35,19 @@ vi.mock("next/navigation", () => ({
     push: vi.fn(),
     replace: routerReplace,
   }),
+}));
+
+vi.mock("next/dynamic", () => ({
+  default: () =>
+    function MockExcalidraw(props: unknown) {
+      excalidrawMocks.render(props);
+      return <div data-testid="workbench-excalidraw" />;
+    },
+}));
+
+vi.mock("@excalidraw/excalidraw", () => ({
+  Excalidraw: () => null,
+  loadFromBlob: excalidrawMocks.loadFromBlob,
 }));
 
 function createWorkbenchFixture() {
@@ -244,6 +261,13 @@ function getDesktopHtmlPreviewTitle(title: string): string {
 describe("Dashboard artifact workbench visual contract", () => {
   beforeEach(() => {
     routerReplace.mockClear();
+    excalidrawMocks.loadFromBlob.mockReset();
+    excalidrawMocks.render.mockReset();
+    excalidrawMocks.loadFromBlob.mockResolvedValue({
+      appState: {},
+      elements: [{ id: "workbench-users", type: "rectangle" }],
+      files: {},
+    });
     setWindowInnerWidth(1_600);
   });
 
@@ -393,6 +417,71 @@ describe("Dashboard artifact workbench visual contract", () => {
       expect(
         within(detailPane).queryByRole("group", { name: "Preview viewport" }),
       ).not.toBeInTheDocument();
+    },
+  );
+
+  it("ERD detail은 HTML iframe 대신 읽기 전용 Excalidraw renderer를 조립한다", async () => {
+    const erd = createErd({ id: 304, title: "Excalidraw project ERD" });
+    const context = createProjectContext({ erds: [erd] });
+    const { container } = render(
+      <Dashboard
+        activeRelation="erds"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={erd.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    const detailPane = screen.getByRole("complementary", {
+      name: erd.title,
+    });
+    expect(
+      await within(detailPane).findByRole("region", {
+        name: "Excalidraw project ERD ERD preview",
+      }),
+    ).toContainElement(screen.getByTestId("workbench-excalidraw"));
+    expect(
+      within(detailPane).getByText("ERD", { selector: "dd" }),
+    ).toBeInTheDocument();
+    expect(
+      within(detailPane).queryByTitle(/HTML preview/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(detailPane).queryByRole("group", { name: "Preview viewport" }),
+    ).not.toBeInTheDocument();
+    expect(container.querySelector("iframe")).toBeNull();
+  });
+
+  it.each([
+    [null, "Excalidraw scene is not available."],
+    ["not-json", "Excalidraw scene is not valid JSON."],
+  ] as const)(
+    "ERD scene %p 오류를 Workbench record 안에서 격리한다",
+    async (scene, message) => {
+      const erd = createErd({
+        id: 305,
+        scene,
+        title: "Unavailable project ERD",
+      });
+      const context = createProjectContext({ erds: [erd] });
+      const { container } = render(
+        <Dashboard
+          activeRelation="erds"
+          context={context}
+          projects={[createProjectSummary(context)]}
+          selectedArtifactId={erd.id}
+          selectedTaskId={null}
+        />,
+      );
+
+      expect(
+        await screen.findByRole("alert", {
+          name: "Unavailable project ERD ERD preview error",
+        }),
+      ).toHaveTextContent(message);
+      expect(container.querySelector("iframe")).toBeNull();
+      expect(excalidrawMocks.loadFromBlob).not.toHaveBeenCalled();
     },
   );
 

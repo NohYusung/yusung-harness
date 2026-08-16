@@ -115,8 +115,10 @@ export interface ArchitecturePlan extends ArtifactDocument {
 /** 프로젝트의 현행 DB 스키마 Markdown 문서. */
 export type Database = ArtifactDocument;
 
-/** 프로젝트 DB 관계를 표현하는 완성형 HTML ERD 문서. */
-export type Erd = HtmlArtifactDocument;
+/** 프로젝트 DB 관계를 표현하는 읽기 전용 Excalidraw scene 문서. */
+export interface Erd extends ArtifactRecord {
+  scene: string | null;
+}
 
 /** 프로젝트에 접수된 작업 요청과 진행 상태. */
 export interface Request extends ArtifactDocument {

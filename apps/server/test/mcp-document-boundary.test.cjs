@@ -393,6 +393,37 @@ test("Asset, Wireframe, Design MCP 입력은 완전한 HTML이고 service는 공
   }
 });
 
+test("ERD MCP와 service는 HTML 대신 검증된 Excalidraw scene 계약만 노출한다", () => {
+  const mcpService = source("mcp/mcp.service.ts");
+  const erdService = source("services/erd/erd.service.ts");
+  const sceneContract = source("services/erd/excalidraw-scene.ts");
+
+  assert.match(
+    mcpService,
+    /import\s*\{\s*excalidrawSceneSchema\s*\}\s*from\s*["']\.\.\/services\/erd\/excalidraw-scene["']/,
+  );
+  for (const toolName of ["create_erd", "update_erd"]) {
+    const toolBlock = registeredToolBlock(mcpService, toolName);
+
+    assert.match(toolBlock, /scene:\s*excalidrawSceneSchema/);
+    assert.doesNotMatch(toolBlock, /html:\s*htmlSchema/);
+  }
+
+  assert.match(erdService, /canonicalizeExcalidrawScene\s*\(\s*scene\s*\)/);
+  assert.match(erdService, /scene:\s*ExcalidrawSceneInput/);
+  assert.match(erdService, /const\s+publicErdSelect\s*=\s*\{[\s\S]*?scene:\s*true/);
+  assert.doesNotMatch(
+    erdService.match(/const\s+publicErdSelect\s*=\s*\{[\s\S]*?\}\s*as\s+const/)?.[0] ?? "",
+    /legacyHtml|html:/,
+  );
+  assert.match(sceneContract, /type:\s*z\.literal\(["']excalidraw["']\)/);
+  assert.match(sceneContract, /version:\s*z\.literal\(2\)/);
+  assert.match(
+    sceneContract,
+    /source:\s*z\.literal\(["']yusung-harness:erd["']\)/,
+  );
+});
+
 test("Asset, Wireframe, Design, Review는 Plan과 Task 없이 Project가 직접 소유한다", () => {
   for (const domain of ["assets", "wireframes", "designs"]) {
     const service = source(`services/${domain}/${domain}.service.ts`);

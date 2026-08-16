@@ -1,0 +1,77 @@
+{
+  "contract": "ERDInventory/1.0",
+  "name": "Commerce database ERD",
+  "scope": "shop.public",
+  "engine": "PostgreSQL 16",
+  "sourceRevision": "example-revision-7f3c2a1",
+  "tables": [
+    {
+      "qualifiedName": "public.users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "foreignKey": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "email",
+          "type": "varchar(320)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true,
+          "foreignKey": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "qualifiedName": "public.orders",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "foreignKey": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "foreignKey": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "foreignKey": false,
+          "default": "'PENDING'::text"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "constraint": "fk_orders_user",
+      "sourceTable": "public.orders",
+      "sourceColumns": ["user_id"],
+      "sourceCardinality": "0..N",
+      "targetTable": "public.users",
+      "targetColumns": ["id"],
+      "targetCardinality": "1",
+      "onUpdate": "CASCADE",
+      "onDelete": "RESTRICT"
+    }
+  ]
+}

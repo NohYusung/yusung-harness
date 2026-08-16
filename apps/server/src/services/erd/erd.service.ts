@@ -5,6 +5,20 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
+import {
+  canonicalizeExcalidrawScene,
+  type ExcalidrawSceneInput,
+} from "./excalidraw-scene";
+
+/** legacyHtml을 제외한 ERD 공개 응답 필드를 한곳에서 고정한다. */
+const publicErdSelect = {
+  id: true,
+  projectId: true,
+  createdAt: true,
+  updatedAt: true,
+  title: true,
+  scene: true,
+} as const;
 
 /** 프로젝트의 ERD 문서 use case를 처리한다. */
 @Injectable()
@@ -22,41 +36,45 @@ export class ErdService {
     return this.prisma.eRD.findMany({
       where: { projectId },
       orderBy: { updatedAt: "desc" },
+      select: publicErdSelect,
     });
   }
 
-  /** 프로젝트의 현행 DB ERD를 HTML 문서로 생성한다. */
+  /** 프로젝트의 현행 DB ERD를 canonical Excalidraw scene으로 생성한다. */
   async create({
     projectId,
     title,
-    html,
+    scene,
   }: {
     projectId: number;
     title: string;
-    html: string;
+    scene: ExcalidrawSceneInput;
   }) {
     await this.projectsService.ensureProject(projectId);
+    const canonicalScene = canonicalizeExcalidrawScene(scene);
 
     return this.prisma.eRD.create({
-      data: { projectId, title, html },
+      data: { projectId, title, scene: canonicalScene },
+      select: publicErdSelect,
     });
   }
 
-  /** 같은 프로젝트가 소유한 ERD의 제목과 HTML을 갱신한다. */
+  /** 같은 프로젝트가 소유한 ERD의 제목과 Excalidraw scene을 갱신한다. */
   async update({
     projectId,
     erdId,
     title,
-    html,
+    scene,
   }: {
     projectId: number;
     erdId: number;
     title: string;
-    html: string;
+    scene: ExcalidrawSceneInput;
   }) {
     await this.projectsService.ensureProject(projectId);
     const existingErd = await this.prisma.eRD.findUnique({
       where: { id: erdId },
+      select: { id: true, projectId: true },
     });
 
     /** 수정할 ERD 문서의 존재를 검증한다. */
@@ -71,9 +89,12 @@ export class ErdService {
       );
     }
 
+    const canonicalScene = canonicalizeExcalidrawScene(scene);
+
     return this.prisma.eRD.update({
       where: { id: erdId },
-      data: { title, html },
+      data: { title, scene: canonicalScene },
+      select: publicErdSelect,
     });
   }
 }
