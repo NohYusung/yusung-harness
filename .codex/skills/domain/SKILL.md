@@ -1,6 +1,6 @@
 ---
 name: domain
-decription: 도메인 문서를 작성하기 위한 스킬
+description: 도메인 문서를 작성하기 위한 스킬
 ---
 
 # 도메인이란?
