@@ -177,8 +177,13 @@ model Domain {
   updatedAt DateTime @updatedAt
   title     String
   content   String
+  parentId  Int?
+  parent    Domain?  @relation("DomainHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  children  Domain[] @relation("DomainHierarchy")
 
+  @@unique([projectId, title])
   @@index([projectId])
+  @@index([parentId])
 }
 
 model Task {

@@ -5,59 +5,49 @@ description: doc-curator가 yusung-harness/apps 서버를 관리 저장하기 �
 
 doc-curator는 이 아키텍쳐를 기반으로, yusung-harness/apps 서버를 통해 문서를 관리한다.
 
-## Architecture ERD 계약
+## Domain Markdown 계층 계약
 
-- `Architecture`는 일반 설계 메모가 아니라 **완성된 프로젝트에서 실제 구현된 도메인 구조**의 ERD 스냅샷이다.
-- architect 에이전트는 추측한 계획이 아니라 구현된 schema, entity, model, migration을 확인한 뒤 MCP `save_document`의 `diagram` 필드로 저장한다.
-- MCP에서 `kind: "ARCHITECTURE"`는 구조화된 `diagram` 객체만 허용하며 `content`, `html`, `taskId`, `planId`를 받지 않는다.
-- DB 호환성을 위해 Prisma의 `Architecture.content String` 컬럼은 유지한다. 서버는 `diagram`을 Zod로 검증한 뒤 `JSON.stringify(parsedDiagram)`으로 정규화해 `content`에 저장한다.
-- 대시보드는 `content`를 아래 v1 계약으로 파싱해 ERD를 그린다. 기존 평문 레코드는 가짜 엔티티로 변환하지 않고 legacy 안내와 원문 fallback으로 표시한다.
+- `Domain`은 ERD나 DB table snapshot이 아니라 업무 영역의 목적, 역할·책임, 비즈니스 규칙과 코드 근거를 설명하는 Markdown 페이지다.
+- 한 프로젝트의 한 업무 Domain은 정확히 한 레코드로 관리하며 `domainId`가 안정적인 identity다.
+- nullable `parentId`로 깊이 제한 없는 단일 부모 트리를 구성한다. root는 `null`, child는 같은 프로젝트의 parent Domain ID를 사용한다.
+- `parentId`는 구조적 상위·하위 업무 경계이며 서비스 의존성 DAG를 의미하지 않는다.
+- `(projectId, title)`은 trim한 대소문자 구분 제목으로 유일하다. parent 존재·프로젝트 소유권·self/descendant cycle은 `DomainsService` transaction에서 검증한다.
+- REST는 기존 `GET /domains/:projectId` flat 목록만 제공한다. 쓰기는 MCP `create_domain`과 `update_domain`만 담당한다.
+- 대시보드는 flat 목록을 iterative O(n) tree로 조립하여 계층 탐색, breadcrumb, parent/child 정보와 Markdown 상세를 읽기 전용으로 표시한다.
+- Domain content에 ERD JSON 또는 `kind: "domain-erd"` payload를 저장하지 않는다. 신규 migration은 정확한 legacy ERD v1 JSON 행만 삭제하고 Markdown과 다른 JSON은 보존한다.
 
-```ts
-interface ArchitectureErdV1 {
-  kind: "domain-erd";
-  schemaVersion: 1;
-  name: string;
-  generatedAt?: string; // ISO datetime
-  sourceRevision?: string;
-  entities: Array<{
-    id: string;
-    name: string;
-    domain?: string;
-    description?: string;
-    fields: Array<{
-      name: string;
-      type: string;
-      nullable: boolean;
-      primaryKey?: boolean;
-      foreignKey?: boolean;
-      unique?: boolean;
-      default?: string;
-    }>;
-  }>;
-  relationships: Array<{
-    id: string;
-    label?: string;
-    source: {
-      entityId: string;
-      field?: string;
-      cardinality: "1" | "0..1" | "N" | "1..N" | "0..N";
-    };
-    target: {
-      entityId: string;
-      field?: string;
-      cardinality: "1" | "0..1" | "N" | "1..N" | "0..N";
-    };
-  }>;
-}
+```text
+domain skill ── get/create/update_domain
+      |
+      v
+DomainsService
+ ├─ 페이지 제목 중복 방지
+ ├─ 같은 프로젝트 parent 검증
+ └─ self/ancestor cycle 검증
+      |
+      v
+Domain(id, projectId, parentId?, title, Markdown)
+      |
+      v
+GET /domains/:projectId ──> ArtifactWorkbench read-only tree
 ```
 
-- root/entity/field/relationship/endpoint 객체는 정의되지 않은 키를 거부한다.
-- entity `id`와 `name`, entity 내부 field `name`, relationship `id`, 동일 endpoint 쌍은 중복될 수 없다.
-- relationship의 `entityId`는 존재하는 entity를, `field`가 있으면 해당 entity의 실제 field를 참조해야 한다.
-- entity는 최소 1개와 각 entity의 field 최소 1개가 필요하다. 관계가 없는 단일 entity 프로젝트를 위해 `relationships`는 빈 배열을 허용한다.
-- 문자열 외에 entity 100개, entity별 field 100개, 전체 field 2,000개, relationship 1,000개의 상한을 두어 잘못된 대형 payload가 DB와 대시보드를 압박하지 않게 한다.
-- `20260720110000_structure_architecture_erd` migration은 알려진 로컬 dashboard demo 행만 v1 JSON으로 갱신한다. 사용자 생성 legacy 행은 수정하거나 삭제하지 않는다.
+### Domain hierarchy migration 운영 절차
+
+- 적용 직전 SQLite online backup을 만들고 `PRAGMA integrity_check`, 전체 Domain 수, exact legacy ERD 판정식의 삭제 대상 수, `trim(title)` 중복 수를 기록한다.
+- migration은 transaction 안에서 보존 대상만 `new_Domain`에 복사한 뒤 unique index를 생성한다. 보존할 Markdown 제목이 중복되면 원본 table을 그대로 두고 실패하므로 데이터를 임의 병합하지 않는다.
+- 성공 후 Domain 수·ID·projectId·timestamp·content·trim 제목 보존, 모든 초기 `parentId = null`, `PRAGMA foreign_key_check`, index와 migration checksum을 검증한다.
+- 적용 직후 검증 실패 시 애플리케이션 쓰기를 중단하고 migration 직전 snapshot 전체를 복원한 뒤 원인을 수정해 재시도한다.
+- migration 이후 새 쓰기가 발생한 DB는 이전 snapshot으로 부분 rollback하지 않는다. 새 쓰기를 보존해야 하면 별도 forward recovery migration을 작성한다.
+
+## 산출물 책임 경계
+
+- `Domain`: 업무 Domain별 계층형 Markdown 페이지
+- `Architecture Plan`: 구현 전 시스템 구조 계획과 HTML 구조도
+- `Architecture`: 구현 후 배포 구조 snapshot 또는 legacy text
+- `Database`: 현행 DB schema Markdown
+- `ERD`: Dineug v3 관계 문서
+- 폴더, 기술 계층, DB table을 업무 Domain으로 추정하지 않고 각 산출물의 책임을 섞지 않는다.
 
 ## HTML 산출물 계약
 
@@ -169,7 +159,7 @@ model Architecture {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     title String
-    content String // 검증된 ArchitectureErdV1 객체를 canonical JSON으로 직렬화한 값
+    content String // 구현 후 배포 구조 snapshot 또는 legacy text
     @@index([projectId])
 }
 
@@ -240,6 +230,16 @@ model Domain {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    title String
+    content String // 업무 규칙과 코드 근거를 설명하는 Markdown
+    parentId Int?
+    parent Domain? @relation("DomainHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+    children Domain[] @relation("DomainHierarchy")
+    @@unique([projectId, title])
+    @@index([projectId])
+    @@index([parentId])
 }
 
 model Issue {}

@@ -46,7 +46,11 @@ export function createArtifact(
 export function createDomain(
   overrides: Partial<Domain> = {},
 ): Domain {
-  return createArtifact({ title: "Domain", ...overrides });
+  return {
+    ...createArtifact({ title: "Domain" }),
+    parentId: null,
+    ...overrides,
+  };
 }
 
 export function createTask(overrides: Partial<Task> = {}): Task {

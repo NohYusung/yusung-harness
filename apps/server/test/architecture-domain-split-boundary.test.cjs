@@ -11,7 +11,7 @@ const source = (relativePath) => {
   return readFileSync(path, "utf8");
 };
 
-test("Domain 조회·raw 문서 저장과 Architecture diagram 저장은 서로 다른 책임을 소유한다", () => {
+test("Domain 조회·Markdown 계층 저장과 Architecture diagram 저장은 서로 다른 책임을 소유한다", () => {
   const deploymentSchema = source("services/architectures/deployment-architecture.ts");
   const domainService = source("services/domains/domains.service.ts");
   const architectureService = source("services/architectures/architectures.service.ts");
@@ -28,9 +28,10 @@ test("Domain 조회·raw 문서 저장과 Architecture diagram 저장은 서로 
   assert.match(domainService, /this\.prisma\.domain\.findMany\s*\(/);
   assert.match(domainService, /async\s+create\s*\(/);
   assert.match(domainService, /async\s+update\s*\(/);
-  assert.match(domainService, /this\.prisma\.domain\.findUnique\s*\(/);
-  assert.match(domainService, /this\.prisma\.domain\.create\s*\(/);
-  assert.match(domainService, /this\.prisma\.domain\.update\s*\(/);
+  assert.match(domainService, /this\.prisma\.\$transaction\s*\(/);
+  assert.match(domainService, /transaction\.domain\.findUnique\s*\(/);
+  assert.match(domainService, /transaction\.domain\.create\s*\(/);
+  assert.match(domainService, /transaction\.domain\.update\s*\(/);
   assert.doesNotMatch(domainService, /deploymentArchitectureSchema|this\.prisma\.architecture\b/);
   assert.match(architectureService, /deploymentArchitectureSchema/);
   assert.match(architectureService, /this\.prisma\.architecture\b/);
@@ -114,6 +115,8 @@ test("Prisma Project는 Domain과 Architecture를 별도 relation으로 제공�
   assert.match(schema, /model\s+Project\s*\{[\s\S]*?domains\s+Domain\[\]/);
   assert.match(schema, /model\s+Project\s*\{[\s\S]*?architectures\s+Architecture\[\]/);
   assert.match(schema, /model\s+Domain\s*\{[\s\S]*?projectId\s+Int[\s\S]*?content\s+String/);
+  assert.match(schema, /model\s+Domain\s*\{[\s\S]*?parentId\s+Int\?[\s\S]*?children\s+Domain\[\]/);
+  assert.match(schema, /model\s+Domain\s*\{[\s\S]*?@@unique\(\[projectId,\s*title\]\)/);
   assert.match(projects, /_count:[\s\S]*?domains:\s*true/);
   assert.doesNotMatch(projects, /\bgetContext\s*\(|include:[\s\S]*?domains:\s*\{\s*orderBy:/);
 });

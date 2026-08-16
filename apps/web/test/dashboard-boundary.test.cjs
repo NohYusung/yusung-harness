@@ -228,7 +228,10 @@ test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한�
   );
   assert.match(workbench, /aria-label=["']Project artifact tree["']/);
   assert.match(workbench, /aria-label=["']Artifact types["']/);
-  assert.match(workbench, /aria-label=["']Artifact records["']/);
+  assert.match(
+    workbench,
+    /isDomainView\s*\?\s*["']Domain hierarchy["']\s*:\s*["']Artifact records["']/,
+  );
   assert.match(workbench, /aria-label=["']Record details["']/);
   assert.match(workbench, /<ArtifactHtmlPreviewFrame\b/);
   assert.match(workbench, /<ErdDineugPreview\b/);

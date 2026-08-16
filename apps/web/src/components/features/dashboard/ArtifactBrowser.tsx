@@ -186,7 +186,7 @@ function getEntries(
     return context.drafts.map((artifact) => ({ artifact, relation }));
   }
 
-  /** Domain workspace는 구조화된 ERD snapshot record를 제공한다. */
+  /** Domain workspace는 계층형 비즈니스 Markdown 페이지를 제공한다. */
   if (relation === "domains") {
     return context.domains.map((artifact) => ({ artifact, relation }));
   }

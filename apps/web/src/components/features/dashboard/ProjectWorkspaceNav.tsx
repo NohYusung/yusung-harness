@@ -1,5 +1,4 @@
 import { getLatestDeploymentArchitecture } from "@/lib/deployment-architecture";
-import { getLatestDomainErd } from "@/lib/domain-erd";
 import type { ProjectContext } from "@/types/dashboard";
 import type { WorkspaceRelation } from "./ArtifactBrowser";
 import {
@@ -18,9 +17,6 @@ export function ProjectWorkspaceNav({
   activeRelation,
   context,
 }: ProjectWorkspaceNavProps) {
-  /** Domain 메뉴는 최신 ERD snapshot의 entity 수를 표시한다. */
-  const domainCount =
-    getLatestDomainErd(context.domains)?.snapshot.entities.length ?? 0;
   /** Architecture 메뉴는 최신 deployment snapshot의 node 수를 표시한다. */
   const architectureCount =
     getLatestDeploymentArchitecture(context.architectures)?.snapshot.nodes
@@ -29,7 +25,7 @@ export function ProjectWorkspaceNav({
   const items = [
     { count: context.plans.length, label: "Plan", relation: "plans" },
     { count: context.drafts.length, label: "Draft", relation: "drafts" },
-    { count: domainCount, label: "Domain", relation: "domains" },
+    { count: context.domains.length, label: "Domain", relation: "domains" },
     {
       count: architectureCount,
       label: "Architecture",

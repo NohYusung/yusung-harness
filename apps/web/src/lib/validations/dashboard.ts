@@ -69,6 +69,11 @@ const artifactDocumentSchema = artifactRecordSchema.extend({
   content: z.string(),
 }) satisfies z.ZodType<ArtifactDocument>;
 
+/** Domain 페이지는 같은 프로젝트의 다른 Domain을 부모로 참조할 수 있다. */
+const domainSchema: z.ZodType<Domain> = artifactDocumentSchema.extend({
+  parentId: z.number().int().positive().nullable(),
+});
+
 const htmlDocumentSchema = z.string().refine(
   (html) =>
     /<!doctype\s+html(?:\s[^>]*)?>/i.test(html) &&
@@ -175,7 +180,7 @@ export const taskListResponseSchema: z.ZodType<ListResponse<Task>> = z.object({
 
 /** Domain 목록 API의 `{ data }` 응답을 검증한다. */
 export const domainListResponseSchema: z.ZodType<ListResponse<Domain>> = z.object({
-  data: z.array(artifactDocumentSchema),
+  data: z.array(domainSchema),
 });
 
 /** Architecture 목록 API의 `{ data }` 응답을 검증한다. */
@@ -253,7 +258,7 @@ export const projectContextSchema: z.ZodType<ProjectContext> =
     plans: z.array(planSchema),
     tasks: z.array(taskSchema),
     drafts: z.array(artifactDocumentSchema),
-    domains: z.array(artifactDocumentSchema),
+    domains: z.array(domainSchema),
     architectures: z.array(artifactDocumentSchema),
     wireframes: z.array(wireframeSchema),
     assets: z.array(assetSchema),

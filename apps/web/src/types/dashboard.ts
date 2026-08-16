@@ -98,8 +98,10 @@ export interface Plan extends ArtifactDocument {
 }
 
 export type Draft = ArtifactDocument;
-/** 완성된 프로젝트의 ERD snapshot record. */
-export type Domain = ArtifactDocument;
+/** 업무 도메인의 책임과 규칙을 설명하는 계층형 Markdown 페이지. */
+export interface Domain extends ArtifactDocument {
+  parentId: number | null;
+}
 /** 프로젝트 배포 구조 snapshot 또는 legacy text record. */
 export type Architecture = ArtifactDocument;
 export type Review = ArtifactDocument;

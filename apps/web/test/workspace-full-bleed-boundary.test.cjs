@@ -145,37 +145,21 @@ test("Plan·Draft browser root는 둥근 card가 아닌 full-bleed split workspa
   );
 });
 
-test("Domain과 Architecture root는 카드 wrapper 없이 full-bleed canvas를 제공한다", () => {
-  const domain = source("components/features/dashboard/DomainWorkspace.tsx");
+test("Architecture root는 카드 wrapper 없이 full-bleed canvas를 제공한다", () => {
   const architecture = source(
     "components/features/dashboard/ArchitectureWorkspace.tsx",
   );
 
   assertFullBleedRoot(
-    exportedWorkspaceRootClass(domain, "DomainWorkspace"),
-    "DomainWorkspace",
-  );
-  assertFullBleedRoot(
     exportedWorkspaceRootClass(architecture, "ArchitectureWorkspace"),
     "ArchitectureWorkspace",
-  );
-  assert.doesNotMatch(
-    domain,
-    /className=["'][^"']*min-h-\[32rem\][^"']*["']/,
-    "Domain canvas는 32rem 최소 높이 대신 부모의 가용 높이를 사용해야 한다",
   );
   assert.match(
     architecture,
     /className=["'][^"']*\bmin-h-0\b[^"']*\bflex-1\b[^"']*\boverflow-y-auto\b[^"']*["']/,
     "Architecture content는 workspace 안에서 자체 세로 스크롤해야 한다",
   );
-  assert.match(
-    domain,
-    /selectedEntity[\s\S]*?\?\s*["'][^"']*\bmin-h-0\b[^"']*\bflex-1\b[^"']*\boverflow-y-auto\b[^"']*\blg:grid\b[^"']*\blg:grid-cols-\[minmax\(0,1fr\)_20rem\][^"']*\blg:overflow-hidden\b[^"']*["']/,
-    "Domain selected layout은 mobile에서 전체를 스크롤하고 desktop에서 canvas와 aside를 bounded 해야 한다",
-  );
   for (const [workspace, helperName] of [
-    [domain, "EmptyDomain"],
     [architecture, "EmptyArchitecture"],
   ]) {
     for (const rootClass of emptyWorkspaceRootClasses(workspace, helperName)) {
@@ -188,9 +172,4 @@ test("Domain과 Architecture root는 카드 wrapper 없이 full-bleed canvas를 
       );
     }
   }
-  assert.match(
-    domain,
-    /\{latest\.legacyRecords\.length\s*>\s*0[\s\S]*?<div\s+className=["'][^"']*\bmax-h-48\b[^"']*\bshrink-0\b[^"']*\boverflow-y-auto\b[^"']*["']/,
-    "valid Domain의 legacy footer는 bounded 자체 스크롤 영역이어야 한다",
-  );
 });

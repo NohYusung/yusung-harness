@@ -23,10 +23,18 @@ import { ErdDineugPreview } from "@/components/features/dashboard/ErdDineugPrevi
 import { MarkdownContent } from "@/components/features/dashboard/MarkdownContent";
 import { RequestDocumentEditor } from "@/components/features/dashboard/RequestDocumentEditor";
 import { formatDashboardDate } from "@/lib/date";
+import {
+  buildDomainTree,
+  flattenDomainTree,
+  getDomainAncestorIds,
+  getDomainSearchIds,
+  type DomainTreeRow,
+} from "@/lib/domain-tree";
 import type {
   ArchitecturePlan,
   ArtifactDocument,
   Design,
+  Domain,
   Erd,
   HtmlArtifactDocument,
   Plan,
@@ -123,7 +131,7 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
   domains: {
     code: "DM",
     label: "Domain",
-    plural: "Domain",
+    plural: "Domains",
     dotClassName: "bg-olive",
   },
   architectures: {
@@ -211,6 +219,7 @@ function getEntryKey(entry: WorkbenchEntry): string {
 /** 빈 목록에서 다른 artifact를 detail fallback으로 쓰지 않는 독립 workspace를 판별한다. */
 function keepsEmptySelection(relation: WorkbenchRelation): boolean {
   return (
+    relation === "domains" ||
     relation === "requests" ||
     relation === "workLogs" ||
     relation === "architecturePlans" ||
@@ -407,6 +416,25 @@ function getRelations(
     return [
       { record: design.wireframe, relation: "wireframes" },
       { record: design.asset, relation: "assets" },
+    ];
+  }
+
+  if (entry.relation === "domains") {
+    const domain = entry.record as Domain;
+    const parent =
+      domain.parentId === null
+        ? undefined
+        : context.domains.find((candidate) => candidate.id === domain.parentId);
+    const children = context.domains
+      .filter((candidate) => candidate.parentId === domain.id)
+      .sort((left, right) => left.id - right.id);
+
+    return [
+      ...(parent ? [{ record: parent, relation: "domains" as const }] : []),
+      ...children.map((record) => ({
+        record,
+        relation: "domains" as const,
+      })),
     ];
   }
 
@@ -719,6 +747,11 @@ export function ArtifactWorkbench({
     () => getEntries(context, requestRecords),
     [context, requestRecords],
   );
+  /** REST의 flat Domain 목록을 한 번만 안전한 계층으로 정규화한다. */
+  const domainTree = useMemo(
+    () => buildDomainTree(context.domains),
+    [context.domains],
+  );
   /** visible row마다 재구성하지 않도록 Wireframe lookup을 context 변경 시 한 번만 만든다. */
   const wireframesById = useMemo(
     () =>
@@ -733,6 +766,21 @@ export function ArtifactWorkbench({
     [context.plans],
   );
   const initialEntry = useMemo(() => {
+    /** Domain은 명시적인 page ID가 없으면 첫 root를 자동 선택하지 않는다. */
+    if (activeRelation === "domains") {
+      if (selectedArtifactId === null) {
+        return null;
+      }
+
+      return (
+        allEntries.find(
+          (entry) =>
+            entry.relation === "domains" &&
+            entry.record.id === selectedArtifactId,
+        ) ?? null
+      );
+    }
+
     if (selectedTaskId) {
       return allEntries.find(
         (entry) =>
@@ -757,6 +805,22 @@ export function ArtifactWorkbench({
       ? (activeEntry ?? null)
       : (activeEntry ?? allEntries[0]);
   }, [activeRelation, allEntries, selectedArtifactId, selectedTaskId]);
+  const selectedDomainAncestorIds = useMemo(
+    () =>
+      activeRelation === "domains" &&
+      selectedArtifactId !== null &&
+      domainTree.nodes.has(selectedArtifactId)
+        ? getDomainAncestorIds(domainTree, selectedArtifactId)
+        : [],
+    [activeRelation, domainTree, selectedArtifactId],
+  );
+  const externalSelectionKey = [
+    activeRelation,
+    selectedArtifactId ?? "none",
+    selectedTaskId ?? "none",
+    initialEntry ? getEntryKey(initialEntry) : "missing",
+    selectedDomainAncestorIds.join(","),
+  ].join(":");
   const [typeFilter, setTypeFilter] =
     useState<WorkbenchRelation>(activeRelation);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
@@ -765,6 +829,8 @@ export function ArtifactWorkbench({
   const [selectedKey, setSelectedKey] = useState<string | null>(
     initialEntry ? getEntryKey(initialEntry) : null,
   );
+  const [lastExternalSelectionKey, setLastExternalSelectionKey] =
+    useState(externalSelectionKey);
   const [expandedPlanIds, setExpandedPlanIds] = useState<ReadonlySet<number>>(
     () =>
       getInitialExpandedPlanIds(
@@ -774,6 +840,31 @@ export function ArtifactWorkbench({
         selectedTaskId,
       ),
   );
+  const [expandedDomainIds, setExpandedDomainIds] = useState<
+    ReadonlySet<number>
+  >(() =>
+    activeRelation === "domains" && selectedArtifactId !== null
+      ? new Set(getDomainAncestorIds(domainTree, selectedArtifactId))
+      : new Set(),
+  );
+  const [domainNotFoundId, setDomainNotFoundId] = useState<number | null>(() =>
+    activeRelation === "domains" &&
+    selectedArtifactId !== null &&
+    !domainTree.nodes.has(selectedArtifactId)
+      ? selectedArtifactId
+      : null,
+  );
+  const [focusedDomainId, setFocusedDomainId] = useState<number | null>(() =>
+    activeRelation === "domains" &&
+    selectedArtifactId !== null &&
+    domainTree.nodes.has(selectedArtifactId)
+      ? selectedArtifactId
+      : (domainTree.rootIds[0] ?? null),
+  );
+  const [searchCollapsedDomainIds, setSearchCollapsedDomainIds] = useState<{
+    ids: ReadonlySet<number>;
+    query: string;
+  }>({ ids: new Set(), query: "" });
   const [mobilePane, setMobilePane] = useState<MobilePane>("records");
   const [isDetailPaneOpen, setIsDetailPaneOpen] = useState(true);
   const [detailPaneRatio, setDetailPaneRatio] = useState(
@@ -785,11 +876,43 @@ export function ArtifactWorkbench({
   const [requestEditorMode, setRequestEditorMode] =
     useState<RequestEditorMode | null>(null);
 
+  /** 같은 project mount에서 URL query가 바뀌어도 선택·not-found·조상 확장을 즉시 동기화한다. */
+  if (lastExternalSelectionKey !== externalSelectionKey) {
+    const validDomainId =
+      activeRelation === "domains" &&
+      selectedArtifactId !== null &&
+      domainTree.nodes.has(selectedArtifactId)
+        ? selectedArtifactId
+        : null;
+
+    setLastExternalSelectionKey(externalSelectionKey);
+    setTypeFilter(activeRelation);
+    setSelectedKey(initialEntry ? getEntryKey(initialEntry) : null);
+    setDomainNotFoundId(
+      activeRelation === "domains" &&
+        selectedArtifactId !== null &&
+        validDomainId === null
+        ? selectedArtifactId
+        : null,
+    );
+    setFocusedDomainId(validDomainId ?? domainTree.rootIds[0] ?? null);
+    if (validDomainId !== null) {
+      setExpandedDomainIds((currentIds) =>
+        new Set([...currentIds, ...selectedDomainAncestorIds]),
+      );
+    }
+  }
+
   useSearchShortcut(searchRef);
 
+  const matchedSelectedEntry = allEntries.find(
+    (entry) => getEntryKey(entry) === selectedKey,
+  );
   const selectedEntry =
-    allEntries.find((entry) => getEntryKey(entry) === selectedKey) ??
-    (selectedKey === null ? null : (allEntries[0] ?? null));
+    matchedSelectedEntry ??
+    (selectedKey === null || keepsEmptySelection(typeFilter)
+      ? null
+      : (allEntries[0] ?? null));
   const selectedStatus = selectedEntry
     ? getStatus(selectedEntry)
     : null;
@@ -824,6 +947,33 @@ export function ArtifactWorkbench({
     selectedEntry?.relation === "requests"
       ? (selectedEntry.record as Request)
       : null;
+  const selectedDomain =
+    selectedEntry?.relation === "domains"
+      ? (selectedEntry.record as Domain)
+      : null;
+  const selectedDomainNode = selectedDomain
+    ? (domainTree.nodes.get(selectedDomain.id) ?? null)
+    : null;
+  const selectedDomainParent = selectedDomainNode?.parentId
+    ? (domainTree.nodes.get(selectedDomainNode.parentId)?.domain ?? null)
+    : null;
+  const selectedDomainChildren = selectedDomainNode
+    ? selectedDomainNode.childIds.flatMap((childId) => {
+        const child = domainTree.nodes.get(childId)?.domain;
+        return child ? [child] : [];
+      })
+    : [];
+  const selectedDomainBreadcrumb = selectedDomain
+    ? [
+        ...getDomainAncestorIds(domainTree, selectedDomain.id).flatMap(
+          (ancestorId) => {
+            const ancestor = domainTree.nodes.get(ancestorId)?.domain;
+            return ancestor ? [ancestor] : [];
+          },
+        ),
+        selectedDomain,
+      ]
+    : [];
   const isWireframeView = typeFilter === "wireframes";
   const isVersionFilteredView =
     typeFilter === "wireframes" || typeFilter === "designs";
@@ -846,6 +996,7 @@ export function ArtifactWorkbench({
         : (availableVersions[0] ?? null)
       : versionFilter;
   const isRequestView = typeFilter === "requests";
+  const isDomainView = typeFilter === "domains";
   /** 수정 중인 record는 성공 응답으로 교체된 로컬 Request 목록에서 읽는다. */
   const editorRequest =
     requestEditorMode?.type === "update"
@@ -854,6 +1005,72 @@ export function ArtifactWorkbench({
         ) ?? null)
       : null;
   const normalizedQuery = query.trim().toLocaleLowerCase();
+  const domainSearchIds = useMemo(
+    () => getDomainSearchIds(domainTree, normalizedQuery),
+    [domainTree, normalizedQuery],
+  );
+  const autoExpandedSearchDomainIds = useMemo(() => {
+    if (!normalizedQuery) {
+      return new Set<number>();
+    }
+
+    const expandedIds = new Set<number>();
+    for (const domainId of domainSearchIds) {
+      const node = domainTree.nodes.get(domainId);
+      if (node?.childIds.some((childId) => domainSearchIds.has(childId))) {
+        expandedIds.add(domainId);
+      }
+    }
+    return expandedIds;
+  }, [domainSearchIds, domainTree, normalizedQuery]);
+  const effectiveExpandedDomainIds = useMemo(() => {
+    const expandedIds = new Set(expandedDomainIds);
+    if (!normalizedQuery) {
+      return expandedIds;
+    }
+
+    for (const domainId of autoExpandedSearchDomainIds) {
+      expandedIds.add(domainId);
+    }
+    if (searchCollapsedDomainIds.query === normalizedQuery) {
+      for (const domainId of searchCollapsedDomainIds.ids) {
+        expandedIds.delete(domainId);
+      }
+    }
+    return expandedIds;
+  }, [
+    autoExpandedSearchDomainIds,
+    expandedDomainIds,
+    normalizedQuery,
+    searchCollapsedDomainIds,
+  ]);
+  const visibleDomainRows = useMemo(
+    () =>
+      flattenDomainTree(
+        domainTree,
+        effectiveExpandedDomainIds,
+        normalizedQuery ? domainSearchIds : undefined,
+      ),
+    [
+      domainSearchIds,
+      domainTree,
+      effectiveExpandedDomainIds,
+      normalizedQuery,
+    ],
+  );
+  const domainRowsById = useMemo(
+    () =>
+      new Map<number, DomainTreeRow>(
+        visibleDomainRows.map((row) => [row.domain.id, row]),
+      ),
+    [visibleDomainRows],
+  );
+  const tabbableDomainId =
+    focusedDomainId !== null && domainRowsById.has(focusedDomainId)
+      ? focusedDomainId
+      : selectedDomain && domainRowsById.has(selectedDomain.id)
+        ? selectedDomain.id
+        : (visibleDomainRows[0]?.domain.id ?? null);
 
   /** 현재 status/version/query 조합에 단일 record가 일치하는지 판별한다. */
   function matchesVisibleFilters(entry: WorkbenchEntry): boolean {
@@ -883,7 +1100,7 @@ export function ArtifactWorkbench({
   }
 
   /** Plan 목록에는 펼친 Plan의 필터 일치 Task를 부모 바로 다음 행으로 삽입한다. */
-  const visibleEntries = allEntries
+  const filteredEntries = allEntries
     .filter((entry) => entry.relation === typeFilter)
     .flatMap((entry) => {
       if (entry.relation !== "plans") {
@@ -904,6 +1121,14 @@ export function ArtifactWorkbench({
 
       return isPlanVisible ? [entry, ...visibleTasks] : [];
     });
+  const visibleEntries = isDomainView
+    ? visibleDomainRows.map(
+        (row): WorkbenchEntry => ({
+          record: row.domain,
+          relation: "domains",
+        }),
+      )
+    : filteredEntries;
   const currentProject =
     projects.find((project) => project.id === context.id) ?? projects[0];
   const currentRepository = context.repoPaths[0];
@@ -914,6 +1139,7 @@ export function ArtifactWorkbench({
     setRequestEditorMode(null);
     setIsHtmlMetadataCollapsed(false);
     setSelectedKey(getEntryKey(entry));
+    setDomainNotFoundId(null);
     setIsDetailPaneOpen(true);
     setMobilePane("detail");
 
@@ -932,7 +1158,128 @@ export function ArtifactWorkbench({
       });
     }
 
+    /** Domain 선택은 조상 경로를 보존하고 child가 있는 현재 행을 함께 토글한다. */
+    if (entry.relation === "domains") {
+      const domainId = entry.record.id;
+      setFocusedDomainId(domainId);
+      setExpandedDomainIds((currentDomainIds) => {
+        const nextDomainIds = new Set(currentDomainIds);
+        const node = domainTree.nodes.get(domainId);
+
+        for (const ancestorId of getDomainAncestorIds(domainTree, domainId)) {
+          nextDomainIds.add(ancestorId);
+        }
+
+        if (node && node.childIds.length > 0) {
+          if (nextDomainIds.has(domainId)) {
+            nextDomainIds.delete(domainId);
+          } else {
+            nextDomainIds.add(domainId);
+          }
+        }
+
+        return nextDomainIds;
+      });
+    }
+
     router.replace(getRelationHref(entry, context.id), { scroll: false });
+  }
+
+  /** Domain treeitem의 좌우 방향키로 현재 branch를 펼치거나 접는다. */
+  function handleDomainTreeKeyDown(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    row: DomainTreeRow,
+  ) {
+    const treeItems = Array.from(
+      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+        '[role="treeitem"]',
+      ) ?? [],
+    );
+    const currentIndex = treeItems.indexOf(event.currentTarget);
+    const isEffectivelyExpanded = effectiveExpandedDomainIds.has(
+      row.domain.id,
+    );
+
+    if (
+      event.key === "ArrowDown" ||
+      event.key === "ArrowUp" ||
+      event.key === "Home" ||
+      event.key === "End"
+    ) {
+      const targetIndex =
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? treeItems.length - 1
+            : event.key === "ArrowDown"
+              ? Math.min(currentIndex + 1, treeItems.length - 1)
+              : Math.max(currentIndex - 1, 0);
+
+      event.preventDefault();
+      treeItems[targetIndex]?.focus();
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      if (row.childIds.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      if (!isEffectivelyExpanded) {
+        if (normalizedQuery) {
+          setSearchCollapsedDomainIds((current) => {
+            const nextIds =
+              current.query === normalizedQuery
+                ? new Set(current.ids)
+                : new Set<number>();
+            nextIds.delete(row.domain.id);
+            return { ids: nextIds, query: normalizedQuery };
+          });
+        } else {
+          setExpandedDomainIds((currentIds) =>
+            new Set([...currentIds, row.domain.id]),
+          );
+        }
+      } else {
+        treeItems[currentIndex + 1]?.focus();
+      }
+      return;
+    }
+
+    if (event.key === "ArrowLeft" && isEffectivelyExpanded) {
+      event.preventDefault();
+      if (normalizedQuery) {
+        setSearchCollapsedDomainIds((current) => {
+          const nextIds =
+            current.query === normalizedQuery
+              ? new Set(current.ids)
+              : new Set<number>();
+          nextIds.add(row.domain.id);
+          return { ids: nextIds, query: normalizedQuery };
+        });
+      } else {
+        setExpandedDomainIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          nextIds.delete(row.domain.id);
+          return nextIds;
+        });
+      }
+      return;
+    }
+
+    if (event.key === "ArrowLeft" && row.parentId !== null) {
+      const parentIndex = treeItems.findLastIndex(
+        (item, index) =>
+          index < currentIndex &&
+          Number(item.getAttribute("aria-level")) === row.depth,
+      );
+
+      if (parentIndex >= 0) {
+        event.preventDefault();
+        treeItems[parentIndex]?.focus();
+      }
+    }
   }
 
   /** 모바일 pane 전환 중 Info 선택만 닫힌 detail pane을 다시 연다. */
@@ -1131,7 +1478,11 @@ export function ArtifactWorkbench({
                 event.currentTarget.blur();
               }
             }}
-            placeholder="Search titles, types, or IDs"
+            placeholder={
+              isDomainView
+                ? "Search Domain titles, Markdown, or IDs"
+                : "Search titles, types, or IDs"
+            }
             type="search"
             value={query}
           />
@@ -1240,6 +1591,7 @@ export function ArtifactWorkbench({
                         className="flex min-h-11 w-full items-center gap-[9px] rounded-control border-0 bg-transparent px-[9px] py-[7px] text-left text-[13px] text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-ink aria-pressed:bg-sidebar-selected aria-pressed:text-sidebar-ink aria-pressed:shadow-[inset_3px_0_var(--color-accent)] focus-visible:ring-2 focus-visible:ring-focus-dark focus-visible:outline-none"
                         onClick={() => {
                           setTypeFilter(relation);
+                          setDomainNotFoundId(null);
                           /** Relation 전환마다 explicit version을 비워 각 workspace의 최신 version을 다시 선택한다. */
                           setVersionFilter(null);
                           setMobilePane("records");
@@ -1247,7 +1599,9 @@ export function ArtifactWorkbench({
                           /** 독립 workspace 진입 시 이전 도메인의 선택·편집 상태를 노출하지 않는다. */
                           if (keepsEmptySelection(relation)) {
                             setSelectedKey(
-                              relationEntries[0]
+                              relation === "domains"
+                                ? null
+                                : relationEntries[0]
                                 ? getEntryKey(relationEntries[0])
                                 : null,
                             );
@@ -1323,7 +1677,11 @@ export function ArtifactWorkbench({
               {context.title} /{" "}
               <strong>{relationConfig[typeFilter].plural}</strong>
             </span>
-            {isVersionFilteredView ? (
+            {isDomainView ? (
+              <span className="font-mono text-[10px] font-semibold tracking-[0.06em] text-muted uppercase">
+                Read-only hierarchy
+              </span>
+            ) : isVersionFilteredView ? (
               <label>
                 <span className="sr-only">Version</span>
                 <select
@@ -1382,7 +1740,12 @@ export function ArtifactWorkbench({
                 </>
               )}
             </div>
-            <div aria-label="Artifact records" role="listbox">
+            <div
+              aria-label={
+                isDomainView ? "Domain hierarchy" : "Artifact records"
+              }
+              role={isDomainView ? "tree" : "listbox"}
+            >
               {visibleEntries.map((entry) => {
                 const config = relationConfig[entry.relation];
                 const status = getStatus(entry);
@@ -1403,8 +1766,35 @@ export function ArtifactWorkbench({
                   entry.relation === "tasks"
                     ? (plansById.get((entry.record as Task).planId) ?? null)
                     : null;
+                const domainRow =
+                  entry.relation === "domains"
+                    ? (domainRowsById.get(entry.record.id) ?? null)
+                    : null;
+                const isDomainExpanded = domainRow
+                  ? effectiveExpandedDomainIds.has(domainRow.domain.id)
+                  : false;
+                const domainParent = domainRow?.parentId
+                  ? (domainTree.nodes.get(domainRow.parentId)?.domain ?? null)
+                  : null;
                 /** 시각적 header가 숨겨져도 각 option에서 전체 칼럼 의미를 전달한다. */
-                const accessibleName = wireframe
+                const accessibleName = domainRow
+                  ? [
+                      `Domain ${domainRow.domain.title}`,
+                      `No ${domainRow.domain.id}`,
+                      `Level ${domainRow.depth + 1}`,
+                      domainParent
+                        ? `Parent ${domainParent.title}`
+                        : "Root Domain",
+                      domainRow.childIds.length > 0
+                        ? `Children ${isDomainExpanded ? "expanded" : "collapsed"}`
+                        : "No children",
+                      domainRow.hierarchyIssue
+                        ? `Hierarchy warning ${domainRow.hierarchyIssue}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")
+                  : wireframe
                   ? [
                       `Type ${config.label}`,
                       `No ${entry.record.id}`,
@@ -1442,14 +1832,40 @@ export function ArtifactWorkbench({
                     }
                     aria-label={accessibleName}
                     aria-selected={isSelected}
+                    aria-expanded={
+                      domainRow && domainRow.childIds.length > 0
+                        ? isDomainExpanded
+                        : undefined
+                    }
+                    aria-level={domainRow ? domainRow.depth + 1 : undefined}
+                    aria-posinset={domainRow?.positionInSet}
+                    aria-setsize={domainRow?.setSize}
                     className={`grid min-h-14 w-full items-center gap-3 border-0 border-b border-line bg-surface px-4 text-left text-ink transition-colors hover:bg-hover aria-selected:bg-selected aria-selected:shadow-[inset_3px_0_var(--color-accent)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:outline-none motion-reduce:transition-none ${wireframe ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
+                    data-domain-id={domainRow?.domain.id}
                     onClick={() => selectEntry(entry)}
+                    onFocus={
+                      domainRow
+                        ? () => setFocusedDomainId(domainRow.domain.id)
+                        : undefined
+                    }
+                    onKeyDown={
+                      domainRow
+                        ? (event) => handleDomainTreeKeyDown(event, domainRow)
+                        : undefined
+                    }
                     data-plan-expanded={
                       isPlanExpanded === null
                         ? undefined
                         : String(isPlanExpanded)
                     }
-                    role="option"
+                    role={domainRow ? "treeitem" : "option"}
+                    tabIndex={
+                      domainRow
+                        ? domainRow.domain.id === tabbableDomainId
+                          ? 0
+                          : -1
+                        : undefined
+                    }
                     type="button"
                   >
                     <span className="inline-flex items-center gap-[7px] font-mono text-[10px] text-muted">
@@ -1473,10 +1889,20 @@ export function ArtifactWorkbench({
                           ? "relative min-w-0 pl-6"
                           : wireframeHierarchy?.depth === 1
                           ? "relative min-w-0 pl-4"
-                          : "min-w-0"
+                          : domainRow
+                            ? "relative min-w-0"
+                            : "min-w-0"
                       }
+                      data-domain-depth={domainRow?.depth}
                       data-plan-task-depth={parentPlan ? "1" : undefined}
                       data-wireframe-depth={wireframeHierarchy?.depth}
+                      style={
+                        domainRow
+                          ? {
+                              paddingInlineStart: `${domainRow.depth * 20}px`,
+                            }
+                          : undefined
+                      }
                     >
                       {parentPlan ? (
                         <>
@@ -1512,12 +1938,31 @@ export function ArtifactWorkbench({
                           </span>
                         </>
                       ) : null}
-                      <strong className="block truncate text-[13px]">
-                        {entry.record.title}
-                      </strong>
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {domainRow ? (
+                          <span
+                            aria-hidden="true"
+                            className="inline-block w-3 shrink-0 font-mono text-[11px] text-subtle"
+                          >
+                            {domainRow.childIds.length > 0
+                              ? isDomainExpanded
+                                ? "▾"
+                                : "▸"
+                              : "·"}
+                          </span>
+                        ) : null}
+                        <strong className="block min-w-0 truncate text-[13px]">
+                          {entry.record.title}
+                        </strong>
+                      </span>
                       {secondaryMeta ? (
                         <small className="mt-1 block truncate font-mono text-[10px] text-subtle">
                           {secondaryMeta}
+                        </small>
+                      ) : null}
+                      {domainRow?.hierarchyIssue ? (
+                        <small className="mt-1 block truncate font-mono text-[10px] text-danger">
+                          Hierarchy warning: {domainRow.hierarchyIssue}
                         </small>
                       ) : null}
                     </span>
@@ -1548,13 +1993,21 @@ export function ArtifactWorkbench({
           {visibleEntries.length === 0 ? (
             <div className="px-6 py-14 text-center text-muted">
               <strong className="mb-1.5 block text-ink">
-                {isRequestView && requestRecords.length === 0
+                {isDomainView && context.domains.length === 0
+                  ? "No Domain pages"
+                  : isDomainView
+                    ? "No matching Domains"
+                    : isRequestView && requestRecords.length === 0
                   ? "No Request records"
                   : "No matching records"}
               </strong>
-              {isRequestView && requestRecords.length === 0
-                ? "Create a Request document to start tracking work."
-                : "Try another search or type filter."}
+              {isDomainView && context.domains.length === 0
+                ? "Create business Domain pages through the Domain MCP workflow."
+                : isDomainView
+                  ? "Try another title, Markdown term, or Domain ID."
+                  : isRequestView && requestRecords.length === 0
+                    ? "Create a Request document to start tracking work."
+                    : "Try another search or type filter."}
             </div>
           ) : null}
         </section>
@@ -1603,7 +2056,12 @@ export function ArtifactWorkbench({
                   ? "New request"
                   : requestEditorMode?.type === "update"
                     ? "Edit request"
-                    : (selectedEntry?.record.title ?? "Select a record")}
+                    : selectedEntry?.record.title ??
+                      (isDomainView
+                        ? domainNotFoundId === null
+                          ? "Select a Domain"
+                          : "Domain not found"
+                        : "Select a record")}
               </h2>
             </div>
             {selectedRequest && requestEditorMode === null ? (
@@ -1718,6 +2176,61 @@ export function ArtifactWorkbench({
                     </dd>
                   </dl>
                 </div>
+                {selectedDomain && selectedDomainNode ? (
+                  <div className="mt-[18px] rounded-card border border-line bg-surface p-4 shadow-card">
+                    <nav aria-label="Domain breadcrumb">
+                      <ol className="m-0 flex list-none flex-wrap items-center gap-1 p-0 text-xs text-muted">
+                        {selectedDomainBreadcrumb.map((domain, index) => (
+                          <li
+                            className="inline-flex items-center gap-1"
+                            key={domain.id}
+                          >
+                            {index > 0 ? (
+                              <span aria-hidden="true">/</span>
+                            ) : null}
+                            <span
+                              aria-current={
+                                domain.id === selectedDomain.id
+                                  ? "page"
+                                  : undefined
+                              }
+                              className={
+                                domain.id === selectedDomain.id
+                                  ? "font-semibold text-ink"
+                                  : undefined
+                              }
+                            >
+                              {domain.title}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+                    </nav>
+                    <dl className="mt-4 grid grid-cols-[96px_1fr] gap-x-3 gap-y-2.5 text-xs">
+                      <dt className="text-subtle">Parent</dt>
+                      <dd className="m-0 text-ink">
+                        {selectedDomainParent?.title ?? "Root Domain"}
+                      </dd>
+                      <dt className="text-subtle">Children</dt>
+                      <dd className="m-0 text-ink">
+                        {selectedDomainChildren.length > 0
+                          ? selectedDomainChildren
+                              .map((child) => child.title)
+                              .join(", ")
+                          : "No immediate children"}
+                      </dd>
+                    </dl>
+                    {selectedDomainNode.hierarchyIssue ? (
+                      <p
+                        className="mt-4 mb-0 rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger"
+                        role="status"
+                      >
+                        Hierarchy warning: {selectedDomainNode.hierarchyIssue}.
+                        This page is shown once as a fallback root.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {selectedErd ? (
                   <div
                     className="mt-[18px] min-h-0 min-w-0"
@@ -1770,6 +2283,22 @@ export function ArtifactWorkbench({
                     <MarkdownContent content={getContent(selectedEntry)} />
                   </div>
                 )}
+              </section>
+            ) : isDomainView ? (
+              <section
+                aria-label="Domain selection state"
+                className="rounded-card border border-line bg-surface px-6 py-10 text-center shadow-card"
+              >
+                <h3 className="m-0 text-base font-semibold text-ink">
+                  {domainNotFoundId === null
+                    ? "Select a Domain"
+                    : "Domain not found"}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  {domainNotFoundId === null
+                    ? "Choose a page in the hierarchy to read its business rules and responsibilities."
+                    : `Domain #${domainNotFoundId} does not exist in this project.`}
+                </p>
               </section>
             ) : isRequestView ? (
               <section

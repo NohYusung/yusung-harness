@@ -141,7 +141,7 @@ export function getDrafts(projectId: number): Promise<Draft[]> {
   return getProjectResource(projectId, "drafts", draftListResponseSchema);
 }
 
-/** 프로젝트의 Domain ERD 목록을 조회한다. */
+/** 프로젝트의 계층형 비즈니스 Domain Markdown 페이지를 조회한다. */
 export function getDomains(projectId: number): Promise<Domain[]> {
   return getProjectResource(projectId, "domains", domainListResponseSchema);
 }

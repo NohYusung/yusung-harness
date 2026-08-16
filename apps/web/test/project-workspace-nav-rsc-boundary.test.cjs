@@ -19,13 +19,14 @@ test("ProjectWorkspaceNav server wrapper는 context를 primitive nav items로 �
   assert.doesNotMatch(wrapper, /^[\s\S]*?["']use client["']/);
   assert.doesNotMatch(wrapper, /\buseEffect\b|\buseRef\b|scrollIntoView/);
   assert.match(wrapper, /import\s+type\s*\{\s*ProjectContext\s*\}/);
-  assert.match(wrapper, /getLatestDomainErd/);
+  assert.doesNotMatch(wrapper, /getLatestDomainErd|domain-erd/);
   assert.match(wrapper, /getLatestDeploymentArchitecture/);
   assert.match(
     wrapper,
     /label:\s*["']Plan["'][\s\S]*?label:\s*["']Draft["'][\s\S]*?label:\s*["']Domain["'][\s\S]*?label:\s*["']Architecture["'][\s\S]*?label:\s*["']Wireframe["'][\s\S]*?label:\s*["']Asset["'][\s\S]*?label:\s*["']Design["']/,
   );
   assert.match(wrapper, /context\.wireframes\.length/);
+  assert.match(wrapper, /context\.domains\.length/);
   assert.match(wrapper, /context\.assets\.length/);
   assert.match(wrapper, /context\.designs\.length/);
   assert.match(wrapper, /<ProjectWorkspaceNavScroller\b/);

@@ -16,22 +16,20 @@ test("web DTO·Zod는 Domain과 Architecture relation을 분리한다", () => {
   const validation = source("lib/validations/dashboard.ts");
 
   assert.match(types, /interface\s+ArtifactCounts\b[\s\S]*?domains:\s*number/);
-  assert.match(types, /export\s+type\s+Domain\s*=\s*ArtifactDocument/);
+  assert.match(types, /export\s+interface\s+Domain\s+extends\s+ArtifactDocument/);
+  assert.match(types, /interface\s+Domain[\s\S]*?parentId:\s*number\s*\|\s*null/);
   assert.match(types, /export\s+type\s+Architecture\s*=\s*ArtifactDocument/);
   assert.match(types, /interface\s+ProjectContext\b[\s\S]*?domains:\s*Domain\[\]/);
   assert.match(types, /interface\s+ProjectContext\b[\s\S]*?architectures:\s*Architecture\[\]/);
-  assert.match(validation, /domains:\s*z\.array\s*\(\s*artifactDocumentSchema\s*\)/);
+  assert.match(validation, /domainSchema[\s\S]*?parentId:\s*z\.number\(\)[\s\S]*?nullable\(\)/);
+  assert.match(validation, /domains:\s*z\.array\s*\(\s*domainSchema\s*\)/);
   assert.match(validation, /architectures:\s*z\.array\s*\(\s*artifactDocumentSchema\s*\)/);
 });
 
-test("Domain parser와 deployment Architecture parser는 별도 graph 계약을 가진다", () => {
-  const domain = source("lib/domain-erd.ts");
+test("Domain ERD parser는 제거되고 deployment Architecture parser만 유지된다", () => {
   const architecture = source("lib/deployment-architecture.ts");
 
-  assert.match(domain, /export\s+const\s+domainErdSchema\b/);
-  assert.match(domain, /kind:\s*z\.literal\s*\(\s*["']domain-erd["']/);
-  assert.match(domain, /export\s+function\s+parseDomainErd\b/);
-  assert.match(domain, /export\s+function\s+getLatestDomainErd\b/);
+  assert.equal(existsSync(join(webRoot, "src", "lib/domain-erd.ts")), false);
   assert.match(architecture, /export\s+const\s+deploymentArchitectureSchema\b/);
   assert.match(architecture, /kind:\s*z\.literal\s*\(\s*["']deployment-architecture["']/);
   assert.match(architecture, /environments:\s*z\s*\.array\s*\(/);
@@ -41,15 +39,26 @@ test("Domain parser와 deployment Architecture parser는 별도 graph 계약을 
   assert.match(architecture, /export\s+function\s+getLatestDeploymentArchitecture\b/);
 });
 
-test("DomainWorkspace는 ERD를, ArchitectureWorkspace는 배포 graph와 legacy fallback을 렌더한다", () => {
-  const domainWorkspace = source("components/features/dashboard/DomainWorkspace.tsx");
+test("Domain은 통합 계층 Workbench를, Architecture는 배포 graph를 사용한다", () => {
+  const workbench = source("components/features/dashboard/ArtifactWorkbench.tsx");
   const architectureWorkspace = source(
     "components/features/dashboard/ArchitectureWorkspace.tsx",
   );
 
-  assert.match(domainWorkspace, /getLatestDomainErd/);
-  assert.match(domainWorkspace, /domains:\s*Domain\[\]/);
-  assert.doesNotMatch(domainWorkspace, /getLatestDeploymentArchitecture/);
+  assert.equal(
+    existsSync(
+      join(
+        webRoot,
+        "src",
+        "components/features/dashboard/DomainWorkspace.tsx",
+      ),
+    ),
+    false,
+  );
+  assert.match(workbench, /buildDomainTree/);
+  assert.match(workbench, /role=\{isDomainView\s*\?\s*["']tree["']/);
+  assert.match(workbench, /aria-level=\{domainRow\s*\?/);
+  assert.match(workbench, /<MarkdownContent\s+content=\{getContent\(selectedEntry\)\}/);
   assert.match(architectureWorkspace, /getLatestDeploymentArchitecture/);
   assert.match(architectureWorkspace, /architectures:\s*Architecture\[\]/);
   assert.match(architectureWorkspace, /Legacy|legacy/);

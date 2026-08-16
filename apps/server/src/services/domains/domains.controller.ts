@@ -6,7 +6,7 @@ export class DomainsController {
   constructor(private readonly domainsService: DomainsService) {}
 
   /**
-   * 프로젝트 Domain 분석 문서 목록 조회
+   * 프로젝트의 계층형 비즈니스 Domain Markdown 페이지 목록 조회
    */
   @Get()
   async list(@Param("projectId", ParseIntPipe) projectId: number) {

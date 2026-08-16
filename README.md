@@ -94,7 +94,7 @@ flowchart LR
 | 단계 | Skill | 결과 |
 | --- | --- | --- |
 | 발견 | `curate`, `research`, `draft` | 프로젝트 등록, 근거 조사, 초기 제안 |
-| 설계 | `plan`, `architecturePlan`, `domain`, `db`, `erd` | 실행 계획, 아키텍처, 도메인과 데이터 구조 |
+| 설계 | `plan`, `architecturePlan`, `domain`, `db`, `erd` | 실행 계획, 아키텍처, 계층형 업무 Domain 문서와 데이터 구조 |
 | 제작 | `asset`, `wireframe`, `design`, `code` | 디자인 자산, 인터랙션, UI와 실제 코드 |
 | 검증·관리 | `test`, `integration` | 테스트, 커밋과 병합 |
 
@@ -240,7 +240,7 @@ MCP 서버는 프로젝트와 산출물을 다루는 43개 도구를 제공합�
 | --- | --- | --- |
 | Context | `get_context`, `get_project` | DB 구조와 프로젝트 전체 맥락을 조회합니다. |
 | Planning | `create_draft`, `create_plan`, `update_plan`, `create_task`, `update_task` | 제안과 실행 계획을 저장하고 진행 상태를 갱신합니다. |
-| Architecture | `create_architecturePlan`, `create_domain`, `create_db`, `create_erd` | 아키텍처 계획, 도메인과 데이터 구조를 기록합니다. |
+| Architecture | `create_architecturePlan`, `create_domain`, `update_domain`, `create_db`, `create_erd` | 아키텍처 계획, 계층형 업무 Domain Markdown과 데이터 구조를 기록합니다. |
 | Design | `create_asset`, `create_wireframe`, `create_design` | HTML 기반 시각 산출물과 버전을 저장합니다. |
 | Execution | `create_request`, `update_request`, `create_workLog`, `get_review` | 요청 수명주기와 작업 기록, 리뷰를 관리합니다. |
 | Files | `create_file`, `get_file`, `update_file`, `delete_file` | 프로젝트에 연결된 임시 파일과 업로드 상태를 관리합니다. |
@@ -250,7 +250,7 @@ MCP 서버는 프로젝트와 산출물을 다루는 43개 도구를 제공합�
 - `Request` → `Plan` → `Task`로 이어지는 실행 흐름
 - 초기 아이디어와 제안을 담는 `Draft`
 - 구현 전 `Architecture Plan`과 구현 후 `Architecture`
-- 프로젝트의 `Domain`, DB 문서와 ERD
+- 한 업무 Domain당 한 Markdown 페이지로 구성된 무제한 `Domain` 계층, DB 문서와 ERD
 - 버전과 계층 구조를 가진 `Wireframe`
 - `Asset`과 Wireframe을 결합한 `Design`
 - 작업 과정의 `WorkLog`와 결과를 평가하는 `Review`

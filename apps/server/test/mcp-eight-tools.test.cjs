@@ -1631,12 +1631,14 @@ test("Domain 생성·수정 도구는 입력, annotations, service 위임 계약
 
   assert.deepEqual(Object.keys(createTool.definition.inputSchema.shape), [
     "projectId",
+    "parentId",
     "title",
     "content",
   ]);
   assert.deepEqual(Object.keys(updateTool.definition.inputSchema.shape), [
     "projectId",
     "domainId",
+    "parentId",
     "title",
     "content",
   ]);
@@ -1662,6 +1664,20 @@ test("Domain 생성·수정 도구는 입력, annotations, service 위임 계약
       }).success,
       false,
     );
+    assert.equal(
+      createTool.definition.inputSchema.safeParse({
+        ...createInput,
+        parentId: invalidId,
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateTool.definition.inputSchema.safeParse({
+        ...updateInput,
+        parentId: invalidId,
+      }).success,
+      false,
+    );
   }
   assert.equal(
     updateTool.definition.inputSchema.safeParse({
@@ -1674,6 +1690,22 @@ test("Domain 생성·수정 도구는 입력, annotations, service 위임 계약
   for (const tool of [createTool, updateTool]) {
     const baseInput = tool === createTool ? createInput : updateInput;
 
+    assert.equal(tool.definition.inputSchema.safeParse(baseInput).success, true);
+    assert.equal(
+      tool.definition.inputSchema.safeParse({ ...baseInput, parentId: null })
+        .success,
+      true,
+    );
+    assert.equal(
+      tool.definition.inputSchema.safeParse({ ...baseInput, parentId: 11 })
+        .success,
+      true,
+    );
+    assert.equal(
+      tool.definition.inputSchema.safeParse({ ...baseInput, parentId: "11" })
+        .success,
+      false,
+    );
     assert.equal(
       tool.definition.inputSchema.safeParse({ ...baseInput, title: "   " })
         .success,

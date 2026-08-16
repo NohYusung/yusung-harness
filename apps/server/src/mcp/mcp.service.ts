@@ -31,6 +31,10 @@ const projectIdSchema = z.number().int().positive().describe("Project ID");
 const planIdSchema = z.number().int().positive().describe("Plan ID");
 const taskIdSchema = z.number().int().positive().describe("Task ID");
 const domainIdSchema = z.number().int().positive().describe("Domain ID");
+const domainParentIdSchema = domainIdSchema
+  .nullable()
+  .optional()
+  .describe("Optional parent Domain ID; null selects a root Domain");
 const dbIdSchema = z.number().int().positive().describe("DB document ID");
 const erdIdSchema = z.number().int().positive().describe("ERD document ID");
 const fileIdSchema = z.number().int().positive().describe("File ID");
@@ -586,15 +590,16 @@ export class McpService {
       (input) => this.execute(() => this.draftsService.create(input)),
     );
 
-    /** 에이전트가 분석한 프로젝트 codebase의 Domain 문서를 생성한다. */
+    /** 프로젝트의 root 또는 child Markdown Domain 페이지를 생성한다. */
     server.registerTool(
       "create_domain",
       {
         title: "Create Domain",
         description:
-          "Creates a codebase Domain analysis document for a Project.",
+          "Creates one unique Markdown business-domain page as a root or child Domain in a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
+          parentId: domainParentIdSchema,
           title: z.string().trim().min(1),
           content: z.string().min(1),
         }),
@@ -608,16 +613,17 @@ export class McpService {
       (input) => this.execute(() => this.domainsService.create(input)),
     );
 
-    /** 기존 Domain 분석 문서의 제목과 내용을 교체한다. */
+    /** 기존 Markdown Domain 페이지의 문서와 선택적 부모 관계를 갱신한다. */
     server.registerTool(
       "update_domain",
       {
         title: "Update Domain",
         description:
-          "Replaces the title and content of a Domain analysis document in the same Project.",
+          "Updates a Markdown business-domain page; omit parentId to preserve its parent, use null for a root, or pass an ID to reparent it.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           domainId: domainIdSchema,
+          parentId: domainParentIdSchema,
           title: z.string().trim().min(1),
           content: z.string().min(1),
         }),

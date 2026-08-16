@@ -5,6 +5,7 @@ import {
   createArchitecturePlan,
   createAsset,
   createDesign,
+  createDomain,
   createErd,
   createPlan,
   createProjectContext,
@@ -121,7 +122,7 @@ function createWorkbenchFixture() {
     assets: [asset],
     designs: [design],
     domains: [
-      createArtifact({ id: 40, title: "Harness domain snapshot" }),
+      createDomain({ id: 40, title: "Harness business domain" }),
     ],
     drafts: [
       createArtifact({ id: 30, title: "Dashboard information model" }),
@@ -1419,7 +1420,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     for (const label of [
       "Plans",
       "Drafts",
-      "Domain",
+      "Domains",
       "Architecture",
       "Wireframes",
       "Assets",
@@ -2355,45 +2356,58 @@ describe("Dashboard artifact workbench visual contract", () => {
     renderWorkbench();
 
     const records = screen.getByRole("listbox", { name: "Artifact records" });
-    const cases = [
+    const cases: Array<{
+      relationName: RegExp;
+      role: "option" | "treeitem";
+      rowName: RegExp;
+      status: string;
+      typeLabelOccurrences: number;
+    }> = [
       {
         relationName: /Drafts/,
+        role: "option",
         rowName: /Dashboard information model/,
         status: "Draft",
         typeLabelOccurrences: 1,
       },
       {
-        relationName: /Domain/,
-        rowName: /Harness domain snapshot/,
-        status: "Snapshot",
+        relationName: /Domains/,
+        rowName: /Harness business domain/,
+        status: "Completed",
         typeLabelOccurrences: 0,
+        role: "treeitem" as const,
       },
       {
         relationName: /^Architecture\s*1$/,
         rowName: /Harness production/,
         status: "Snapshot",
         typeLabelOccurrences: 0,
+        role: "option" as const,
       },
       {
         relationName: /Wireframes/,
+        role: "option",
         rowName: /Artifact workbench flow/,
         status: "HTML",
         typeLabelOccurrences: 0,
       },
       {
         relationName: /Assets/,
+        role: "option",
         rowName: /Workbench interface tokens/,
         status: "HTML",
         typeLabelOccurrences: 0,
       },
       {
         relationName: /Designs/,
+        role: "option",
         rowName: /Workbench production UI/,
         status: "HTML",
         typeLabelOccurrences: 0,
       },
       {
         relationName: /Reviews/,
+        role: "option",
         rowName: /MCP boundary review/,
         status: "Completed",
         typeLabelOccurrences: 0,
@@ -2404,7 +2418,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       fireEvent.click(
         screen.getByRole("button", { name: testCase.relationName }),
       );
-      const row = within(records).getByRole("option", {
+      const row = within(records).getByRole(testCase.role, {
         name: testCase.rowName,
       });
 
@@ -2413,6 +2427,282 @@ describe("Dashboard artifact workbench visual contract", () => {
       );
       expect(within(row).queryByText("Document")).not.toBeInTheDocument();
     }
+  });
+
+  it("Domain deep link의 조상을 펼치고 breadcrumb·부모·Markdown을 표시한다", () => {
+    const root = createDomain({
+      content: "# Commerce\n\nCustomer purchase rules.",
+      id: 100,
+      title: "Commerce",
+    });
+    const child = createDomain({
+      content: "# Orders\n\nOrder invariants.",
+      id: 110,
+      parentId: root.id,
+      title: "Orders",
+    });
+    const leaf = createDomain({
+      content: "# Fulfillment rules\n\nShipment policy.",
+      id: 120,
+      parentId: child.id,
+      title: "Fulfillment",
+    });
+    const context = createProjectContext({ domains: [leaf, root, child] });
+
+    render(
+      <Dashboard
+        activeRelation="domains"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={leaf.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    const tree = screen.getByRole("tree", { name: "Domain hierarchy" });
+    const rootItem = within(tree).getByRole("treeitem", {
+      name: /Domain Commerce/,
+    });
+    const childItem = within(tree).getByRole("treeitem", {
+      name: /Domain Orders/,
+    });
+    const leafItem = within(tree).getByRole("treeitem", {
+      name: /Domain Fulfillment/,
+    });
+
+    expect(rootItem).toHaveAttribute("aria-level", "1");
+    expect(rootItem).toHaveAttribute("aria-expanded", "true");
+    expect(rootItem).toHaveAttribute("aria-posinset", "1");
+    expect(rootItem).toHaveAttribute("aria-setsize", "1");
+    expect(rootItem).toHaveAttribute("tabindex", "-1");
+    expect(childItem).toHaveAttribute("aria-level", "2");
+    expect(childItem).toHaveAttribute("aria-expanded", "true");
+    expect(childItem).toHaveAttribute("tabindex", "-1");
+    expect(leafItem).toHaveAttribute("aria-level", "3");
+    expect(leafItem).toHaveAttribute("aria-selected", "true");
+    expect(leafItem).toHaveAttribute("tabindex", "0");
+    expect(within(tree).getAllByRole("treeitem", { hidden: true }).filter(
+      (item) => item.getAttribute("tabindex") === "0",
+    )).toHaveLength(1);
+
+    leafItem.focus();
+    fireEvent.keyDown(leafItem, { key: "ArrowLeft" });
+    expect(childItem).toHaveFocus();
+    fireEvent.keyDown(childItem, { key: "ArrowLeft" });
+    expect(
+      within(tree).queryByRole("treeitem", { name: /Domain Fulfillment/ }),
+    ).not.toBeInTheDocument();
+    fireEvent.keyDown(childItem, { key: "ArrowRight" });
+    const restoredLeafItem = within(tree).getByRole("treeitem", {
+      name: /Domain Fulfillment/,
+    });
+    fireEvent.keyDown(childItem, { key: "ArrowDown" });
+    expect(restoredLeafItem).toHaveFocus();
+
+    const detailPane = screen.getByRole("complementary", {
+      name: leaf.title,
+    });
+    const breadcrumb = within(detailPane).getByRole("navigation", {
+      name: "Domain breadcrumb",
+    });
+    expect(breadcrumb).toHaveTextContent("Commerce/Orders/Fulfillment");
+    expect(within(detailPane).getByText("Orders", { selector: "dd" })).toBeInTheDocument();
+    expect(
+      within(detailPane).getByText("No immediate children", {
+        selector: "dd",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(detailPane).getByRole("heading", {
+        level: 1,
+        name: "Fulfillment rules",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Status" })).not.toBeInTheDocument();
+    expect(screen.getByText("Read-only hierarchy")).toBeInTheDocument();
+  });
+
+  it("Domain을 선택하기 전 안내하고 검색 시 일치 node의 조상을 함께 표시한다", () => {
+    const root = createDomain({ id: 200, title: "Commerce" });
+    const child = createDomain({
+      id: 210,
+      parentId: root.id,
+      title: "Orders",
+    });
+    const leaf = createDomain({
+      content: "Shipment policy",
+      id: 220,
+      parentId: child.id,
+      title: "Fulfillment",
+    });
+    const context = createProjectContext({ domains: [root, child, leaf] });
+
+    render(
+      <Dashboard
+        activeRelation="domains"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    expect(
+      screen.getByRole("complementary", { name: "Select a Domain" }),
+    ).toBeInTheDocument();
+    const tree = screen.getByRole("tree", { name: "Domain hierarchy" });
+    expect(within(tree).getAllByRole("treeitem")).toHaveLength(1);
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search records" }), {
+      target: { value: "Shipment policy" },
+    });
+
+    expect(within(tree).getAllByRole("treeitem")).toHaveLength(3);
+    expect(
+      within(tree).getByRole("treeitem", { name: /^Domain Commerce,/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(tree).getByRole("treeitem", { name: /^Domain Orders,/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(tree).getByRole("treeitem", { name: /^Domain Fulfillment,/ }),
+    ).toBeInTheDocument();
+    const searchRoot = within(tree).getByRole("treeitem", {
+      name: /^Domain Commerce,/,
+    });
+    expect(searchRoot).toHaveAttribute("aria-expanded", "true");
+    fireEvent.keyDown(searchRoot, { key: "ArrowLeft" });
+    expect(searchRoot).toHaveAttribute("aria-expanded", "false");
+    expect(within(tree).getAllByRole("treeitem")).toHaveLength(1);
+    fireEvent.keyDown(searchRoot, { key: "ArrowRight" });
+    expect(within(tree).getAllByRole("treeitem")).toHaveLength(3);
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search records" }), {
+      target: { value: "no such domain" },
+    });
+    expect(screen.getByText("No matching Domains")).toBeInTheDocument();
+  });
+
+  it("잘못된 Domain deep link와 빈 프로젝트를 서로 다른 상태로 표시한다", () => {
+    const context = createProjectContext({
+      domains: [createDomain({ id: 300, title: "Identity" })],
+    });
+    const { unmount } = render(
+      <Dashboard
+        activeRelation="domains"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={999}
+        selectedTaskId={null}
+      />,
+    );
+
+    expect(
+      screen.getByRole("complementary", { name: "Domain not found" }),
+    ).toHaveTextContent("Domain #999 does not exist in this project.");
+
+    unmount();
+    const emptyContext = createProjectContext({ domains: [] });
+    render(
+      <Dashboard
+        activeRelation="domains"
+        context={emptyContext}
+        projects={[createProjectSummary(emptyContext)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+    expect(screen.getByText("No Domain pages")).toBeInTheDocument();
+  });
+
+  it("같은 project mount에서 Domain URL id 변경을 선택·not-found·안내 상태에 동기화한다", () => {
+    const root = createDomain({ id: 310, title: "Commerce" });
+    const child = createDomain({
+      id: 320,
+      parentId: root.id,
+      title: "Orders",
+    });
+    const context = createProjectContext({ domains: [root, child] });
+    const projects = [createProjectSummary(context)];
+    const { rerender } = render(
+      <Dashboard
+        activeRelation="domains"
+        context={context}
+        projects={projects}
+        selectedArtifactId={root.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    expect(screen.getByRole("complementary", { name: root.title })).toBeInTheDocument();
+    rerender(
+      <Dashboard
+        activeRelation="domains"
+        context={context}
+        projects={projects}
+        selectedArtifactId={child.id}
+        selectedTaskId={null}
+      />,
+    );
+    expect(screen.getByRole("complementary", { name: child.title })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Domain breadcrumb" })).toHaveTextContent(
+      "Commerce/Orders",
+    );
+
+    rerender(
+      <Dashboard
+        activeRelation="domains"
+        context={context}
+        projects={projects}
+        selectedArtifactId={999}
+        selectedTaskId={null}
+      />,
+    );
+    expect(screen.getByRole("complementary", { name: "Domain not found" })).toHaveTextContent(
+      "Domain #999 does not exist in this project.",
+    );
+
+    rerender(
+      <Dashboard
+        activeRelation="domains"
+        context={context}
+        projects={projects}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+    expect(screen.getByRole("complementary", { name: "Select a Domain" })).toBeInTheDocument();
+  });
+
+  it("손상된 Domain parent와 cycle은 경고 fallback root로 각각 한 번만 표시한다", () => {
+    const orphan = createDomain({ id: 330, parentId: 999, title: "Orphan" });
+    const cycleA = createDomain({ id: 340, parentId: 350, title: "Cycle A" });
+    const cycleB = createDomain({ id: 350, parentId: 340, title: "Cycle B" });
+    const context = createProjectContext({ domains: [cycleB, orphan, cycleA] });
+
+    render(
+      <Dashboard
+        activeRelation="domains"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={orphan.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    const treeItems = within(
+      screen.getByRole("tree", { name: "Domain hierarchy" }),
+    ).getAllByRole("treeitem");
+    expect(treeItems).toHaveLength(3);
+    expect(treeItems.map((item) => item.getAttribute("data-domain-id"))).toEqual([
+      "330",
+      "340",
+      "350",
+    ]);
+    expect(treeItems.every((item) => item.getAttribute("aria-level") === "1")).toBe(true);
+    expect(treeItems[0]).toHaveAccessibleName(/Hierarchy warning missing-parent/);
+    expect(treeItems[1]).toHaveAccessibleName(/Hierarchy warning cycle/);
+    expect(treeItems[2]).toHaveAccessibleName(/Hierarchy warning cycle/);
   });
 
   it("detail header에 Copy deep link 버튼을 렌더하지 않는다", () => {
