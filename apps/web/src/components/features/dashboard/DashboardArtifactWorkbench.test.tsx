@@ -16,8 +16,7 @@ import {
 import { Dashboard } from "./Dashboard";
 
 const routerReplace = vi.hoisted(() => vi.fn());
-const excalidrawMocks = vi.hoisted(() => ({
-  loadFromBlob: vi.fn(),
+const dineugMocks = vi.hoisted(() => ({
   render: vi.fn(),
 }));
 const originalInnerWidth = window.innerWidth;
@@ -39,16 +38,23 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/dynamic", () => ({
   default: () =>
-    function MockExcalidraw(props: unknown) {
-      excalidrawMocks.render(props);
-      return <div data-testid="workbench-excalidraw" />;
+    function MockDineugCanvas(props: {
+      document: unknown;
+      recordId: number;
+      title: string;
+    }) {
+      dineugMocks.render(props);
+      return (
+        <div
+          aria-label={`${props.title} ERD preview`}
+          data-testid="workbench-dineug"
+          role="region"
+        />
+      );
     },
 }));
 
-vi.mock("@excalidraw/excalidraw", () => ({
-  Excalidraw: () => null,
-  loadFromBlob: excalidrawMocks.loadFromBlob,
-}));
+vi.mock("@dineug/erd-editor", () => ({}));
 
 function createWorkbenchFixture() {
   const completedTask = createTask({
@@ -261,13 +267,7 @@ function getDesktopHtmlPreviewTitle(title: string): string {
 describe("Dashboard artifact workbench visual contract", () => {
   beforeEach(() => {
     routerReplace.mockClear();
-    excalidrawMocks.loadFromBlob.mockReset();
-    excalidrawMocks.render.mockReset();
-    excalidrawMocks.loadFromBlob.mockResolvedValue({
-      appState: {},
-      elements: [{ id: "workbench-users", type: "rectangle" }],
-      files: {},
-    });
+    dineugMocks.render.mockReset();
     setWindowInnerWidth(1_600);
   });
 
@@ -420,8 +420,8 @@ describe("Dashboard artifact workbench visual contract", () => {
     },
   );
 
-  it("ERD detail은 HTML iframe 대신 읽기 전용 Excalidraw renderer를 조립한다", async () => {
-    const erd = createErd({ id: 304, title: "Excalidraw project ERD" });
+  it("ERD detail은 HTML iframe 대신 읽기 전용 Dineug renderer를 조립한다", async () => {
+    const erd = createErd({ id: 304, title: "Dineug project ERD" });
     const context = createProjectContext({ erds: [erd] });
     const { container } = render(
       <Dashboard
@@ -438,9 +438,9 @@ describe("Dashboard artifact workbench visual contract", () => {
     });
     expect(
       await within(detailPane).findByRole("region", {
-        name: "Excalidraw project ERD ERD preview",
+        name: "Dineug project ERD ERD preview",
       }),
-    ).toContainElement(screen.getByTestId("workbench-excalidraw"));
+    ).toBe(screen.getByTestId("workbench-dineug"));
     expect(
       within(detailPane).getByText("ERD", { selector: "dd" }),
     ).toBeInTheDocument();
@@ -454,14 +454,14 @@ describe("Dashboard artifact workbench visual contract", () => {
   });
 
   it.each([
-    [null, "Excalidraw scene is not available."],
-    ["not-json", "Excalidraw scene is not valid JSON."],
+    [null, "Dineug ERD document is not available."],
+    ["not-json", "Dineug ERD document is not valid JSON."],
   ] as const)(
-    "ERD scene %p 오류를 Workbench record 안에서 격리한다",
-    async (scene, message) => {
+    "ERD document %p 오류를 Workbench record 안에서 격리한다",
+    async (document, message) => {
       const erd = createErd({
+        document,
         id: 305,
-        scene,
         title: "Unavailable project ERD",
       });
       const context = createProjectContext({ erds: [erd] });
@@ -481,9 +481,43 @@ describe("Dashboard artifact workbench visual contract", () => {
         }),
       ).toHaveTextContent(message);
       expect(container.querySelector("iframe")).toBeNull();
-      expect(excalidrawMocks.loadFromBlob).not.toHaveBeenCalled();
+      expect(dineugMocks.render).not.toHaveBeenCalled();
     },
   );
+
+  it("ERD id-updatedAt key가 바뀌면 Dineug renderer DOM을 remount한다", async () => {
+    const erd = createErd({ id: 306, title: "Versioned ERD" });
+    const context = createProjectContext({ erds: [erd] });
+    const rendered = render(
+      <Dashboard
+        activeRelation="erds"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={erd.id}
+        selectedTaskId={null}
+      />,
+    );
+    const firstRenderer = await screen.findByTestId("workbench-dineug");
+    const updatedErd = {
+      ...erd,
+      updatedAt: "2026-07-18T03:00:00.000Z",
+    };
+    const updatedContext = createProjectContext({ erds: [updatedErd] });
+
+    rendered.rerender(
+      <Dashboard
+        activeRelation="erds"
+        context={updatedContext}
+        projects={[createProjectSummary(updatedContext)]}
+        selectedArtifactId={updatedErd.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    expect(await screen.findByTestId("workbench-dineug")).not.toBe(
+      firstRenderer,
+    );
+  });
 
   it("전폭 header 아래 230px Explorer·Records·detail을 body grid로 조립한다", () => {
     renderWorkbench();

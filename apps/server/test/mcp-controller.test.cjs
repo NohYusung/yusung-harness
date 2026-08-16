@@ -14,13 +14,19 @@ const ts = require("typescript");
 const serverRoot = join(__dirname, "..");
 const controllerPath = join(serverRoot, "src", "mcp", "mcp.controller.ts");
 const servicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
-const excalidrawScenePath = join(
+const dineugDocumentPath = join(
   serverRoot,
   "src",
   "services",
   "erd",
-  "excalidraw-scene.ts",
+  "dineug-document.ts",
 );
+const dineugRuntimeStub = {
+  DINEUG_SCHEMA_URL:
+    "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+  canonicalizeDineugErdDocument: (document) => JSON.stringify(document),
+  validateDineugErdDocument: () => undefined,
+};
 const expectedToolNames = [
   "get_context",
   "get_project",
@@ -95,13 +101,14 @@ const loadMcpController = () =>
       JsonExceptionFilter: class JsonExceptionFilter {},
     },
   });
-const excalidrawSceneSchema = loadTypescriptExport(
-  excalidrawScenePath,
-  "excalidrawSceneSchema",
+const dineugErdDocumentSchema = loadTypescriptExport(
+  dineugDocumentPath,
+  "dineugErdDocumentSchema",
+  { "../../../scripts/lib/dineug-erd-document.mjs": dineugRuntimeStub },
 );
 const loadMcpService = () =>
   loadTypescriptExport(servicePath, "McpService", {
-    "../services/erd/excalidraw-scene": { excalidrawSceneSchema },
+    "../services/erd/dineug-document": { dineugErdDocumentSchema },
   });
 const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
 

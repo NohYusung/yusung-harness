@@ -1,0 +1,300 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+  "version": "3.0.0",
+  "settings": {
+    "width": 2000,
+    "height": 2000,
+    "scrollTop": 0,
+    "scrollLeft": 0,
+    "zoomLevel": 1,
+    "show": 511,
+    "database": 16,
+    "databaseName": "Commerce database ERD",
+    "canvasType": "ERD",
+    "language": 16,
+    "tableNameCase": 1,
+    "columnNameCase": 1,
+    "bracketType": 1,
+    "relationshipDataTypeSync": true,
+    "relationshipOptimization": false,
+    "columnOrder": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64
+    ],
+    "maxWidthComment": -1,
+    "ignoreSaveSettings": 3
+  },
+  "doc": {
+    "tableIds": [
+      "table-b2852c9ff2f8f54c572a",
+      "table-14447575adab621ec5c9"
+    ],
+    "relationshipIds": [
+      "relationship-b70e59fbeb9c6cbad733"
+    ],
+    "indexIds": [
+      "index-b790a2c8fd1524b8a8f0"
+    ],
+    "memoIds": [
+      "memo-45447b7afbd5e544f7d0",
+      "memo-b70e59fbeb9c6cbad733"
+    ]
+  },
+  "collections": {
+    "tableEntities": {
+      "table-b2852c9ff2f8f54c572a": {
+        "id": "table-b2852c9ff2f8f54c572a",
+        "name": "public.orders",
+        "comment": "Customer orders",
+        "columnIds": [
+          "column-87984e82c6d2215d6657",
+          "column-f18799ca5c811fb8f4b1",
+          "column-c529d15be3ef9f8f0617"
+        ],
+        "seqColumnIds": [
+          "column-87984e82c6d2215d6657",
+          "column-f18799ca5c811fb8f4b1",
+          "column-c529d15be3ef9f8f0617"
+        ],
+        "ui": {
+          "x": 740,
+          "y": 120,
+          "zIndex": 2,
+          "widthName": 260,
+          "widthComment": 180,
+          "color": "#ffffff"
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      },
+      "table-14447575adab621ec5c9": {
+        "id": "table-14447575adab621ec5c9",
+        "name": "public.users",
+        "comment": "Registered users",
+        "columnIds": [
+          "column-03d37d843443d35fe2d5",
+          "column-8ca2fcb212ac06f6e93d"
+        ],
+        "seqColumnIds": [
+          "column-03d37d843443d35fe2d5",
+          "column-8ca2fcb212ac06f6e93d"
+        ],
+        "ui": {
+          "x": 120,
+          "y": 120,
+          "zIndex": 3,
+          "widthName": 260,
+          "widthComment": 180,
+          "color": "#ffffff"
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      }
+    },
+    "tableColumnEntities": {
+      "column-87984e82c6d2215d6657": {
+        "id": "column-87984e82c6d2215d6657",
+        "tableId": "table-b2852c9ff2f8f54c572a",
+        "name": "id",
+        "comment": "Primary identifier",
+        "dataType": "uuid",
+        "default": "gen_random_uuid()",
+        "options": 10,
+        "ui": {
+          "keys": 1,
+          "widthName": 180,
+          "widthComment": 160,
+          "widthDataType": 180,
+          "widthDefault": 180
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      },
+      "column-f18799ca5c811fb8f4b1": {
+        "id": "column-f18799ca5c811fb8f4b1",
+        "tableId": "table-b2852c9ff2f8f54c572a",
+        "name": "user_id",
+        "comment": "Owning user",
+        "dataType": "uuid",
+        "default": "",
+        "options": 8,
+        "ui": {
+          "keys": 2,
+          "widthName": 180,
+          "widthComment": 160,
+          "widthDataType": 180,
+          "widthDefault": 180
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      },
+      "column-c529d15be3ef9f8f0617": {
+        "id": "column-c529d15be3ef9f8f0617",
+        "tableId": "table-b2852c9ff2f8f54c572a",
+        "name": "status",
+        "comment": "Order lifecycle status",
+        "dataType": "text",
+        "default": "'PENDING'::text",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 180,
+          "widthComment": 160,
+          "widthDataType": 180,
+          "widthDefault": 180
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      },
+      "column-03d37d843443d35fe2d5": {
+        "id": "column-03d37d843443d35fe2d5",
+        "tableId": "table-14447575adab621ec5c9",
+        "name": "id",
+        "comment": "Primary identifier",
+        "dataType": "uuid",
+        "default": "gen_random_uuid()",
+        "options": 10,
+        "ui": {
+          "keys": 1,
+          "widthName": 180,
+          "widthComment": 160,
+          "widthDataType": 180,
+          "widthDefault": 180
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      },
+      "column-8ca2fcb212ac06f6e93d": {
+        "id": "column-8ca2fcb212ac06f6e93d",
+        "tableId": "table-14447575adab621ec5c9",
+        "name": "email",
+        "comment": "Sign-in email",
+        "dataType": "varchar(320)",
+        "default": "",
+        "options": 12,
+        "ui": {
+          "keys": 0,
+          "widthName": 180,
+          "widthComment": 160,
+          "widthDataType": 180,
+          "widthDefault": 180
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      }
+    },
+    "relationshipEntities": {
+      "relationship-b70e59fbeb9c6cbad733": {
+        "id": "relationship-b70e59fbeb9c6cbad733",
+        "identification": false,
+        "relationshipType": 4,
+        "startRelationshipType": 2,
+        "start": {
+          "tableId": "table-14447575adab621ec5c9",
+          "columnIds": [
+            "column-03d37d843443d35fe2d5"
+          ],
+          "x": 560,
+          "y": 207,
+          "direction": 2
+        },
+        "end": {
+          "tableId": "table-b2852c9ff2f8f54c572a",
+          "columnIds": [
+            "column-f18799ca5c811fb8f4b1"
+          ],
+          "x": 740,
+          "y": 237,
+          "direction": 1
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      }
+    },
+    "indexEntities": {
+      "index-b790a2c8fd1524b8a8f0": {
+        "id": "index-b790a2c8fd1524b8a8f0",
+        "name": "users_email_key",
+        "tableId": "table-14447575adab621ec5c9",
+        "indexColumnIds": [
+          "index-column-2cfe4cdc94be8339865e"
+        ],
+        "seqIndexColumnIds": [
+          "index-column-2cfe4cdc94be8339865e"
+        ],
+        "unique": true,
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      }
+    },
+    "indexColumnEntities": {
+      "index-column-2cfe4cdc94be8339865e": {
+        "id": "index-column-2cfe4cdc94be8339865e",
+        "indexId": "index-b790a2c8fd1524b8a8f0",
+        "columnId": "column-8ca2fcb212ac06f6e93d",
+        "orderType": 1,
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      }
+    },
+    "memoEntities": {
+      "memo-45447b7afbd5e544f7d0": {
+        "id": "memo-45447b7afbd5e544f7d0",
+        "value": "[yusung-harness:erd-meta/1.0]\n{\"engine\":\"PostgreSQL 16\",\"inventoryFingerprint\":\"c20f0319d07dc6557c3edab08dd7e98fde4160f9242e45e889d222962a69b965\",\"scope\":\"shop.public\",\"sourceRevision\":\"example-revision-7f3c2a1\"}",
+        "ui": {
+          "x": 1360,
+          "y": 120,
+          "zIndex": 4,
+          "width": 520,
+          "height": 160,
+          "color": "#fff7ed"
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      },
+      "memo-b70e59fbeb9c6cbad733": {
+        "id": "memo-b70e59fbeb9c6cbad733",
+        "value": "[yusung-harness:fk/1.0]\n{\"constraint\":\"fk_orders_user\",\"onDelete\":\"RESTRICT\",\"onUpdate\":\"CASCADE\",\"sourceCardinality\":\"0..N\",\"sourceColumns\":[\"user_id\"],\"sourceTable\":\"public.orders\",\"targetCardinality\":\"1\",\"targetColumns\":[\"id\"],\"targetTable\":\"public.users\"}",
+        "ui": {
+          "x": 1360,
+          "y": 308,
+          "zIndex": 5,
+          "width": 520,
+          "height": 150,
+          "color": "#f8fafc"
+        },
+        "meta": {
+          "updateAt": 0,
+          "createAt": 0
+        }
+      }
+    }
+  }
+}

@@ -256,17 +256,18 @@ model DB {
   @@index([projectId])
 }
 
-// 프로젝트의 현행 DB 스키마 ERD를 Excalidraw scene으로 저장한다.
-// 이전 HTML은 마이그레이션과 장애 복구용으로만 보존하고 외부 API에는 노출하지 않는다.
+// 프로젝트의 현행 DB 스키마 ERD를 canonical Dineug v3 JSON으로 저장한다.
+// 이전 Excalidraw scene과 HTML은 마이그레이션·복구용이며 외부 API에 노출하지 않는다.
 model ERD {
-  id         Int      @id @default(autoincrement())
-  projectId  Int
-  project    Project  @relation(fields: [projectId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  title      String
-  scene      String?
-  legacyHtml String?
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  project     Project  @relation(fields: [projectId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  title       String
+  document    String?
+  legacyScene String?
+  legacyHtml  String?
 
   @@index([projectId])
 }

@@ -393,34 +393,44 @@ test("Asset, Wireframe, Design MCP 입력은 완전한 HTML이고 service는 공
   }
 });
 
-test("ERD MCP와 service는 HTML 대신 검증된 Excalidraw scene 계약만 노출한다", () => {
+test("ERD MCP와 service는 legacy payload 대신 검증된 Dineug v3 document만 노출한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const erdService = source("services/erd/erd.service.ts");
-  const sceneContract = source("services/erd/excalidraw-scene.ts");
+  const documentContract = source("services/erd/dineug-document.ts");
 
   assert.match(
     mcpService,
-    /import\s*\{\s*excalidrawSceneSchema\s*\}\s*from\s*["']\.\.\/services\/erd\/excalidraw-scene["']/,
+    /import\s*\{\s*dineugErdDocumentSchema\s*\}\s*from\s*["']\.\.\/services\/erd\/dineug-document["']/,
   );
   for (const toolName of ["create_erd", "update_erd"]) {
     const toolBlock = registeredToolBlock(mcpService, toolName);
 
-    assert.match(toolBlock, /scene:\s*excalidrawSceneSchema/);
+    assert.match(toolBlock, /document:\s*dineugErdDocumentSchema/);
     assert.doesNotMatch(toolBlock, /html:\s*htmlSchema/);
+    assert.doesNotMatch(toolBlock, /scene:/);
   }
 
-  assert.match(erdService, /canonicalizeExcalidrawScene\s*\(\s*scene\s*\)/);
-  assert.match(erdService, /scene:\s*ExcalidrawSceneInput/);
-  assert.match(erdService, /const\s+publicErdSelect\s*=\s*\{[\s\S]*?scene:\s*true/);
+  assert.match(
+    erdService,
+    /canonicalizeDineugErdDocument\s*\(\s*document\s*\)/,
+  );
+  assert.match(erdService, /document:\s*DineugErdDocumentInput/);
+  assert.match(
+    erdService,
+    /const\s+publicErdSelect\s*=\s*\{[\s\S]*?document:\s*true/,
+  );
   assert.doesNotMatch(
     erdService.match(/const\s+publicErdSelect\s*=\s*\{[\s\S]*?\}\s*as\s+const/)?.[0] ?? "",
-    /legacyHtml|html:/,
+    /legacyScene|legacyHtml|scene:|html:/,
   );
-  assert.match(sceneContract, /type:\s*z\.literal\(["']excalidraw["']\)/);
-  assert.match(sceneContract, /version:\s*z\.literal\(2\)/);
+  assert.match(documentContract, /version:\s*z\.literal\(["']3\.0\.0["']\)/);
   assert.match(
-    sceneContract,
-    /source:\s*z\.literal\(["']yusung-harness:erd["']\)/,
+    documentContract,
+    /doc:\s*z[\s\S]*?\.object\([\s\S]*?tableIds[\s\S]*?relationshipIds[\s\S]*?indexIds[\s\S]*?memoIds/,
+  );
+  assert.match(
+    documentContract,
+    /collections:\s*z[\s\S]*?\.object\([\s\S]*?tableEntities[\s\S]*?tableColumnEntities[\s\S]*?relationshipEntities/,
   );
 });
 

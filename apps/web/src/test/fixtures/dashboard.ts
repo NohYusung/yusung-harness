@@ -148,64 +148,98 @@ export function createDatabase(
   return createArtifact({ title: "DB", ...overrides });
 }
 
-/** ERD parser와 Excalidraw renderer 테스트가 공유하는 최소 canonical scene. */
-export function createErdScene(
+/** ERD parser와 Dineug custom element 테스트가 공유하는 최소 v3 document. */
+export function createErdDocument(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
   return {
-    type: "excalidraw",
-    version: 2,
-    source: "yusung-harness:erd",
-    elements: [
-      {
-        id: "users-table",
-        type: "rectangle",
-        x: 80,
-        y: 80,
-        width: 260,
-        height: 180,
-        customData: {
-          contract: "ERDExcalidraw/1.0",
-          kind: "table",
-          qualifiedName: "users",
-          columns: [
-            {
-              name: "id",
-              type: "INTEGER",
-              nullable: false,
-              primaryKey: true,
-              foreignKey: false,
-              unique: true,
-              default: null,
-            },
-          ],
+    $schema:
+      "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+    version: "3.0.0",
+    settings: {
+      width: 2000,
+      height: 2000,
+      scrollTop: 0,
+      scrollLeft: 0,
+      zoomLevel: 1,
+      show: 511,
+      database: 32,
+      databaseName: "harness",
+      canvasType: "ERD",
+      language: 16,
+      tableNameCase: 1,
+      columnNameCase: 1,
+      bracketType: 1,
+      relationshipDataTypeSync: true,
+      relationshipOptimization: false,
+      columnOrder: [1, 2, 4, 8, 16, 32, 64],
+      maxWidthComment: -1,
+      ignoreSaveSettings: 3,
+    },
+    doc: {
+      tableIds: ["table-7dfb4cf67742cb066030"],
+      relationshipIds: [],
+      indexIds: [],
+      memoIds: ["memo-45447b7afbd5e544f7d0"],
+    },
+    collections: {
+      tableEntities: {
+        "table-7dfb4cf67742cb066030": {
+          id: "table-7dfb4cf67742cb066030",
+          name: "users",
+          comment: "identity table",
+          columnIds: ["column-ea72dfea08f0938f4531"],
+          seqColumnIds: ["column-ea72dfea08f0938f4531"],
+          ui: {
+            x: 100,
+            y: 100,
+            zIndex: 1,
+            widthName: 300,
+            widthComment: 60,
+            color: "#8b5cf6",
+          },
+          meta: { updateAt: 0, createAt: 0 },
         },
       },
-      {
-        id: "users-title",
-        type: "text",
-        x: 104,
-        y: 104,
-        width: 72,
-        height: 24,
-        text: "users",
-      },
-      {
-        id: "erd-metadata",
-        type: "text",
-        x: 80,
-        y: 24,
-        width: 320,
-        height: 24,
-        text: "Project database ERD",
-        customData: {
-          contract: "ERDExcalidraw/1.0",
-          kind: "erd-metadata",
+      tableColumnEntities: {
+        "column-ea72dfea08f0938f4531": {
+          id: "column-ea72dfea08f0938f4531",
+          tableId: "table-7dfb4cf67742cb066030",
+          name: "id",
+          comment: "primary identifier",
+          dataType: "INTEGER",
+          default: "",
+          options: 10,
+          ui: {
+            keys: 1,
+            widthName: 180,
+            widthComment: 60,
+            widthDataType: 180,
+            widthDefault: 180,
+          },
+          meta: { updateAt: 0, createAt: 0 },
         },
       },
-    ],
-    appState: { viewBackgroundColor: "#ffffff" },
-    files: {},
+      relationshipEntities: {},
+      indexEntities: {},
+      indexColumnEntities: {},
+      memoEntities: {
+        "memo-45447b7afbd5e544f7d0": {
+          id: "memo-45447b7afbd5e544f7d0",
+          value:
+            '[yusung-harness:erd-meta/1.0]\n{"engine":"SQLite","inventoryFingerprint":"aa9617591e09d1950a341027458cd78dfdd2bdca7763b2846d2938bd012c50e4","scope":"main","sourceRevision":"test-revision"}',
+          ui: {
+            x: 700,
+            y: 100,
+            zIndex: 2,
+            width: 620,
+            height: 130,
+            color: "#ede9fe",
+          },
+          meta: { updateAt: 0, createAt: 0 },
+        },
+      },
+    },
     ...overrides,
   };
 }
@@ -213,7 +247,7 @@ export function createErdScene(
 export function createErd(overrides: Partial<Erd> = {}): Erd {
   return {
     ...createArtifactRecord({ title: "ERD" }),
-    scene: JSON.stringify(createErdScene()),
+    document: JSON.stringify(createErdDocument()),
     ...overrides,
   };
 }

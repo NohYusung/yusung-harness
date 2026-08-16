@@ -6,18 +6,18 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { ProjectsService } from "../projects/projects.service";
 import {
-  canonicalizeExcalidrawScene,
-  type ExcalidrawSceneInput,
-} from "./excalidraw-scene";
+  canonicalizeDineugErdDocument,
+  type DineugErdDocumentInput,
+} from "./dineug-document";
 
-/** legacyHtml을 제외한 ERD 공개 응답 필드를 한곳에서 고정한다. */
+/** legacyScene과 legacyHtml을 제외한 ERD 공개 응답 필드를 고정한다. */
 const publicErdSelect = {
   id: true,
   projectId: true,
   createdAt: true,
   updatedAt: true,
   title: true,
-  scene: true,
+  document: true,
 } as const;
 
 /** 프로젝트의 ERD 문서 use case를 처리한다. */
@@ -40,36 +40,36 @@ export class ErdService {
     });
   }
 
-  /** 프로젝트의 현행 DB ERD를 canonical Excalidraw scene으로 생성한다. */
+  /** 프로젝트의 현행 DB ERD를 canonical Dineug v3 document로 생성한다. */
   async create({
     projectId,
     title,
-    scene,
+    document,
   }: {
     projectId: number;
     title: string;
-    scene: ExcalidrawSceneInput;
+    document: DineugErdDocumentInput;
   }) {
     await this.projectsService.ensureProject(projectId);
-    const canonicalScene = canonicalizeExcalidrawScene(scene);
+    const canonicalDocument = canonicalizeDineugErdDocument(document);
 
     return this.prisma.eRD.create({
-      data: { projectId, title, scene: canonicalScene },
+      data: { projectId, title, document: canonicalDocument },
       select: publicErdSelect,
     });
   }
 
-  /** 같은 프로젝트가 소유한 ERD의 제목과 Excalidraw scene을 갱신한다. */
+  /** 같은 프로젝트가 소유한 ERD의 제목과 Dineug v3 document를 갱신한다. */
   async update({
     projectId,
     erdId,
     title,
-    scene,
+    document,
   }: {
     projectId: number;
     erdId: number;
     title: string;
-    scene: ExcalidrawSceneInput;
+    document: DineugErdDocumentInput;
   }) {
     await this.projectsService.ensureProject(projectId);
     const existingErd = await this.prisma.eRD.findUnique({
@@ -89,11 +89,11 @@ export class ErdService {
       );
     }
 
-    const canonicalScene = canonicalizeExcalidrawScene(scene);
+    const canonicalDocument = canonicalizeDineugErdDocument(document);
 
     return this.prisma.eRD.update({
       where: { id: erdId },
-      data: { title, scene: canonicalScene },
+      data: { title, document: canonicalDocument },
       select: publicErdSelect,
     });
   }

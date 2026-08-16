@@ -1,0 +1,135 @@
+{
+  "contract": "ERDInventory/2.0",
+  "name": "국제화-harness",
+  "scope": "스키마",
+  "engine": "SQLite",
+  "sourceRevision": "international-review",
+  "tables": [
+    {
+      "qualifiedName": "스키마.주문",
+      "comment": "주문",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "foreignKey": false,
+          "autoIncrement": true,
+          "default": null,
+          "comment": "식별자"
+        },
+        {
+          "name": "사용자_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "foreignKey": true,
+          "autoIncrement": false,
+          "default": null,
+          "comment": "사용자 참조"
+        }
+      ],
+      "primaryKey": {
+        "columns": ["id"]
+      },
+      "uniqueConstraints": []
+    },
+    {
+      "qualifiedName": "스키마.Å사용자",
+      "comment": "사용자",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "foreignKey": false,
+          "autoIncrement": true,
+          "default": null,
+          "comment": "식별자"
+        },
+        {
+          "name": "별칭",
+          "type": "TEXT",
+          "nullable": false,
+          "foreignKey": false,
+          "autoIncrement": false,
+          "default": null,
+          "comment": "표시 이름"
+        },
+        {
+          "name": "이메일",
+          "type": "TEXT",
+          "nullable": false,
+          "foreignKey": false,
+          "autoIncrement": false,
+          "default": null,
+          "comment": "로그인 주소"
+        }
+      ],
+      "primaryKey": {
+        "columns": ["id"]
+      },
+      "uniqueConstraints": [
+        {
+          "name": "별칭_고유",
+          "columns": ["별칭"]
+        },
+        {
+          "name": "Å_고유",
+          "columns": ["이메일"]
+        }
+      ]
+    },
+    {
+      "qualifiedName": "스키마.Z문의",
+      "comment": "문의",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "foreignKey": false,
+          "autoIncrement": true,
+          "default": null,
+          "comment": "식별자"
+        },
+        {
+          "name": "사용자_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "foreignKey": true,
+          "autoIncrement": false,
+          "default": null,
+          "comment": "사용자 참조"
+        }
+      ],
+      "primaryKey": {
+        "columns": ["id"]
+      },
+      "uniqueConstraints": []
+    }
+  ],
+  "relationships": [
+    {
+      "constraint": "사용자_외래키",
+      "onDelete": "CASCADE",
+      "onUpdate": "CASCADE",
+      "sourceCardinality": "1..N",
+      "sourceColumns": ["사용자_id"],
+      "sourceTable": "스키마.주문",
+      "targetCardinality": "1",
+      "targetColumns": ["id"],
+      "targetTable": "스키마.Å사용자"
+    },
+    {
+      "constraint": "사용자_외래키",
+      "onDelete": "SET NULL",
+      "onUpdate": "CASCADE",
+      "sourceCardinality": "0..N",
+      "sourceColumns": ["사용자_id"],
+      "sourceTable": "스키마.Z문의",
+      "targetCardinality": "1",
+      "targetColumns": ["id"],
+      "targetTable": "스키마.Å사용자"
+    }
+  ]
+}

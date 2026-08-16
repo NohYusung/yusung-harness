@@ -16,8 +16,8 @@ import { DbService } from "../services/db/db.service";
 import { DesignsService } from "../services/designs/designs.service";
 import { DomainsService } from "../services/domains/domains.service";
 import { DraftsService } from "../services/drafts/drafts.service";
+import { dineugErdDocumentSchema } from "../services/erd/dineug-document";
 import { ErdService } from "../services/erd/erd.service";
-import { excalidrawSceneSchema } from "../services/erd/excalidraw-scene";
 import { FilesService } from "../services/files/files.service";
 import { PlansService } from "../services/plans/plans.service";
 import { ProjectsService } from "../services/projects/projects.service";
@@ -676,17 +676,17 @@ export class McpService {
       (input) => this.execute(() => this.dbService.update(input)),
     );
 
-    /** 프로젝트의 현행 DB 관계를 표현한 Excalidraw ERD scene을 생성한다. */
+    /** 프로젝트의 현행 DB 관계를 표현한 Dineug v3 ERD document를 생성한다. */
     server.registerTool(
       "create_erd",
       {
         title: "Create ERD",
         description:
-          "Creates a validated Excalidraw entity-relationship scene for the current database schema of a Project.",
+          "Creates a validated Dineug v3 entity-relationship document for the current database schema of a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           title: z.string().trim().min(1),
-          scene: excalidrawSceneSchema,
+          document: dineugErdDocumentSchema,
         }),
         annotations: {
           readOnlyHint: false,
@@ -698,18 +698,18 @@ export class McpService {
       (input) => this.execute(() => this.erdService.create(input)),
     );
 
-    /** 같은 프로젝트가 소유한 ERD의 제목과 Excalidraw scene을 교체한다. */
+    /** 같은 프로젝트가 소유한 ERD의 제목과 Dineug v3 document를 교체한다. */
     server.registerTool(
       "update_erd",
       {
         title: "Update ERD",
         description:
-          "Replaces the title and Excalidraw scene of an ERD document in the same Project.",
+          "Replaces the title and Dineug v3 document of an ERD in the same Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           erdId: erdIdSchema,
           title: z.string().trim().min(1),
-          scene: excalidrawSceneSchema,
+          document: dineugErdDocumentSchema,
         }),
         annotations: {
           readOnlyHint: false,

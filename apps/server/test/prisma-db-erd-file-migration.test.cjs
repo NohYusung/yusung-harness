@@ -29,8 +29,9 @@ const contracts = {
     ["createdAt", "DateTime", "DATETIME", 1],
     ["updatedAt", "DateTime", "DATETIME", 1],
     ["title", "String", "TEXT", 1],
-    ["scene", "String?", "TEXT", 0],
+    ["legacyScene", "String?", "TEXT", 0],
     ["legacyHtml", "String?", "TEXT", 0],
+    ["document", "String?", "TEXT", 0],
   ],
   File: [
     ["id", "Int", "INTEGER", 1],
@@ -179,8 +180,8 @@ test("DB, ERD, File schema와 migration은 동일한 저장 계약을 제공한�
        VALUES (701, 'Migration project', 'DB, ERD, File contract');
        INSERT INTO "DB" ("projectId", "updatedAt", "title", "content")
        VALUES (701, CURRENT_TIMESTAMP, 'users', '# users');
-       INSERT INTO "ERD" ("projectId", "updatedAt", "title", "scene")
-       VALUES (701, CURRENT_TIMESTAMP, 'main', '{"type":"excalidraw"}');
+       INSERT INTO "ERD" ("projectId", "updatedAt", "title", "document")
+       VALUES (701, CURRENT_TIMESTAMP, 'main', '{"version":"3.0.0"}');
        INSERT INTO "File" ("projectId", "updatedAt", "title", "mimeType", "size")
        VALUES (701, CURRENT_TIMESTAMP, 'schema.png', 'image/png', 42);`,
     );

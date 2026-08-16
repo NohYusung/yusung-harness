@@ -13,7 +13,7 @@
     "test:boundary": "node --test test/*-boundary.test.cjs"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "^0.18.1",
+    "@dineug/erd-editor": "^3.3.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "geist": "^1.7.2",
     "lucide-react": "^1.25.0",

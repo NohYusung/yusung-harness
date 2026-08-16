@@ -10,13 +10,19 @@ const ts = require("typescript");
 const serverRoot = join(__dirname, "..");
 const prismaServicePath = join(serverRoot, "src", "prisma", "prisma.service.ts");
 const mcpServicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
-const excalidrawScenePath = join(
+const dineugDocumentPath = join(
   serverRoot,
   "src",
   "services",
   "erd",
-  "excalidraw-scene.ts",
+  "dineug-document.ts",
 );
+const dineugRuntimeStub = {
+  DINEUG_SCHEMA_URL:
+    "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+  canonicalizeDineugErdDocument: (document) => JSON.stringify(document),
+  validateDineugErdDocument: () => undefined,
+};
 
 const loadTypescriptExport = (filePath, exportName, moduleStubs = {}) => {
   const output = ts.transpileModule(readFileSync(filePath, "utf8"), {
@@ -42,13 +48,14 @@ const loadTypescriptExport = (filePath, exportName, moduleStubs = {}) => {
 
 const loadPrismaService = () =>
   loadTypescriptExport(prismaServicePath, "PrismaService");
-const excalidrawSceneSchema = loadTypescriptExport(
-  excalidrawScenePath,
-  "excalidrawSceneSchema",
+const dineugErdDocumentSchema = loadTypescriptExport(
+  dineugDocumentPath,
+  "dineugErdDocumentSchema",
+  { "../../../scripts/lib/dineug-erd-document.mjs": dineugRuntimeStub },
 );
 const loadMcpService = () =>
   loadTypescriptExport(mcpServicePath, "McpService", {
-    "../services/erd/excalidraw-scene": { excalidrawSceneSchema },
+    "../services/erd/dineug-document": { dineugErdDocumentSchema },
   });
 
 test("McpService는 table, column, index, FK, view, trigger schema를 조회한다", async () => {

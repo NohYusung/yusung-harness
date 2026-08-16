@@ -2,15 +2,14 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createArtifact,
-  createErdScene,
+  createErdDocument,
   createProjectContext,
   createProjectSummary,
 } from "@/test/fixtures/dashboard";
 import { Dashboard } from "./Dashboard";
 
 const routerReplace = vi.hoisted(() => vi.fn());
-const excalidrawMocks = vi.hoisted(() => ({
-  loadFromBlob: vi.fn(),
+const dineugMocks = vi.hoisted(() => ({
   render: vi.fn(),
 }));
 
@@ -24,21 +23,28 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/dynamic", () => ({
   default: () =>
-    function MockExcalidraw(props: unknown) {
-      excalidrawMocks.render(props);
-      return <div data-testid="project-record-excalidraw" />;
+    function MockDineugCanvas(props: {
+      document: unknown;
+      recordId: number;
+      title: string;
+    }) {
+      dineugMocks.render(props);
+      return (
+        <div
+          aria-label={`${props.title} ERD preview`}
+          data-testid="project-record-dineug"
+          role="region"
+        />
+      );
     },
 }));
 
-vi.mock("@excalidraw/excalidraw", () => ({
-  Excalidraw: () => null,
-  loadFromBlob: excalidrawMocks.loadFromBlob,
-}));
+vi.mock("@dineug/erd-editor", () => ({}));
 
 const architecturePlanContent = "# Architecture plan content marker";
 const architecturePlanHtml =
   "<!doctype html><html><head><title>Architecture diagram</title></head><body><main>Architecture diagram preview marker</main></body></html>";
-const erdScene = JSON.stringify(createErdScene());
+const erdDocument = JSON.stringify(createErdDocument());
 
 function createProjectRecordContext() {
   return Object.assign(createProjectContext(), {
@@ -83,7 +89,7 @@ function createProjectRecordContext() {
         createdAt: "2026-07-18T01:00:00.000Z",
         updatedAt: "2026-07-18T02:00:00.000Z",
         title: "Project database ERD",
-        scene: erdScene,
+        document: erdDocument,
       },
     ],
   });
@@ -127,13 +133,7 @@ const navigationCases = [
 describe("Project record navigation", () => {
   beforeEach(() => {
     routerReplace.mockClear();
-    excalidrawMocks.loadFromBlob.mockReset();
-    excalidrawMocks.render.mockReset();
-    excalidrawMocks.loadFromBlob.mockResolvedValue({
-      appState: {},
-      elements: [{ id: "restored-erd", type: "rectangle" }],
-      files: {},
-    });
+    dineugMocks.render.mockReset();
   });
 
   it.each(navigationCases)(
@@ -189,7 +189,7 @@ describe("Project record navigation", () => {
     },
   );
 
-  it("Markdown detail과 Architecture Plan 탭, iframe 없는 ERD Excalidraw preview를 렌더한다", async () => {
+  it("Markdown detail과 Architecture Plan 탭, iframe 없는 ERD Dineug preview를 렌더한다", async () => {
     const context = createProjectRecordContext();
 
     render(
@@ -266,11 +266,16 @@ describe("Project record navigation", () => {
       await screen.findByRole("region", {
         name: "Project database ERD ERD preview",
       }),
-    ).toContainElement(screen.getByTestId("project-record-excalidraw"));
+    ).toBe(screen.getByTestId("project-record-dineug"));
     expect(
       screen.queryByTitle(/Project database ERD HTML preview/),
     ).not.toBeInTheDocument();
     expect(document.querySelector("iframe")).toBeNull();
-    expect(excalidrawMocks.loadFromBlob).toHaveBeenCalledTimes(1);
+    expect(dineugMocks.render).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordId: 401,
+        title: "Project database ERD",
+      }),
+    );
   });
 });

@@ -19,7 +19,7 @@ import {
   type PreviewViewportMode,
   previewViewportPresets,
 } from "@/components/features/dashboard/ArtifactHtmlSidePage";
-import { ErdExcalidrawPreview } from "@/components/features/dashboard/ErdExcalidrawPreview";
+import { ErdDineugPreview } from "@/components/features/dashboard/ErdDineugPreview";
 import { MarkdownContent } from "@/components/features/dashboard/MarkdownContent";
 import { RequestDocumentEditor } from "@/components/features/dashboard/RequestDocumentEditor";
 import { formatDashboardDate } from "@/lib/date";
@@ -1724,7 +1724,7 @@ export function ArtifactWorkbench({
                     data-preview-expanded="false"
                     data-record-preview
                   >
-                    <ErdExcalidrawPreview
+                    <ErdDineugPreview
                       key={`${selectedErd.id}-${selectedErd.updatedAt}`}
                       record={selectedErd}
                     />

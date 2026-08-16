@@ -1,5 +1,5 @@
 {
-  "contract": "ERDInventory/1.0",
+  "contract": "ERDInventory/2.0",
   "name": "Commerce database ERD",
   "scope": "shop.public",
   "engine": "PostgreSQL 16",
@@ -7,58 +7,73 @@
   "tables": [
     {
       "qualifiedName": "public.users",
+      "comment": "Registered users",
       "columns": [
         {
           "name": "id",
           "type": "uuid",
           "nullable": false,
-          "primaryKey": true,
-          "unique": false,
           "foreignKey": false,
-          "default": "gen_random_uuid()"
+          "autoIncrement": false,
+          "default": "gen_random_uuid()",
+          "comment": "Primary identifier"
         },
         {
           "name": "email",
           "type": "varchar(320)",
           "nullable": false,
-          "primaryKey": false,
-          "unique": true,
           "foreignKey": false,
-          "default": null
+          "autoIncrement": false,
+          "default": null,
+          "comment": "Sign-in email"
+        }
+      ],
+      "primaryKey": {
+        "columns": ["id"]
+      },
+      "uniqueConstraints": [
+        {
+          "name": "users_email_key",
+          "columns": ["email"]
         }
       ]
     },
     {
       "qualifiedName": "public.orders",
+      "comment": "Customer orders",
       "columns": [
         {
           "name": "id",
           "type": "uuid",
           "nullable": false,
-          "primaryKey": true,
-          "unique": false,
           "foreignKey": false,
-          "default": "gen_random_uuid()"
+          "autoIncrement": false,
+          "default": "gen_random_uuid()",
+          "comment": "Primary identifier"
         },
         {
           "name": "user_id",
           "type": "uuid",
           "nullable": false,
-          "primaryKey": false,
-          "unique": false,
           "foreignKey": true,
-          "default": null
+          "autoIncrement": false,
+          "default": null,
+          "comment": "Owning user"
         },
         {
           "name": "status",
           "type": "text",
           "nullable": false,
-          "primaryKey": false,
-          "unique": false,
           "foreignKey": false,
-          "default": "'PENDING'::text"
+          "autoIncrement": false,
+          "default": "'PENDING'::text",
+          "comment": "Order lifecycle status"
         }
-      ]
+      ],
+      "primaryKey": {
+        "columns": ["id"]
+      },
+      "uniqueConstraints": []
     }
   ],
   "relationships": [

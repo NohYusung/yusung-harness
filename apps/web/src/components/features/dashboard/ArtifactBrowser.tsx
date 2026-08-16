@@ -16,7 +16,7 @@ import {
   type HtmlArtifactKind,
   type HtmlArtifactSelection,
 } from "@/components/features/dashboard/ArtifactHtmlSidePage";
-import { ErdExcalidrawPreview } from "@/components/features/dashboard/ErdExcalidrawPreview";
+import { ErdDineugPreview } from "@/components/features/dashboard/ErdDineugPreview";
 import { formatDashboardDate } from "@/lib/date";
 import type {
   Architecture,
@@ -86,7 +86,7 @@ type RecordStatusFilter =
   | "Pending"
   | "Document"
   | "HTML"
-  | "Excalidraw";
+  | "Dineug ERD";
 
 /** 우측 record inspector가 노출하는 세부 정보 surface. */
 type DetailTab = "metadata" | "relations" | "preview";
@@ -98,7 +98,7 @@ const recordStatusFilters: readonly RecordStatusFilter[] = [
   "Pending",
   "Document",
   "HTML",
-  "Excalidraw",
+  "Dineug ERD",
 ];
 
 const detailTabs: ReadonlyArray<{ id: DetailTab; label: string }> = [
@@ -226,7 +226,7 @@ function getEntries(
     return context.databases.map((artifact) => ({ artifact, relation }));
   }
 
-  /** ERD workspace는 현행 schema 관계 Excalidraw scene을 제공한다. */
+  /** ERD workspace는 현행 schema 관계 Dineug v3 문서를 제공한다. */
   if (relation === "erds") {
     return context.erds.map((artifact) => ({ artifact, relation }));
   }
@@ -284,7 +284,7 @@ function getEntryStatus(
     return "Pending";
   }
 
-  if (entry.relation === "erds") return "Excalidraw";
+  if (entry.relation === "erds") return "Dineug ERD";
   return isHtmlWorkspaceRelation(entry.relation) ? "HTML" : "Document";
 }
 
@@ -570,7 +570,7 @@ function FlatDetails({
   );
 }
 
-/** ERD record의 metadata와 읽기 전용 Excalidraw scene을 함께 표시한다. */
+/** ERD record의 metadata와 읽기 전용 Dineug diagram을 함께 표시한다. */
 function ErdArtifactDetails({
   entry,
   headingRef,
@@ -592,7 +592,7 @@ function ErdArtifactDetails({
       </h3>
       <RecordMetadata record={artifact} />
       <div className="mt-7 h-[32rem] min-h-72">
-        <ErdExcalidrawPreview
+        <ErdDineugPreview
           key={`${artifact.id}-${artifact.updatedAt}`}
           record={artifact}
         />
@@ -722,7 +722,7 @@ function RecordPreview({
     const artifact = entry.artifact as Erd;
     return (
       <div className="h-[32rem] min-h-72">
-        <ErdExcalidrawPreview
+        <ErdDineugPreview
           key={`${artifact.id}-${artifact.updatedAt}`}
           record={artifact}
         />

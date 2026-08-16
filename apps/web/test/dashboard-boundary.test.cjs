@@ -95,7 +95,7 @@ test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응�
   assert.match(types, /interface\s+Design\s+extends\s+HtmlArtifactDocument/);
   assert.match(
     types,
-    /interface\s+Erd\s+extends\s+ArtifactRecord\s*\{[\s\S]*?scene:\s*string\s*\|\s*null/,
+    /interface\s+Erd\s+extends\s+ArtifactRecord\s*\{[\s\S]*?document:\s*string\s*\|\s*null/,
   );
   assert.doesNotMatch(types, /type\s+Erd\s*=\s*HtmlArtifactDocument/);
   assert.match(types, /type\s+Review\s*=\s*ArtifactDocument/);
@@ -103,7 +103,7 @@ test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응�
   assert.match(validation, /html:\s*htmlDocumentSchema/);
   assert.match(
     validation,
-    /const\s+erdSchema[^=]*=\s*artifactRecordSchema\.extend\s*\([\s\S]*?scene:\s*z\.string\(\)\.nullable\(\)/,
+    /const\s+erdSchema[^=]*=\s*artifactRecordSchema\.extend\s*\([\s\S]*?document:\s*z\.string\(\)\.nullable\(\)/,
   );
 });
 
@@ -200,9 +200,12 @@ test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한�
     "components/features/dashboard/ArtifactHtmlSidePage.tsx",
   );
   const erdPreview = source(
-    "components/features/dashboard/ErdExcalidrawPreview.tsx",
+    "components/features/dashboard/ErdDineugPreview.tsx",
   );
-  const erdScene = source("lib/erd-excalidraw.ts");
+  const erdCanvas = source(
+    "components/features/dashboard/ErdDineugCanvas.tsx",
+  );
+  const erdDocument = source("lib/erd-dineug.ts");
 
   assert.match(dashboard, /<ArtifactWorkbench\b/);
   assert.doesNotMatch(
@@ -228,7 +231,11 @@ test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한�
   assert.match(workbench, /aria-label=["']Artifact records["']/);
   assert.match(workbench, /aria-label=["']Record details["']/);
   assert.match(workbench, /<ArtifactHtmlPreviewFrame\b/);
-  assert.match(workbench, /<ErdExcalidrawPreview\b/);
+  assert.match(workbench, /<ErdDineugPreview\b/);
+  assert.match(
+    workbench,
+    /key=\{`\$\{selectedErd\.id\}-\$\{selectedErd\.updatedAt\}`\}/,
+  );
   assert.doesNotMatch(workbench, /<ArtifactHtmlSidePage\b/);
   assert.doesNotMatch(workbench, /<details\b|<iframe\b/);
   assert.match(
@@ -246,12 +253,35 @@ test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한�
   assert.doesNotMatch(htmlSidePage, /dangerouslySetInnerHTML/);
   assert.match(erdPreview, /dynamic\s*\(/);
   assert.match(erdPreview, /ssr:\s*false/);
-  assert.match(erdPreview, /parseErdExcalidrawScene\(record\.scene\)/);
-  assert.match(erdPreview, /viewModeEnabled/);
-  assert.match(erdPreview, /handleKeyboardGlobally=\{false\}/);
+  assert.match(erdPreview, /parseErdDineugDocument\(record\.document\)/);
   assert.doesNotMatch(erdPreview, /<iframe\b|srcDoc=|dangerouslySetInnerHTML/);
-  assert.match(erdScene, /type:\s*z\.literal\(["']excalidraw["']\)/);
-  assert.match(erdScene, /source:\s*z\.literal\(["']yusung-harness:erd["']\)/);
+  assert.match(erdCanvas, /import\(["']@dineug\/erd-editor["']\)/);
+  assert.match(erdCanvas, /createElement\(\s*["']erd-editor["']/);
+  assert.match(erdCanvas, /editor\.readonly\s*=\s*true/);
+  assert.match(
+    erdCanvas,
+    /editor\.setInitialValue\(JSON\.stringify\(document\)\)/,
+  );
+  assert.match(erdCanvas, /editor\?\.destroy\(\)/);
+  assert.doesNotMatch(erdCanvas, /<iframe\b|srcDoc=|dangerouslySetInnerHTML/);
+  assert.match(erdDocument, /version:\s*z\.literal\(["']3\.0\.0["']\)/);
+  for (const collection of [
+    "tableEntities",
+    "tableColumnEntities",
+    "relationshipEntities",
+    "indexEntities",
+    "indexColumnEntities",
+    "memoEntities",
+  ]) {
+    assert.match(erdDocument, new RegExp(`\\b${collection}\\b`));
+  }
+  assert.equal(
+    existsSync(
+      sourcePath("components/features/dashboard/ErdExcalidrawPreview.tsx"),
+    ),
+    false,
+  );
+  assert.equal(existsSync(sourcePath("lib/erd-excalidraw.ts")), false);
 });
 
 test("dashboard 제품 코드는 수동 새로고침 제어를 조립하지 않는다", () => {

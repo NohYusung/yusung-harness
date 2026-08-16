@@ -113,9 +113,9 @@ const architecturePlanSchema: z.ZodType<ArchitecturePlan> =
     html: z.string(),
   });
 
-/** ERD scene은 record 단위 오류 격리를 위해 nullable JSON 문자열로 수신한다. */
+/** Dineug ERD는 record 단위 오류 격리를 위해 nullable JSON 문자열로 수신한다. */
 const erdSchema: z.ZodType<Erd> = artifactRecordSchema.extend({
-  scene: z.string().nullable(),
+  document: z.string().nullable(),
 });
 
 /** Request 목록의 lifecycle status를 포함한 document schema. */
