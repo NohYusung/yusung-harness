@@ -17,7 +17,7 @@
 - 긴 작업에서도 기획 의도와 구현 맥락이 사라지지 않습니다.
 - 에이전트마다 역할과 책임이 분리되어 계획, 구현, 테스트와 리뷰가 뒤섞이지 않습니다.
 - Draft, Plan, Task, Design, Review 같은 산출물이 채팅 안에서 휘발되지 않고 프로젝트 단위로 축적됩니다.
-- Codex 전용 설정과 범용 에이전트 설정을 같은 원본에서 관리할 수 있습니다.
+- Codex 전용 설정과 Project Workbench를 같은 설치 흐름으로 대상 프로젝트에 배포할 수 있습니다.
 - 기존 프로젝트에 안전하게 설치하고, 충돌을 확인하며 업데이트할 수 있습니다.
 
 ## 한눈에 보는 구성
@@ -26,7 +26,7 @@
 | --- | --- |
 | Agent Team | Architect, Coder, Designer 등 8개 역할이 작업을 분담합니다. |
 | Workflow Skills | 기획, 설계, 구현, 테스트와 통합을 14개 스킬로 표준화합니다. |
-| Installer | 대상 에이전트에 맞는 프로필을 프로젝트에 안전하게 배포합니다. |
+| Installer | Codex 하네스와 전체 `apps/` workspace를 프로젝트에 안전하게 배포합니다. |
 | Document MCP | 에이전트 산출물을 43개 MCP 도구로 조회·생성·수정합니다. |
 | Project Workbench | 프로젝트의 요청, 계획, 태스크, 설계와 작업 기록을 웹에서 탐색합니다. |
 | Conventions | NestJS, TypeScript, React와 Next.js 코드 규칙을 저장소 안에서 공유합니다. |
@@ -103,6 +103,8 @@ flowchart LR
 ### 요구 사항
 
 - Python 3.10 이상
+- Node.js 22 이상
+- pnpm 11.7.0
 - 설치할 대상 프로젝트
 - 역할 기반 병렬 작업을 사용할 수 있는 에이전트 런타임
 
@@ -118,47 +120,62 @@ max_concurrent_threads_per_session = 10
 
 ```bash
 python3 install.py /path/to/target-project \
-  --profile codex \
   --dry-run
 ```
 
 ### 2. 대상 프로젝트에 설치
 
 ```bash
-python3 install.py /path/to/target-project --profile codex
+python3 install.py /path/to/target-project
 ```
 
 > [!TIP]
 > 처음에는 항상 `--dry-run`으로 생성·충돌 범위를 확인하는 것을 권장합니다. 기본 설치는 대상 프로젝트에서 이미 수정된 파일을 덮어쓰지 않습니다.
 
-## 설치 프로필
+## 설치 범위
 
-| 프로필 | 설치 내용 | 권장 환경 |
-| --- | --- | --- |
-| `codex` | `AGENTS.md`, `docs/`, `.codex/` | OpenAI Codex |
-| `agents` | `AGENTS.md`, `docs/`, `.agents/` | Hermes, OpenClaw 등 범용 에이전트 |
-| `claude` | `CLAUDE.md`, `docs/`, `.claude/` | Claude Code |
-| `all` | 위 프로필의 모든 항목 | 여러 런타임을 함께 사용하는 프로젝트 |
+```text
+yusung-harness                 대상 프로젝트
+├── AGENTS.md ───────────────> ├── AGENTS.md
+├── docs/ ───────────────────> ├── docs/
+├── .codex/ ─────────────────> ├── .codex/
+└── apps/ ───────────────────> └── apps/
+                                  ├── server/.env       # 최초 생성 후 보존
+                                  └── web/.env.local    # 최초 생성 후 보존
+```
+
+- 설치기는 Codex 전용이며 `AGENTS.md`, `docs/`, `.codex/`, 전체 `apps/` workspace를 함께 배포합니다.
+- `--profile codex`는 기존 자동화 호환을 위한 deprecated no-op입니다. `agents`, `claude`, `all`은 지원하지 않습니다.
+- server·web source, workspace 설정, lockfile, Prisma schema와 migration, scripts와 tests를 포함합니다.
+- 실제 `.env`, DB, `node_modules`, build·cache 산출물은 source payload와 manifest에서 제외합니다.
+- 설치기가 처음 만든 `apps/server/.env`와 `apps/web/.env.local`은 이후 강제 업데이트와 sync에서도 보존합니다.
+- 파일 적용 후 `TARGET/apps`에서 `pnpm install --frozen-lockfile`만 실행합니다.
+- build, Prisma generate/migrate, DB 작업, dev/start와 service 관리는 실행하지 않습니다.
 
 ### 기존 설치 업데이트
 
 ```bash
 python3 install.py /path/to/target-project \
-  --profile all \
+  --sync \
   --force \
   --backup
 ```
 
 | 옵션 | 동작 |
 | --- | --- |
-| `--profile` | `codex`, `agents`, `claude`, `all` 중 설치 대상을 선택합니다. |
 | `--dry-run` | 파일을 변경하지 않고 예상 작업과 요약만 출력합니다. |
 | `--force` | 내용이 다른 기존 하네스 파일을 새 버전으로 갱신합니다. |
-| `--backup` | 덮어쓰기 전에 타임스탬프가 붙은 백업 파일을 만듭니다. |
+| `--backup` | `--force` overwrite 전에 installer-managed 파일을 백업합니다. |
+| `--sync` | manifest로 소유권과 hash가 확인된 stale 파일만 안전하게 정리합니다. |
+| `--profile codex` | 기존 명령 호환용 deprecated no-op입니다. |
 
-- 원본에 없는 대상 프로젝트 파일은 삭제하지 않습니다.
+- manifest는 `TARGET/.yusung-harness/install-manifest.json`에 관리 경로별 SHA-256을 기록합니다.
+- `.yusung-harness/.gitignore`와 제한된 POSIX 권한으로 manifest·lock·backup의 Git 노출을 막습니다.
+- 원본에 없는 대상 전용 파일과 사용자가 수정한 stale 파일은 삭제하지 않습니다.
 - 동일한 파일은 `skip`, 변경된 파일은 기본적으로 `conflict` 처리합니다.
-- 하나 이상의 충돌이나 누락이 있으면 종료 코드 `1`을 반환합니다.
+- `--sync`도 manifest hash가 현재 파일과 일치할 때만 obsolete 파일을 삭제합니다.
+- 안전 삭제 대상은 `--backup` 옵션과 관계없이 `.yusung-harness/backups/<run-id>/`에 먼저 보관합니다.
+- 환경 파일, DB와 runtime 산출물은 `--force`, `--backup`, `--sync`와 관계없이 보존합니다.
 - 자세한 설치 정책은 [`install.md`](./install.md)에서 확인할 수 있습니다.
 
 ## Project Workbench 실행
@@ -170,36 +187,36 @@ python3 install.py /path/to/target-project \
 - Node.js 22 이상
 - pnpm 11.7.0
 
-### 1. 의존성 설치
+### 1. 설치된 환경 변수 확인
 
-```bash
-cd apps
-pnpm install
-```
+설치기는 다음 파일이 없을 때만 생성하고, 이후 업데이트에서는 내용을 보존합니다.
 
-### 2. 환경 변수 준비
-
-`apps/server/.env`:
+`TARGET/apps/server/.env`:
 
 ```dotenv
 DATABASE_URL="file:./harness-board.db"
 PORT=4000
 ```
 
-`apps/web/.env.local`:
+`TARGET/apps/web/.env.local`:
 
 ```dotenv
 HARNESS_API_URL="http://127.0.0.1:4000"
 HARNESS_MCP_URL="http://127.0.0.1:4000/mcp"
 ```
 
-### 3. 서버와 웹 앱 실행
+필요한 경우 실행 전에 값을 직접 조정합니다.
+
+### 2. 서버와 웹 앱 실행
 
 ```bash
+cd /path/to/target-project/apps
 pnpm dev
 ```
 
-- 서버의 `predev` 단계가 Prisma Client 생성, SQLite 파일 준비와 migration 적용을 자동으로 수행합니다.
+- installer가 이미 `pnpm install --frozen-lockfile`로 의존성을 준비합니다.
+- installer 자체는 build, Prisma generate/migrate, DB 작업이나 process start를 수행하지 않습니다.
+- 사용자가 `pnpm dev`를 실행하면 서버의 `predev` 단계가 Prisma Client 생성, SQLite 파일 준비와 migration 적용을 수행합니다.
 - 웹 대시보드는 저장된 첫 번째 프로젝트로 자동 진입합니다.
 
 | 주소 | 용도 |
@@ -271,7 +288,7 @@ yusung-harness/
 │   └── conventions/         # Backend / Frontend 코드 규칙
 ├── AGENTS.md                # 에이전트 공통 운영 규칙
 ├── CLAUDE.md                # Claude Code 진입 규칙
-├── install.py               # 프로필 기반 설치·업데이트 도구
+├── install.py               # Codex + apps 설치·안전 동기화 도구
 └── install.md               # 설치기의 상세 동작 문서
 ```
 
@@ -284,7 +301,7 @@ yusung-harness/
 | Database | Prisma 7, SQLite, better-sqlite3 adapter |
 | Dashboard | Next.js 16, React 19, Tailwind CSS 4, Geist |
 | Test | Node.js Test Runner, Vitest, Testing Library |
-| Installer | Python 3.10+, `pathlib`, `shutil`, `filecmp` |
+| Installer | Python 3.10+, `pathlib`, `shutil`, SHA-256 manifest |
 
 ## 선택 연동
 
