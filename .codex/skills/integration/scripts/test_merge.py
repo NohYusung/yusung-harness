@@ -16,9 +16,7 @@ import merge as merge_engine
 
 
 SCRIPT_PATH = Path(__file__).with_name("merge.py").resolve()
-WORKTREE_SCRIPT = (
-    Path(__file__).resolve().parents[2] / "code" / "scripts" / "worktree.py"
-)
+WORKTREE_SCRIPT = Path(__file__).with_name("worktree.py").resolve()
 REQUIRED_CANDIDATE_CHECKS = ("test", "typecheck", "lint", "build")
 
 
@@ -169,9 +167,7 @@ class MergeScriptTests(unittest.TestCase):
             0,
             msg=f"stdout={create.stdout!r}\nstderr={create.stderr!r}",
         )
-        source_path = (
-            self.repository / ".yusung-harness" / "worktrees" / name
-        )
+        source_path = self.repository / ".worktree" / name
         if binary_content is None:
             source_path.joinpath(path).write_text(content, encoding="utf-8")
         else:
@@ -907,6 +903,19 @@ class MergeScriptTests(unittest.TestCase):
 
         without_review = self.run_merge("promote", "--run-id", run_id)
         self.assertNotEqual(without_review.returncode, 0)
+        self.assertEqual(self.head("main"), target_head)
+        same_author_review = self.run_merge(
+            "review",
+            "--run-id",
+            run_id,
+            "--verdict",
+            "PASS",
+            "--reviewer",
+            "coder",
+            "--evidence",
+            "user:invalid-self-review/1",
+        )
+        self.assertNotEqual(same_author_review.returncode, 0)
         self.assertEqual(self.head("main"), target_head)
         review = self.run_merge(
             "review",

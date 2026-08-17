@@ -160,6 +160,21 @@ class IntegrationSkillContractTests(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, self.skill)
 
+    def test_worktree_engine_and_tests_are_owned_only_by_integration(self) -> None:
+        self.assertTrue((INTEGRATION_SCRIPTS / "worktree.py").is_file())
+        self.assertTrue((INTEGRATION_SCRIPTS / "test_worktree.py").is_file())
+        self.assertFalse((CODE_SCRIPTS / "worktree.py").exists())
+        self.assertFalse((CODE_SCRIPTS / "test_worktree.py").exists())
+
+        code_skill = CODE_SKILL_PATH.read_text(encoding="utf-8")
+        self.assertNotIn("## `--worktree [name]`", code_skill)
+        self.assertNotIn("<CODE_SKILL_DIR>/scripts/worktree.py", code_skill)
+        self.assertIn("## `--worktree [name]`", self.skill)
+        self.assertNotIn("<CODE_SKILL_DIR>/scripts/worktree.py", self.skill)
+        self.assertIn("<INTEGRATION_SKILL_DIR>/scripts/worktree.py", self.skill)
+        self.assertIn("--agent coder", self.skill)
+        self.assertNotIn("--agent integration", self.skill)
+
     def test_config_has_exact_engine_policy_and_verification_sections(self) -> None:
         config = CONFIG_PATH.read_text(encoding="utf-8")
         for exact in (
@@ -172,6 +187,8 @@ class IntegrationSkillContractTests(unittest.TestCase):
             'conflict_policy = "evidence-only"',
             "[verification.prepare.source]",
             "[verification.prepare.candidate]",
+            "[verification.source.worktree-engine]",
+            'argv = ["python3", ".codex/skills/integration/scripts/test_worktree.py"]',
             "[verification.source.web-dashboard]",
             "[verification.source.harness-policy]",
             "[verification.candidate.test]",
@@ -181,11 +198,11 @@ class IntegrationSkillContractTests(unittest.TestCase):
         ):
             with self.subTest(exact=exact):
                 self.assertIn(exact, config)
+        self.assertNotIn(".codex/skills/code/scripts/test_worktree.py", config)
 
-    def test_legacy_ready_target_config_and_subset_contract_is_documented(self) -> None:
-        code_skill = CODE_SKILL_PATH.read_text(encoding="utf-8")
-        combined = "\n".join((code_skill, self.skill))
-
+    def test_preexisting_ready_target_config_and_subset_contract_is_documented(
+        self,
+    ) -> None:
         for fragment in (
             ".worktree/<WORKTREE_NAME>",
             "--config-revision <FULL_TARGET_SHA>",
@@ -194,7 +211,7 @@ class IntegrationSkillContractTests(unittest.TestCase):
             "harness-policy",
         ):
             with self.subTest(fragment=fragment):
-                self.assertIn(fragment, combined)
+                self.assertIn(fragment, self.skill)
 
         for rule in (
             "source commit",
@@ -206,7 +223,7 @@ class IntegrationSkillContractTests(unittest.TestCase):
             "shell",
         ):
             with self.subTest(rule=rule):
-                self.assertIn(rule, combined)
+                self.assertIn(rule, self.skill)
 
     def test_skill_documents_state_machine_conflict_review_and_cleanup_boundaries(self) -> None:
         for state in RUN_STATES:
@@ -230,7 +247,10 @@ class IntegrationSkillContractTests(unittest.TestCase):
                 self.assertIn(rule, self.merge_section)
 
     def test_engine_sources_encode_atomic_lock_config_and_prune_hardening(self) -> None:
-        source_paths = [CODE_SCRIPTS / "worktree.py", INTEGRATION_SCRIPTS / "merge.py"]
+        source_paths = [
+            INTEGRATION_SCRIPTS / "worktree.py",
+            INTEGRATION_SCRIPTS / "merge.py",
+        ]
         source_paths.extend(
             path
             for path in INTEGRATION_SCRIPTS.glob("*.py")

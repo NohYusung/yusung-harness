@@ -90,6 +90,7 @@ python3 install.py /path/to/target-project --force --backup
 - 사용자가 수정한 stale 파일은 `--force`와 관계없이 보존하고 충돌로 보고합니다.
 - manifest가 없던 구버전 설치 파일은 알려진 경로와 설치기에 내장되거나 배포 reference에서 확인한 SHA-256이 모두 일치할 때만 정리합니다.
 - 대상 전용 파일과 보호 경로는 삭제하지 않습니다.
+- 이전 manifest가 소유권을 증명하는 `.codex/skills/code/scripts/worktree.py`는 integration 경로로 이동된 stale payload로 정리하고, 새 엔진은 `.codex/skills/integration/scripts/worktree.py`에 설치합니다.
 
 ```bash
 python3 install.py /path/to/target-project --sync --dry-run
@@ -187,6 +188,16 @@ TARGET/.yusung-harness/install-manifest.json
 ```
 
 - `.yusung-harness/.gitignore`는 `*\n!.gitignore\n` 내용으로 최초 생성해 manifest, lock과 backup이 대상 Git에 노출되지 않게 합니다. 기존 파일 내용이 다르면 덮어쓰지 않고 충돌로 종료합니다.
+- 실제 source worktree는 integration이 `TARGET/.worktree/<name>`에 생성하고, lifecycle manifest와 integration evidence는 `TARGET/.yusung-harness/` 아래에 유지합니다.
+- 실제 Git target이면 설치기가 common `.git/info/exclude`에 다음 managed block을 원자적으로 생성·갱신합니다. 기존 단일 `/.yusung-harness/` block과 standalone `/.worktree/` guard도 중복 없이 같은 block으로 승격합니다.
+
+```gitignore
+# BEGIN yusung-harness managed
+/.yusung-harness/
+/.worktree/
+# END yusung-harness managed
+```
+
 - 동시 설치를 막는 lock은 `TARGET/.yusung-harness/install.lock`입니다. 기존 lock이 있으면 stale 여부를 추정하지 않고 충돌로 종료합니다.
 - POSIX 환경에서 관리·backup 디렉터리는 `0700`, 관리 `.gitignore`, lock, manifest와 backup 파일은 `0600`으로 제한합니다.
 - schema version과 설치기가 관리하는 상대 경로별 SHA-256을 기록합니다.

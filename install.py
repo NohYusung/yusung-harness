@@ -55,12 +55,17 @@ required_verification_categories = ["test", "typecheck", "lint", "build"]
 """
 GIT_INFO_EXCLUDE_LABEL = Path(".git/info/exclude")
 MANAGEMENT_GIT_EXCLUDE_ENTRY = "/.yusung-harness/"
+WORKTREE_GIT_EXCLUDE_ENTRY = "/.worktree/"
+MANAGED_GIT_EXCLUDE_ENTRIES = (
+    MANAGEMENT_GIT_EXCLUDE_ENTRY,
+    WORKTREE_GIT_EXCLUDE_ENTRY,
+)
 MANAGEMENT_GIT_EXCLUDE_BEGIN = "# BEGIN yusung-harness managed"
 MANAGEMENT_GIT_EXCLUDE_END = "# END yusung-harness managed"
 MANAGEMENT_GIT_EXCLUDE_BLOCK = (
     f"{MANAGEMENT_GIT_EXCLUDE_BEGIN}\n"
-    f"{MANAGEMENT_GIT_EXCLUDE_ENTRY}\n"
-    f"{MANAGEMENT_GIT_EXCLUDE_END}\n"
+    + "".join(f"{entry}\n" for entry in MANAGED_GIT_EXCLUDE_ENTRIES)
+    + f"{MANAGEMENT_GIT_EXCLUDE_END}\n"
 )
 WORKSPACE_PATH = Path("apps")
 
@@ -450,9 +455,19 @@ def resolve_git_info_exclude(target: Path) -> Path | None:
 
 
 def render_git_exclude_guard(content: str) -> str:
-    """Return an idempotent managed block or reject ambiguous block drift."""
+    """Return both managed guards or reject ambiguous managed block drift."""
 
     lines = content.splitlines()
+    expected_block = [
+        MANAGEMENT_GIT_EXCLUDE_BEGIN,
+        *MANAGED_GIT_EXCLUDE_ENTRIES,
+        MANAGEMENT_GIT_EXCLUDE_END,
+    ]
+    historical_block = [
+        MANAGEMENT_GIT_EXCLUDE_BEGIN,
+        MANAGEMENT_GIT_EXCLUDE_ENTRY,
+        MANAGEMENT_GIT_EXCLUDE_END,
+    ]
     begin_indexes = [
         index for index, line in enumerate(lines) if line == MANAGEMENT_GIT_EXCLUDE_BEGIN
     ]
@@ -460,21 +475,25 @@ def render_git_exclude_guard(content: str) -> str:
         index for index, line in enumerate(lines) if line == MANAGEMENT_GIT_EXCLUDE_END
     ]
     if not begin_indexes and not end_indexes:
-        entry_indexes = [
-            index
-            for index, line in enumerate(lines)
-            if line == MANAGEMENT_GIT_EXCLUDE_ENTRY
-        ]
-        if len(entry_indexes) > 1:
+        entry_indexes = {
+            entry: [index for index, line in enumerate(lines) if line == entry]
+            for entry in MANAGED_GIT_EXCLUDE_ENTRIES
+        }
+        if any(len(indexes) > 1 for indexes in entry_indexes.values()):
             raise ValueError("target Git info/exclude has duplicate management guards")
-        if entry_indexes:
-            entry_index = entry_indexes[0]
-            updated_lines = list(lines)
-            updated_lines[entry_index : entry_index + 1] = [
-                MANAGEMENT_GIT_EXCLUDE_BEGIN,
-                MANAGEMENT_GIT_EXCLUDE_ENTRY,
-                MANAGEMENT_GIT_EXCLUDE_END,
+        present_indexes = [
+            index for indexes in entry_indexes.values() for index in indexes
+        ]
+        if present_indexes:
+            first_index = min(present_indexes)
+            insertion_index = sum(
+                line not in MANAGED_GIT_EXCLUDE_ENTRIES
+                for line in lines[:first_index]
+            )
+            updated_lines = [
+                line for line in lines if line not in MANAGED_GIT_EXCLUDE_ENTRIES
             ]
+            updated_lines[insertion_index:insertion_index] = expected_block
             return "\n".join(updated_lines) + "\n"
         separator = "" if not content or content.endswith("\n") else "\n"
         return f"{content}{separator}{MANAGEMENT_GIT_EXCLUDE_BLOCK}"
@@ -483,13 +502,35 @@ def render_git_exclude_guard(content: str) -> str:
         raise ValueError("target Git info/exclude managed block is malformed")
     begin_index = begin_indexes[0]
     end_index = end_indexes[0]
-    if end_index != begin_index + 2 or lines[begin_index : end_index + 1] != [
-        MANAGEMENT_GIT_EXCLUDE_BEGIN,
-        MANAGEMENT_GIT_EXCLUDE_ENTRY,
-        MANAGEMENT_GIT_EXCLUDE_END,
-    ]:
+    current_block = lines[begin_index : end_index + 1]
+    outside_block = lines[:begin_index] + lines[end_index + 1 :]
+    outside_entries = [
+        line for line in outside_block if line in MANAGED_GIT_EXCLUDE_ENTRIES
+    ]
+    if current_block == expected_block:
+        if outside_entries:
+            raise ValueError("target Git info/exclude has duplicate management guards")
+        return content
+    if current_block == historical_block:
+        if outside_entries.count(MANAGEMENT_GIT_EXCLUDE_ENTRY) > 0 or outside_entries.count(
+            WORKTREE_GIT_EXCLUDE_ENTRY
+        ) > 1:
+            raise ValueError("target Git info/exclude has duplicate management guards")
+        updated_lines = [
+            line
+            for line in lines[:begin_index]
+            if line != WORKTREE_GIT_EXCLUDE_ENTRY
+        ]
+        updated_lines.extend(expected_block)
+        updated_lines.extend(
+            line
+            for line in lines[end_index + 1 :]
+            if line != WORKTREE_GIT_EXCLUDE_ENTRY
+        )
+        return "\n".join(updated_lines) + "\n"
+    if end_index <= begin_index:
         raise ValueError("target Git info/exclude managed block is malformed")
-    return content
+    raise ValueError("target Git info/exclude managed block is malformed")
 
 
 def action_destination(action: Action, options: InstallOptions) -> Path:

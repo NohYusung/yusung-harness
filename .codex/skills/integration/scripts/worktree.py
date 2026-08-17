@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create and attest centrally managed Git worktrees."""
+"""Create and attest integration-managed Git worktrees."""
 
 from __future__ import annotations
 
@@ -14,9 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 
-COMMON_SCRIPTS = (
-    Path(__file__).resolve().parents[2] / "integration" / "scripts"
-)
+COMMON_SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(COMMON_SCRIPTS))
 
 from integration_common import (  # noqa: E402
@@ -42,6 +40,8 @@ from integration_common import (  # noqa: E402
 
 
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+WORKTREE_DIRECTORY = ".worktree"
+UNMANAGED_ADOPTION_AGENT = "unmanaged-adoption"
 MANIFEST_KEYS = {
     "schemaVersion",
     "state",
@@ -79,15 +79,36 @@ def validate_name(name: str) -> str:
 
 
 def _managed_paths(repo: Path, config: IntegrationConfig, name: str) -> tuple[Path, Path]:
-    """Return the central worktree and manifest locations for one slug."""
+    """Return the repository-local worktree and central manifest locations."""
 
-    root = repo / config.management_root
-    worktree_path = root / "worktrees" / name
-    manifest_path = root / "state" / "worktrees" / f"{name}.json"
-    for path in (root, worktree_path, manifest_path.parent):
-        if path.exists() and path.is_symlink():
+    management_root = repo / config.management_root
+    worktree_root = repo / WORKTREE_DIRECTORY
+    worktree_path = worktree_root / name
+    manifest_path = management_root / "state" / "worktrees" / f"{name}.json"
+    for path in (
+        management_root,
+        worktree_root,
+        worktree_path,
+        manifest_path.parent,
+    ):
+        if path.is_symlink():
             raise WorktreeError(f"managed path must not be a symlink: {path}")
     return worktree_path, manifest_path
+
+
+def _historical_worktree_path(
+    repo: Path,
+    config: IntegrationConfig,
+    name: str,
+) -> Path:
+    """Return the schema-v1 worktree path used before repository-local roots."""
+
+    worktree_root = repo / config.management_root / "worktrees"
+    worktree_path = worktree_root / name
+    for path in (worktree_root, worktree_path):
+        if path.is_symlink():
+            raise WorktreeError(f"historical managed path must not be a symlink: {path}")
+    return worktree_path
 
 
 def _resolve_git_reported_path(repo: Path, value: str) -> Path:
@@ -155,22 +176,36 @@ def validate_create_preflight(repo: Path, base: str) -> None:
         require_no_in_progress_git_operation(base_worktree)
 
 
-def ensure_info_exclude_guard(repo: Path, management_root: str) -> None:
-    """Atomically add the central management directory to Git info/exclude."""
+def ensure_info_exclude_guards(repo: Path, managed_roots: Sequence[str]) -> None:
+    """Atomically add every managed repository root to Git info/exclude."""
 
     reported = run_git(repo, "rev-parse", "--git-path", "info/exclude").stdout.strip()
     exclude_path = _resolve_git_reported_path(repo, reported)
-    if exclude_path.exists() and exclude_path.is_symlink():
+    if exclude_path.is_symlink():
         raise WorktreeError("Git info/exclude must not be a symlink")
     exclude_path.parent.mkdir(parents=True, exist_ok=True)
-    guard = f"/{management_root.strip('/')}/"
     current = exclude_path.read_text(encoding="utf-8") if exclude_path.exists() else ""
-    if guard in current.splitlines():
+    guards: List[str] = []
+    for managed_root in managed_roots:
+        normalized = managed_root.strip("/")
+        root_path = Path(normalized)
+        if (
+            not normalized
+            or root_path.is_absolute()
+            or any(part == ".." for part in root_path.parts)
+        ):
+            raise WorktreeError("managed exclude root must remain inside the repository")
+        guard = f"/{normalized}/"
+        if guard not in guards:
+            guards.append(guard)
+    current_lines = current.splitlines()
+    missing_guards = [guard for guard in guards if guard not in current_lines]
+    if not missing_guards:
         return
     updated = current
     if updated and not updated.endswith("\n"):
         updated += "\n"
-    updated += guard + "\n"
+    updated += "".join(f"{guard}\n" for guard in missing_guards)
     temporary_name: Optional[str] = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -255,11 +290,11 @@ def _validate_targeted_checks(
             raise WorktreeError("targeted check is not configured for source verification")
 
 
-def _validate_named_targeted_subset(
+def _validate_adoption_targeted_subset(
     checks: Sequence[Mapping[str, Any]],
     config: IntegrationConfig,
 ) -> None:
-    """Require a legacy caller subset to match source profile names and commands."""
+    """Require an adoption subset to match source profile names and commands."""
 
     seen_names = set()
     for check in checks:
@@ -344,7 +379,6 @@ def create_managed_worktree(
         if value is not None and value <= 0:
             raise WorktreeError(f"{label} must be a positive integer")
 
-    validate_create_preflight(repo, base)
     base_sha = resolve_commit(repo, base)
     expected_sha = resolve_commit(repo, expected_base_head)
     if base_sha != expected_sha:
@@ -361,6 +395,11 @@ def create_managed_worktree(
     common_dir = git_common_dir(repo)
 
     with persistent_lock(ref_lock_path(common_dir, "repository")):
+        ensure_info_exclude_guards(
+            repo,
+            (config.management_root, WORKTREE_DIRECTORY),
+        )
+        validate_create_preflight(repo, base)
         if worktree_path.exists() or worktree_path.is_symlink():
             raise WorktreeError(f"managed worktree path already exists: {worktree_path}")
         if manifest_path.exists() or manifest_path.is_symlink():
@@ -375,7 +414,6 @@ def create_managed_worktree(
         if existing_ref.returncode == 0:
             raise WorktreeError(f"managed branch already exists: {branch}")
 
-        ensure_info_exclude_guard(repo, config.management_root)
         manifest = _manifest_template(
             repo=repo,
             branch=branch,
@@ -486,7 +524,7 @@ def _primary_branch(repo: Path) -> str:
     return branch
 
 
-def _adopt_legacy_manifest(
+def _adopt_preexisting_manifest(
     *,
     repo: Path,
     branch: str,
@@ -497,59 +535,61 @@ def _adopt_legacy_manifest(
     config: IntegrationConfig,
     targeted_checks: Sequence[Mapping[str, Any]],
 ) -> Dict[str, Any]:
-    """Adopt one exact clean ``.worktree/<slug>`` registration as ACTIVE."""
+    """Adopt one exact clean unmanaged registration as an ACTIVE manifest."""
 
     require_clean_worktree(repo)
     require_no_in_progress_git_operation(repo)
     full_ref = f"refs/heads/{branch}"
     registered_path = _registered_worktree_for_branch(repo, full_ref)
-    legacy_root = repo / ".worktree"
-    legacy_path = legacy_root / slug
+    preexisting_root = repo / WORKTREE_DIRECTORY
+    preexisting_path = preexisting_root / slug
     if (
         registered_path is None
-        or legacy_root.is_symlink()
-        or legacy_path.is_symlink()
-        or registered_path != legacy_path.resolve()
+        or preexisting_root.is_symlink()
+        or preexisting_path.is_symlink()
+        or registered_path != preexisting_path.resolve()
     ):
-        raise WorktreeError("legacy branch/path registration is not safely adoptable")
-    if not legacy_path.is_dir():
-        raise WorktreeError("legacy worktree path is unavailable")
-    if head_sha(legacy_path) != expected_head:
-        raise WorktreeError("legacy worktree HEAD does not match the branch ref")
-    require_clean_worktree(legacy_path)
-    require_no_in_progress_git_operation(legacy_path)
+        raise WorktreeError("preexisting branch/path registration is not safely adoptable")
+    if not preexisting_path.is_dir():
+        raise WorktreeError("preexisting worktree path is unavailable")
+    if head_sha(preexisting_path) != expected_head:
+        raise WorktreeError("preexisting worktree HEAD does not match the branch ref")
+    require_clean_worktree(preexisting_path)
+    require_no_in_progress_git_operation(preexisting_path)
     checked_out_branch = run_git(
-        legacy_path,
+        preexisting_path,
         "symbolic-ref",
         "--quiet",
         "--short",
         "HEAD",
     ).stdout.strip()
     if checked_out_branch != branch:
-        raise WorktreeError("legacy worktree has a different branch checked out")
+        raise WorktreeError("preexisting worktree has a different branch checked out")
 
     base_branch = _primary_branch(repo)
     if branch not in {slug, f"{config.branch_prefix}{slug}"}:
-        raise WorktreeError("legacy branch does not match the configured namespace")
-    central_path, expected_manifest_path = _managed_paths(repo, config, slug)
-    if expected_manifest_path != manifest_path or central_path.exists() or central_path.is_symlink():
-        raise WorktreeError("legacy adoption collides with central managed state")
+        raise WorktreeError("preexisting branch does not match the configured namespace")
+    managed_path, expected_manifest_path = _managed_paths(repo, config, slug)
+    if (
+        expected_manifest_path != manifest_path
+        or managed_path.resolve() != preexisting_path.resolve()
+    ):
+        raise WorktreeError("preexisting adoption does not match the managed location")
     if not targeted_checks:
-        raise WorktreeError("legacy adoption requires configured source checks")
+        raise WorktreeError("preexisting adoption requires configured source checks")
     manifest = _manifest_template(
         repo=repo,
         branch=branch,
-        path=legacy_path.resolve(),
+        path=preexisting_path.resolve(),
         base_branch=base_branch,
         base_sha=config_revision,
         project_id=None,
         task_id=None,
-        agent="legacy",
+        agent=UNMANAGED_ADOPTION_AGENT,
         targeted_checks=targeted_checks,
     )
     manifest["headSha"] = expected_head
     manifest["state"] = "ACTIVE"
-    ensure_info_exclude_guard(repo, config.management_root)
     atomic_write_json(manifest_path, manifest)
     return manifest
 
@@ -627,7 +667,7 @@ def mark_managed_worktree_ready(
         else:
             if config_revision is None or not targeted_check_json:
                 raise WorktreeError(
-                    "legacy ready requires config-revision and targeted checks"
+                    "preexisting ready requires config-revision and targeted checks"
                 )
             if re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", config_revision) is None:
                 raise WorktreeError("config-revision must be a full target commit SHA")
@@ -636,44 +676,61 @@ def mark_managed_worktree_ready(
                 raise WorktreeError("config-revision must be the exact full target SHA")
             if resolved_config_revision != head_sha(repo):
                 raise WorktreeError("config-revision is stale against the target HEAD")
-            legacy_config = load_config_from_revision(
+            adoption_config = load_config_from_revision(
                 repo,
                 resolved_config_revision,
             ).require_configured()
-            legacy_checks = _parse_targeted_checks(targeted_check_json)
-            _validate_named_targeted_subset(legacy_checks, legacy_config)
-            manifest = _adopt_legacy_manifest(
+            adoption_checks = _parse_targeted_checks(targeted_check_json)
+            _validate_adoption_targeted_subset(adoption_checks, adoption_config)
+            ensure_info_exclude_guards(
+                repo,
+                (adoption_config.management_root, WORKTREE_DIRECTORY),
+            )
+            manifest = _adopt_preexisting_manifest(
                 repo=repo,
                 branch=branch,
                 slug=slug,
                 expected_head=expected_sha,
                 manifest_path=manifest_path,
                 config_revision=resolved_config_revision,
-                config=legacy_config,
-                targeted_checks=legacy_checks,
+                config=adoption_config,
+                targeted_checks=adoption_checks,
             )
         config = load_config_from_revision(
             repo,
             manifest["baseSha"],
         ).require_configured()
+        ensure_info_exclude_guards(
+            repo,
+            (config.management_root, WORKTREE_DIRECTORY),
+        )
         if is_managed_branch:
             if branch != f"{config.branch_prefix}{slug}":
                 raise WorktreeError(
                     "source branch does not match the base configuration"
                 )
-        elif manifest.get("agent") != "legacy" or branch != slug:
+        elif manifest.get("agent") != UNMANAGED_ADOPTION_AGENT or branch != slug:
             raise WorktreeError(
-                "non-managed branch is allowed only for an adopted legacy worktree"
+                "non-managed branch is allowed only for an adopted preexisting worktree"
             )
-        central_path, expected_manifest_path = _managed_paths(repo, config, slug)
+        managed_path, expected_manifest_path = _managed_paths(repo, config, slug)
         if expected_manifest_path != manifest_path:
             raise WorktreeError(
                 "managed manifest path does not match the base configuration"
             )
-        if manifest.get("agent") == "legacy":
-            worktree_path = (repo / ".worktree" / slug).resolve()
+        historical_path = _historical_worktree_path(repo, config, slug)
+        declared_path = manifest.get("path")
+        if declared_path == str(managed_path):
+            worktree_path = managed_path
+        elif (
+            declared_path == str(historical_path)
+            and manifest.get("agent") != UNMANAGED_ADOPTION_AGENT
+        ):
+            worktree_path = historical_path
         else:
-            worktree_path = central_path
+            raise WorktreeError(
+                "managed manifest path is neither current nor historical"
+            )
         expected_identity = {
             "repoRoot": str(repo),
             "branch": branch,

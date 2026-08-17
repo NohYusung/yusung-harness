@@ -12,9 +12,7 @@ from typing import Any
 
 
 SCRIPT_PATH = Path(__file__).with_name("worktree.py").resolve()
-MERGE_SCRIPT_PATH = (
-    Path(__file__).resolve().parents[2] / "integration" / "scripts" / "merge.py"
-)
+MERGE_SCRIPT_PATH = Path(__file__).with_name("merge.py").resolve()
 
 
 class WorktreeScriptTests(unittest.TestCase):
@@ -194,36 +192,42 @@ class WorktreeScriptTests(unittest.TestCase):
         )
 
     def worktree_path(self, name: str = "feature-test") -> Path:
+        return self.repository / ".worktree" / name
+
+    def old_managed_worktree_path(self, name: str) -> Path:
         return self.repository / ".yusung-harness" / "worktrees" / name
 
     def load_manifest(self, name: str = "feature-test") -> dict[str, Any]:
         return json.loads(self.manifest_path(name).read_text(encoding="utf-8"))
 
-    def legacy_source_check(self, name: str = "web-dashboard") -> dict[str, Any]:
+    def preexisting_source_check(
+        self,
+        name: str = "web-dashboard",
+    ) -> dict[str, Any]:
         if name == "web-dashboard":
             script = "print('web-dashboard literal:$() ; `not-shell`')"
         elif name == "harness-policy":
             script = "print('harness-policy must not run'); raise SystemExit(19)"
         else:
-            raise AssertionError(f"unknown legacy source profile: {name}")
+            raise AssertionError(f"unknown preexisting source profile: {name}")
         return {
             "name": name,
             "cwd": ".",
             "argv": [sys.executable, "-c", script],
         }
 
-    def legacy_target_config(self) -> str:
+    def preexisting_target_config(self) -> str:
         prepare_source_argv = json.dumps(
-            [sys.executable, "-c", "print('prepare legacy source')"]
+            [sys.executable, "-c", "print('prepare preexisting source')"]
         )
         prepare_candidate_argv = json.dumps(
-            [sys.executable, "-c", "print('prepare legacy candidate')"]
+            [sys.executable, "-c", "print('prepare preexisting candidate')"]
         )
         web_dashboard_argv = json.dumps(
-            self.legacy_source_check("web-dashboard")["argv"]
+            self.preexisting_source_check("web-dashboard")["argv"]
         )
         harness_policy_argv = json.dumps(
-            self.legacy_source_check("harness-policy")["argv"]
+            self.preexisting_source_check("harness-policy")["argv"]
         )
         candidate_sections = []
         for category in ("test", "typecheck", "lint", "build"):
@@ -269,16 +273,21 @@ class WorktreeScriptTests(unittest.TestCase):
             ]
         )
 
-    def prepare_legacy_source_without_engine_contract(
+    def prepare_preexisting_unmanaged_source_without_engine_contract(
         self,
-        branch: str = "legacy-feature",
+        branch: str = "preexisting-feature",
     ) -> dict[str, Any]:
         config_path = self.repository / ".codex" / "integration.toml"
         self.git("rm", ".codex/integration.toml")
-        self.git("commit", "--quiet", "-m", "Legacy base without integration engine")
-        legacy_base = self.head("main")
-        legacy_root = self.repository / ".worktree"
-        legacy_path = legacy_root / branch
+        self.git(
+            "commit",
+            "--quiet",
+            "-m",
+            "Preexisting base without integration engine",
+        )
+        preexisting_base = self.head("main")
+        managed_worktree_root = self.repository / ".worktree"
+        preexisting_path = managed_worktree_root / branch
         exclude_value = self.git(
             "rev-parse", "--git-path", "info/exclude"
         ).stdout.strip()
@@ -287,13 +296,20 @@ class WorktreeScriptTests(unittest.TestCase):
             exclude = (self.repository / exclude).resolve()
         with exclude.open("a", encoding="utf-8") as handle:
             handle.write("/.worktree/\n")
-        self.git("worktree", "add", "-b", branch, str(legacy_path), legacy_base)
-        legacy_path.joinpath("legacy.txt").write_text(
-            "legacy feature\n",
+        self.git(
+            "worktree",
+            "add",
+            "-b",
+            branch,
+            str(preexisting_path),
+            preexisting_base,
+        )
+        preexisting_path.joinpath("preexisting.txt").write_text(
+            "preexisting feature\n",
             encoding="utf-8",
         )
         subprocess.run(
-            ["git", "-C", str(legacy_path), "add", "legacy.txt"],
+            ["git", "-C", str(preexisting_path), "add", "preexisting.txt"],
             check=True,
             env=self.clean_environment(),
         )
@@ -301,11 +317,11 @@ class WorktreeScriptTests(unittest.TestCase):
             [
                 "git",
                 "-C",
-                str(legacy_path),
+                str(preexisting_path),
                 "commit",
                 "--quiet",
                 "-m",
-                "Legacy feature",
+                "Preexisting feature",
             ],
             check=True,
             env=self.clean_environment(),
@@ -313,7 +329,7 @@ class WorktreeScriptTests(unittest.TestCase):
         source_head = self.head(branch)
         for source_path in (
             ".codex/integration.toml",
-            ".codex/skills/code/scripts/test_worktree.py",
+            ".codex/skills/integration/scripts/test_worktree.py",
             ".codex/skills/integration/scripts/test_merge.py",
         ):
             self.assertNotEqual(
@@ -324,10 +340,10 @@ class WorktreeScriptTests(unittest.TestCase):
                     check=False,
                 ).returncode,
                 0,
-                msg=f"legacy source unexpectedly contains {source_path}",
+                msg=f"preexisting source unexpectedly contains {source_path}",
             )
         config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(self.legacy_target_config(), encoding="utf-8")
+        config_path.write_text(self.preexisting_target_config(), encoding="utf-8")
         self.git("add", ".codex/integration.toml")
         self.git("commit", "--quiet", "-m", "Add target integration contract")
         target_head = self.head("main")
@@ -342,20 +358,26 @@ class WorktreeScriptTests(unittest.TestCase):
         )
         return {
             "branch": branch,
-            "path": legacy_path,
+            "path": preexisting_path,
             "sourceHead": source_head,
             "sourceTree": self.head(f"{branch}^{{tree}}"),
             "targetHead": target_head,
             "exclude": exclude,
         }
 
-    def legacy_snapshot(self, fixture: dict[str, Any]) -> dict[str, Any]:
-        legacy_path = fixture["path"]
+    def preexisting_snapshot(self, fixture: dict[str, Any]) -> dict[str, Any]:
+        preexisting_path = fixture["path"]
         return {
             "sourceHead": self.head(fixture["branch"]),
             "targetHead": self.head("main"),
             "sourceStatus": subprocess.run(
-                ["git", "-C", str(legacy_path), "status", "--porcelain=v1"],
+                [
+                    "git",
+                    "-C",
+                    str(preexisting_path),
+                    "status",
+                    "--porcelain=v1",
+                ],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -367,7 +389,7 @@ class WorktreeScriptTests(unittest.TestCase):
             "manifestExists": self.manifest_path(fixture["branch"]).exists(),
         }
 
-    def run_legacy_ready(
+    def run_preexisting_ready(
         self,
         fixture: dict[str, Any],
         *,
@@ -390,7 +412,7 @@ class WorktreeScriptTests(unittest.TestCase):
                 ["--config-revision", config_revision or fixture["targetHead"]]
             )
         if include_checks:
-            for check in checks or [self.legacy_source_check("web-dashboard")]:
+            for check in checks or [self.preexisting_source_check("web-dashboard")]:
                 command.extend(["--targeted-check-json", json.dumps(check)])
         return self.run_script(*command)
 
@@ -406,6 +428,14 @@ class WorktreeScriptTests(unittest.TestCase):
         )
         path = self.worktree_path()
         self.assertTrue(path.is_dir())
+        self.assertTrue(self.manifest_path().is_file())
+        self.assertFalse(
+            self.repository.joinpath(
+                ".yusung-harness",
+                "worktrees",
+                "feature-test",
+            ).exists()
+        )
         self.assertEqual(
             self.git("rev-parse", "codex/feature-test").stdout.strip(),
             base_head,
@@ -457,7 +487,9 @@ class WorktreeScriptTests(unittest.TestCase):
         exclude_path = Path(common_exclude)
         if not exclude_path.is_absolute():
             exclude_path = (self.repository / exclude_path).resolve()
-        self.assertIn("/.yusung-harness/", exclude_path.read_text(encoding="utf-8").splitlines())
+        exclude_entries = exclude_path.read_text(encoding="utf-8").splitlines()
+        self.assertIn("/.worktree/", exclude_entries)
+        self.assertIn("/.yusung-harness/", exclude_entries)
 
     def test_create_rejects_stale_base_without_branch_path_or_manifest(self) -> None:
         stale_head = self.head("main")
@@ -590,10 +622,8 @@ class WorktreeScriptTests(unittest.TestCase):
         config_path.write_text(valid_config, encoding="utf-8")
 
     def test_integration_python_sources_parse_as_python310_without_tomllib(self) -> None:
-        integration_scripts = (
-            Path(__file__).resolve().parents[2] / "integration" / "scripts"
-        )
-        sources = [Path(__file__).with_name("worktree.py")]
+        integration_scripts = Path(__file__).resolve().parent
+        sources = [SCRIPT_PATH]
         sources.extend(
             path
             for path in integration_scripts.glob("*.py")
@@ -664,21 +694,100 @@ class WorktreeScriptTests(unittest.TestCase):
         self.assertEqual(evidence["returncode"], 0)
         self.assertIn("literal:$() ; `not-shell`", evidence["stdout"])
 
-    def test_ready_adopts_legacy_source_using_target_configured_subset(self) -> None:
-        fixture = self.prepare_legacy_source_without_engine_contract()
+    def test_ready_and_merge_accept_schema_v1_old_managed_manifest_path(
+        self,
+    ) -> None:
+        name = "old-managed"
+        create = self.run_create(name=name)
+        self.assertEqual(create.returncode, 0, msg=create.stderr)
+        current_path = self.worktree_path(name)
+        old_path = self.old_managed_worktree_path(name)
+        old_path.parent.mkdir(parents=True)
+        self.git("worktree", "move", str(current_path), str(old_path))
 
-        ready = self.run_legacy_ready(fixture)
+        manifest_path = self.manifest_path(name)
+        manifest = self.load_manifest(name)
+        self.assertEqual(manifest["schemaVersion"], 1)
+        manifest["path"] = str(old_path)
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        self.assertFalse(current_path.exists())
+        self.assertTrue(old_path.is_dir())
+
+        old_path.joinpath("tracked.txt").write_text(
+            "old managed feature\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            ["git", "-C", str(old_path), "add", "tracked.txt"],
+            check=True,
+            env=self.clean_environment(),
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(old_path),
+                "commit",
+                "--quiet",
+                "-m",
+                "Old managed feature",
+            ],
+            check=True,
+            env=self.clean_environment(),
+        )
+        source_head = self.head(f"codex/{name}")
+
+        ready = self.run_script(
+            "ready",
+            "--repo",
+            str(self.repository),
+            "--branch",
+            f"codex/{name}",
+            "--expected-head",
+            source_head,
+        )
 
         self.assertEqual(ready.returncode, 0, msg=ready.stderr)
-        manifest = self.load_manifest("legacy-feature")
+        ready_manifest = self.load_manifest(name)
+        self.assertEqual(ready_manifest["state"], "READY")
+        self.assertEqual(ready_manifest["path"], str(old_path))
+
+        merge = self.run_python(
+            MERGE_SCRIPT_PATH,
+            "prepare",
+            "--repo",
+            str(self.repository),
+            "--source",
+            f"codex/{name}",
+            "--target",
+            "main",
+            "--expected-source-head",
+            source_head,
+            "--expected-target-head",
+            ready_manifest["baseSha"],
+        )
+        self.assertEqual(merge.returncode, 0, msg=merge.stderr)
+
+    def test_ready_adopts_preexisting_unmanaged_source_using_target_configured_subset(
+        self,
+    ) -> None:
+        fixture = self.prepare_preexisting_unmanaged_source_without_engine_contract()
+
+        ready = self.run_preexisting_ready(fixture)
+
+        self.assertEqual(ready.returncode, 0, msg=ready.stderr)
+        manifest = self.load_manifest("preexisting-feature")
         self.assertEqual(manifest["state"], "READY")
-        self.assertEqual(manifest["branch"], "legacy-feature")
+        self.assertEqual(manifest["branch"], "preexisting-feature")
         self.assertEqual(manifest["path"], str(fixture["path"]))
         self.assertEqual(manifest["baseSha"], fixture["targetHead"])
         self.assertEqual(manifest["headSha"], fixture["sourceHead"])
         self.assertEqual(
             manifest["targetedChecks"],
-            [self.legacy_source_check("web-dashboard")],
+            [self.preexisting_source_check("web-dashboard")],
         )
         self.assertEqual(len(manifest["verification"]), 1)
         evidence = manifest["verification"][0]
@@ -687,7 +796,7 @@ class WorktreeScriptTests(unittest.TestCase):
         self.assertEqual(evidence["treeSha"], fixture["sourceTree"])
         self.assertEqual(
             evidence["argv"],
-            self.legacy_source_check("web-dashboard")["argv"],
+            self.preexisting_source_check("web-dashboard")["argv"],
         )
         self.assertIn("literal:$() ; `not-shell`", evidence["stdout"])
         self.assertNotIn("harness-policy must not run", evidence["stdout"])
@@ -697,7 +806,7 @@ class WorktreeScriptTests(unittest.TestCase):
             "--repo",
             str(self.repository),
             "--source",
-            "legacy-feature",
+            "preexisting-feature",
             "--target",
             "main",
             "--expected-source-head",
@@ -707,7 +816,7 @@ class WorktreeScriptTests(unittest.TestCase):
         )
         self.assertEqual(merge.returncode, 0, msg=merge.stderr)
 
-    def test_legacy_ready_requires_config_revision_and_configured_subset_without_mutation(
+    def test_preexisting_ready_requires_config_revision_and_configured_subset_without_mutation(
         self,
     ) -> None:
         cases = (
@@ -740,7 +849,7 @@ class WorktreeScriptTests(unittest.TestCase):
                 "kwargs": {
                     "checks": [
                         {
-                            **self.legacy_source_check("web-dashboard"),
+                            **self.preexisting_source_check("web-dashboard"),
                             "name": "not-configured",
                         }
                     ]
@@ -750,23 +859,23 @@ class WorktreeScriptTests(unittest.TestCase):
 
         for case in cases:
             with self.subTest(case=case["name"]):
-                fixture = self.prepare_legacy_source_without_engine_contract(
-                    branch=f"legacy-{case['name']}"
+                fixture = self.prepare_preexisting_unmanaged_source_without_engine_contract(
+                    branch=f"preexisting-{case['name']}"
                 )
                 kwargs = dict(case["kwargs"])
                 if kwargs.get("config_revision") == "SOURCE_HEAD":
                     kwargs["config_revision"] = fixture["sourceHead"]
-                before = self.legacy_snapshot(fixture)
+                before = self.preexisting_snapshot(fixture)
 
-                result = self.run_legacy_ready(fixture, **kwargs)
+                result = self.run_preexisting_ready(fixture, **kwargs)
 
                 self.assertNotEqual(result.returncode, 0)
-                self.assertEqual(self.legacy_snapshot(fixture), before)
+                self.assertEqual(self.preexisting_snapshot(fixture), before)
 
-    def test_legacy_ready_rejects_stale_target_config_revision_without_mutation(
+    def test_preexisting_ready_rejects_stale_target_config_revision_without_mutation(
         self,
     ) -> None:
-        fixture = self.prepare_legacy_source_without_engine_contract()
+        fixture = self.prepare_preexisting_unmanaged_source_without_engine_contract()
         stale_config_revision = fixture["targetHead"]
         self.repository.joinpath("tracked.txt").write_text(
             "target advanced\n",
@@ -774,15 +883,15 @@ class WorktreeScriptTests(unittest.TestCase):
         )
         self.git("add", "tracked.txt")
         self.git("commit", "--quiet", "-m", "Advance target after config pin")
-        before = self.legacy_snapshot(fixture)
+        before = self.preexisting_snapshot(fixture)
 
-        result = self.run_legacy_ready(
+        result = self.run_preexisting_ready(
             fixture,
             config_revision=stale_config_revision,
         )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(self.legacy_snapshot(fixture), before)
+        self.assertEqual(self.preexisting_snapshot(fixture), before)
 
     def test_ready_rejects_failed_check_dirty_tree_and_stale_head_without_ready_state(self) -> None:
         for scenario in ("failed-check", "dirty", "stale-head"):

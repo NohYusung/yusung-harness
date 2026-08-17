@@ -1,6 +1,6 @@
 ---
 name: code
-description: 코드베이스를 탐색·수정하고 테스트 가능한 구현을 만들며, --worktree 요청에서는 configured integration profile로 격리 source worktree를 생성·검증하는 스킬.
+description: 코드베이스를 탐색·수정하고 테스트 가능한 구현을 만들며, integration이 반환한 격리 source worktree에서 기능을 구현하는 스킬.
 ---
 
 ## 에이전트 호출 경계
@@ -64,82 +64,31 @@ python3 <CODE_SKILL_DIR>/scripts/complete_task.py \
 
 $ARGUMENTS
 
-## 격리 Worktree workflow (`--worktree [name]`)
+## Integration worktree 소비자 계약
 
-- 사용자가 이름을 지정하면 그대로 사용한다.
-- `--worktree`만 지정하면 Task 제목과 기능 결과를 기준으로 소문자 영문 kebab-case 이름을 만든다.
-- target repository의 `.codex/integration.toml`이 존재하고 `configured = true`인지 먼저 확인한다. false이거나 profile이 빠졌으면 fail-closed하고 project별 verification 설정을 요청한다.
-- branch와 worktree path를 직접 만들지 않고 `scripts/worktree.py`만 사용한다.
+- `--worktree [name]` 요청의 생성·검증 책임과 CLI 실행은 integration 스킬에 있다.
+- coder는 integration이 `ACTIVE`로 반환한 다음 handoff를 입력으로 받는다.
+  - target repository 절대 경로
+  - `<TARGET_REPO_ABSOLUTE_PATH>/.worktree/<WORKTREE_NAME>` 격리 경로
+  - `codex/<WORKTREE_NAME>` source branch와 고정된 base full SHA
+  - `.yusung-harness/state/worktrees/<WORKTREE_NAME>.json` manifest 경로
+  - 선택된 source verification profile, Project ID와 Task ID
+- coder는 handoff의 경로·branch·base SHA·manifest 상태가 서로 일치하는지 확인한 뒤 모든 코드 탐색, 수정과 테스트를 격리 worktree에서만 수행한다.
+- 구현이 끝나면 integration의 `--commit <SOURCE_BRANCH>` 계약으로 커밋하고, 새 source full HEAD SHA와 테스트 결과를 integration에 반환한다.
+- READY 전환과 targeted evidence 기록은 integration이 수행한다. coder는 READY를 직접 만들거나 성공으로 간주하지 않는다.
 
-### 1. 기준 ref와 targeted profile 고정
-
-1. target repository 절대 경로와 base branch를 확인한다.
-2. `git -C <TARGET_REPO_ABSOLUTE_PATH> rev-parse <BASE_BRANCH>`로 full SHA를 구해 `expected-base-head`로 고정한다.
-3. `.codex/integration.toml`의 `verification.source.*`를 읽고 각 profile을 하나의 `--targeted-check-json`으로 전달한다.
-4. Plan/Task 작업이면 Project ID와 Task ID를 전달한다. 일반 코드 작업이면 두 ID를 생략한다.
-
-```bash
-python3 <CODE_SKILL_DIR>/scripts/worktree.py create \
-  --repo <TARGET_REPO_ABSOLUTE_PATH> \
-  --name <WORKTREE_NAME> \
-  --base <BASE_BRANCH> \
-  --expected-base-head <FULL_BASE_SHA> \
-  --agent coder \
-  --project-id <PROJECT_ID> \
-  --task-id <TASK_ID> \
-  --targeted-check-json '{"name":"worktree-engine","cwd":".","argv":["python3",".codex/skills/code/scripts/test_worktree.py"]}' \
-  --targeted-check-json '{"name":"integration-engine","cwd":".","argv":["python3",".codex/skills/integration/scripts/test_merge.py"]}'
+```text
+integration create
+  └─ ACTIVE: <repo>/.worktree/<name>
+       └─ coder 구현·테스트
+            └─ integration commit + ready
+                 └─ READY manifest
 ```
-
-- 성공 결과의 worktree path, `codex/<WORKTREE_NAME>` branch와 manifest의 `baseSha`를 기록한다.
-- 모든 코드 탐색·수정·테스트·commit은 반환된 격리 worktree에서 수행한다. primary target worktree를 feature 구현에 사용하지 않는다.
-
-### 2. commit과 ready 전환
-
-1. 격리 worktree에서 구현과 targeted test를 완료한다.
-2. `integration --commit <SOURCE_BRANCH>`의 staged-only `commit.py` workflow로 commit한다.
-3. commit 이후 source branch의 full HEAD SHA를 고정한다.
-4. 다음 명령으로 configured source targeted profile을 argv 그대로 실행하고 evidence를 manifest에 연결한다.
-
-```bash
-python3 <CODE_SKILL_DIR>/scripts/worktree.py ready \
-  --repo <TARGET_REPO_ABSOLUTE_PATH> \
-  --branch <SOURCE_BRANCH> \
-  --expected-head <FULL_SOURCE_HEAD_SHA>
-```
-
-- `ready` 성공과 `READY` manifest를 확인한 뒤에만 root에게 `integration --merge` handoff를 보낸다.
-- handoff에는 repository, source/target branch, source/target full SHA, worktree manifest path, Project/Task ID와 targeted evidence ID를 포함한다.
-
-### 3. legacy `.worktree` ready 호환
-
-- 이 절은 `worktree.py create`가 만든 managed worktree가 아니라 기존 `<TARGET_REPO_ABSOLUTE_PATH>/.worktree/<WORKTREE_NAME>`를 처음 READY로 adopt할 때만 적용한다.
-- legacy source commit의 full HEAD SHA와 현재 target branch의 full HEAD SHA를 각각 고정한다.
-- `--config-revision <FULL_TARGET_SHA>`는 source SHA나 축약 SHA가 아니라 현재 target의 full SHA여야 한다.
-- target revision의 `.codex/integration.toml`에서 legacy 작업 범위에 필요한 `verification.source.*` profile을 하나 이상 선택하고, 각 profile의 exact `name`, `cwd`, `argv`를 별도 `--targeted-check-json <SOURCE_PROFILE_JSON>`으로 반복 전달한다.
-- 예를 들어 dashboard와 installer policy를 모두 바꾼 legacy source는 다음 configured subset을 전달한다.
-
-```bash
-python3 <CODE_SKILL_DIR>/scripts/worktree.py ready \
-  --repo <TARGET_REPO_ABSOLUTE_PATH> \
-  --branch <LEGACY_SOURCE_BRANCH> \
-  --expected-head <FULL_SOURCE_HEAD_SHA> \
-  --config-revision <FULL_TARGET_SHA> \
-  --targeted-check-json '{"name":"web-dashboard","cwd":"apps/web","argv":["pnpm","test"]}' \
-  --targeted-check-json '{"name":"harness-policy","cwd":".","argv":["python3","-m","unittest","discover","-s","tests","-p","test_install.py"]}'
-```
-
-- profile subset은 shell string이 아니라 config와 exact-match하는 argv JSON이어야 한다. 같은 profile의 이름만 바꾸거나 caller가 임의 argv를 넣으면 fail-closed한다.
-- config revision이 target의 최신 full SHA가 아니거나 target이 adoption 전에 이동하면 manifest·branch·worktree를 변경하지 않고 stale로 종료한다.
-- 기존 managed worktree의 `ready`는 `--config-revision`과 추가 `--targeted-check-json`을 사용하지 않고, create manifest에 고정된 base config와 targeted checks를 그대로 검증한다.
-- `merge.py prepare`는 expected target full SHA의 최신 config를 다시 읽고 legacy READY의 모든 targeted evidence가 여전히 configured subset인지 재검증한다. READY 이후 target config가 profile을 제거·변경했으면 candidate를 만들지 않는다.
 
 <HARD-GATE>
 
-- `worktree.py create` 전에 base SHA와 `configured = true`를 확인한다.
-- source profile을 임의 명령으로 바꾸거나 `--targeted-check-json`을 누락하지 않는다.
-- `worktree.py ready` 실패, dirty worktree, HEAD drift 또는 targeted check 실패를 READY로 보고하지 않는다.
-- legacy ready에서 최신 target `--config-revision` 또는 configured source profile subset을 누락·위조하지 않는다.
-- worktree·branch·state manifest를 raw `git worktree add`, 파일 직접 편집 또는 별도 스크립트로 우회 생성·갱신하지 않는다.
+- integration이 반환한 `ACTIVE` manifest 없이 primary target worktree에서 feature 구현을 시작하지 않는다.
+- worktree·branch·state manifest를 raw `git worktree add`, 파일 직접 편집, code 스킬의 별도 스크립트 또는 다른 우회 경로로 생성·갱신하지 않는다.
+- dirty worktree, HEAD drift, targeted check 실패 또는 integration의 `ready` 실패를 READY로 보고하지 않는다.
 
 </HARD-GATE>

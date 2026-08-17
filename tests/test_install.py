@@ -79,7 +79,7 @@ class InstallerTestCase(unittest.TestCase):
             'conflict_policy = "evidence-only"\n',
         )
         self._write(
-            ".codex/skills/code/scripts/worktree.py",
+            ".codex/skills/integration/scripts/worktree.py",
             "print('worktree engine')\n",
         )
         self._write(
@@ -192,9 +192,12 @@ class InstallerTestCase(unittest.TestCase):
         )
         self.assertEqual(
             self.target.joinpath(
-                ".codex/skills/code/scripts/worktree.py"
+                ".codex/skills/integration/scripts/worktree.py"
             ).read_text(encoding="utf-8"),
             "print('worktree engine')\n",
+        )
+        self.assertFalse(
+            self.target.joinpath(".codex/skills/code/scripts/worktree.py").exists()
         )
         self.assertEqual(
             self.target.joinpath(
@@ -257,6 +260,32 @@ class InstallerTestCase(unittest.TestCase):
         content = exclude.read_text(encoding="utf-8")
         self.assertIn("*.local\n", content)
         self.assertEqual(content.count("# BEGIN yusung-harness managed"), 1)
+        self.assertEqual(content.count("/.worktree/"), 1)
+        self.assertEqual(content.count("/.yusung-harness/"), 1)
+        self.assertEqual(content.count("# END yusung-harness managed"), 1)
+
+    def test_git_target_upgrades_single_entry_managed_exclude_guard(self) -> None:
+        self.target.mkdir()
+        subprocess.run(
+            ["git", "init", "--quiet", "--initial-branch=main", str(self.target)],
+            check=True,
+        )
+        exclude = self.target / ".git" / "info" / "exclude"
+        exclude.write_text(
+            "*.local\n"
+            "# BEGIN yusung-harness managed\n"
+            "/.yusung-harness/\n"
+            "# END yusung-harness managed\n",
+            encoding="utf-8",
+        )
+
+        result = installer.install(self._options(), runner=FakeRunner())
+
+        self.assertEqual(result, 0)
+        content = exclude.read_text(encoding="utf-8")
+        self.assertIn("*.local\n", content)
+        self.assertEqual(content.count("# BEGIN yusung-harness managed"), 1)
+        self.assertEqual(content.count("/.worktree/"), 1)
         self.assertEqual(content.count("/.yusung-harness/"), 1)
         self.assertEqual(content.count("# END yusung-harness managed"), 1)
 
@@ -305,6 +334,7 @@ class InstallerTestCase(unittest.TestCase):
         exclude = self.target / ".git" / "info" / "exclude"
         original = (
             "# BEGIN yusung-harness managed\n"
+            "/.worktree/\n"
             "/wrong-management-root/\n"
             "# END yusung-harness managed\n"
         )
@@ -335,6 +365,78 @@ class InstallerTestCase(unittest.TestCase):
         )
         self.assertEqual(len(backups), 1)
         self.assertEqual(backups[0].read_text(encoding="utf-8"), "print('merge engine')\n")
+
+    def test_sync_migrates_unchanged_old_code_worktree_engine_to_integration(
+        self,
+    ) -> None:
+        canonical_source = (
+            self.source / ".codex/skills/integration/scripts/worktree.py"
+        )
+        engine_content = canonical_source.read_text(encoding="utf-8")
+        canonical_source.unlink()
+        old_source = self._write(
+            ".codex/skills/code/scripts/worktree.py",
+            engine_content,
+        )
+        self.assertEqual(installer.install(self._options(), runner=FakeRunner()), 0)
+        old_target = self.target / ".codex/skills/code/scripts/worktree.py"
+        self.assertEqual(old_target.read_text(encoding="utf-8"), engine_content)
+
+        old_source.unlink()
+        canonical_source.parent.mkdir(parents=True, exist_ok=True)
+        canonical_source.write_text(engine_content, encoding="utf-8")
+
+        result = installer.install(self._options(sync=True), runner=FakeRunner())
+
+        self.assertEqual(result, 0)
+        self.assertFalse(old_target.exists())
+        self.assertEqual(
+            self.target.joinpath(
+                ".codex/skills/integration/scripts/worktree.py"
+            ).read_text(encoding="utf-8"),
+            engine_content,
+        )
+        backups = list(
+            self.target.joinpath(".yusung-harness/backups").glob(
+                "*/.codex/skills/code/scripts/worktree.py"
+            )
+        )
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(encoding="utf-8"), engine_content)
+
+    def test_sync_preserves_modified_old_code_worktree_engine(self) -> None:
+        canonical_source = (
+            self.source / ".codex/skills/integration/scripts/worktree.py"
+        )
+        engine_content = canonical_source.read_text(encoding="utf-8")
+        canonical_source.unlink()
+        old_source = self._write(
+            ".codex/skills/code/scripts/worktree.py",
+            engine_content,
+        )
+        self.assertEqual(installer.install(self._options(), runner=FakeRunner()), 0)
+        old_target = self.target / ".codex/skills/code/scripts/worktree.py"
+        old_target.write_text("user-modified engine\n", encoding="utf-8")
+
+        old_source.unlink()
+        canonical_source.parent.mkdir(parents=True, exist_ok=True)
+        canonical_source.write_text(engine_content, encoding="utf-8")
+
+        result = installer.install(
+            self._options(sync=True, force=True),
+            runner=FakeRunner(),
+        )
+
+        self.assertEqual(result, 1)
+        self.assertEqual(
+            old_target.read_text(encoding="utf-8"),
+            "user-modified engine\n",
+        )
+        self.assertFalse(
+            self.target.joinpath(
+                ".codex/skills/integration/scripts/worktree.py"
+            ).exists()
+        )
 
     def test_conflict_aborts_before_any_other_write_or_dependency_install(self) -> None:
         self.target.mkdir()
@@ -588,11 +690,16 @@ class RepositoryPolicyInstallTest(unittest.TestCase):
     def test_current_integration_engine_payload_installs_with_unconfigured_template(self) -> None:
         repository_root = Path(__file__).resolve().parents[1]
         script_paths = (
-            Path(".codex/skills/code/scripts/worktree.py"),
+            Path(".codex/skills/integration/scripts/worktree.py"),
             Path(".codex/skills/integration/scripts/merge.py"),
         )
         for relative in script_paths:
             self.assertTrue(repository_root.joinpath(relative).is_file())
+        self.assertFalse(
+            repository_root.joinpath(
+                ".codex/skills/code/scripts/worktree.py"
+            ).exists()
+        )
         source_config = repository_root.joinpath(".codex/integration.toml")
         self.assertIn("configured = true", source_config.read_text(encoding="utf-8"))
 
@@ -608,6 +715,9 @@ class RepositoryPolicyInstallTest(unittest.TestCase):
                     target.joinpath(relative).read_bytes(),
                     repository_root.joinpath(relative).read_bytes(),
                 )
+            self.assertFalse(
+                target.joinpath(".codex/skills/code/scripts/worktree.py").exists()
+            )
             installed_config = target.joinpath(".codex/integration.toml").read_text(
                 encoding="utf-8"
             )

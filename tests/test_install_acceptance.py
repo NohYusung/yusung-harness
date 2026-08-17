@@ -34,6 +34,22 @@ class InstallerAcceptanceTest(unittest.TestCase):
             )
             self.assertTrue(target.joinpath("AGENTS.md").is_file())
             self.assertTrue(target.joinpath(".codex/config.toml").is_file())
+            self.assertTrue(
+                target.joinpath(
+                    ".codex/skills/integration/scripts/worktree.py"
+                ).is_file()
+            )
+            self.assertTrue(
+                target.joinpath(
+                    ".codex/skills/integration/scripts/test_worktree.py"
+                ).is_file()
+            )
+            self.assertFalse(
+                target.joinpath(".codex/skills/code/scripts/worktree.py").exists()
+            )
+            self.assertFalse(
+                target.joinpath(".codex/skills/code/scripts/test_worktree.py").exists()
+            )
             self.assertTrue(target.joinpath("apps/server/src/main.ts").is_file())
             self.assertTrue(target.joinpath("apps/web/src/app/page.tsx").is_file())
             self.assertTrue(target.joinpath("apps/server/.env").is_file())

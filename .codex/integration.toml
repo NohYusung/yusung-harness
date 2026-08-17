@@ -17,7 +17,7 @@ argv = ["pnpm", "install", "--frozen-lockfile"]
 
 [verification.source.worktree-engine]
 cwd = "."
-argv = ["python3", ".codex/skills/code/scripts/test_worktree.py"]
+argv = ["python3", ".codex/skills/integration/scripts/test_worktree.py"]
 
 [verification.source.integration-engine]
 cwd = "."
