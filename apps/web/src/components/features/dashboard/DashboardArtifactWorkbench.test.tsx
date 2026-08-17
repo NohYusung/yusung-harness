@@ -900,6 +900,14 @@ describe("Dashboard artifact workbench visual contract", () => {
     const detailPane = screen.getByRole("complementary", {
       name: "MCP-only document pipeline",
     });
+    const currentProject = within(topbar).getByLabelText(
+      "Current project: Yusung Harness",
+    );
+    const projectPickerColumn = currentProject.parentElement;
+
+    if (!(projectPickerColumn instanceof HTMLElement)) {
+      throw new Error("Project picker column is missing");
+    }
 
     expect(viewportLayout).toHaveClass(
       "grid",
@@ -910,6 +918,13 @@ describe("Dashboard artifact workbench visual contract", () => {
       "30%",
     );
     expect(topbar.parentElement).toBe(viewportLayout);
+    expect(topbar).toHaveClass("md:pl-0");
+    expect(projectPickerColumn).toHaveClass(
+      "md:w-[230px]",
+      "md:flex-none",
+      "md:px-2",
+    );
+    expect(projectPickerColumn).not.toHaveClass("md:w-[250px]");
     expect(workspace.parentElement).toBe(viewportLayout);
     expect(detailPane.parentElement).toBe(workspace);
     expect(detailPane).toHaveClass("h-full", "min-h-0");
@@ -944,9 +959,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(
       within(topbar).getByRole("navigation", { name: "Mobile panes" }),
     ).toBeInTheDocument();
-    expect(
-      within(topbar).getByLabelText("Current project: Yusung Harness"),
-    ).toBeInTheDocument();
+    expect(currentProject).toBeInTheDocument();
     expect(within(treePane).queryByRole("combobox")).not.toBeInTheDocument();
     expect(
       within(treePane).queryByText("/workspace/yusung-harness"),

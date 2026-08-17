@@ -1700,8 +1700,8 @@ export function ArtifactWorkbench({
       data-mobile-pane={mobilePane}
       style={viewportLayoutStyle}
     >
-      <header className="relative z-40 flex min-w-0 items-center gap-2 overflow-visible border-b border-sidebar-line bg-sidebar px-2 text-sidebar-ink shadow-card sm:gap-4 sm:px-4">
-        <div className="min-w-0 flex-1 md:w-[250px] md:flex-none">
+      <header className="relative z-40 flex min-w-0 items-center gap-2 overflow-visible border-b border-sidebar-line bg-sidebar px-2 text-sidebar-ink shadow-card sm:gap-4 sm:px-4 md:pl-0">
+        <div className="min-w-0 flex-1 md:w-[230px] md:flex-none md:px-2">
           <ProjectPicker currentProjectId={context.id} projects={projects} />
         </div>
 
