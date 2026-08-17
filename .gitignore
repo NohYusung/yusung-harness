@@ -27,6 +27,7 @@ next-env.d.ts
 .swc/
 .turbo/
 .vercel/
+/.worktree/
 
 # Prisma generated client and local SQLite databases
 apps/server/src/generated/prisma/
