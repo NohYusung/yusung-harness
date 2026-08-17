@@ -79,20 +79,24 @@ describe("Dashboard", () => {
     );
 
     const topbar = screen.getByRole("banner");
-    expect(within(topbar).getByText("Yusung Harness")).toBeInTheDocument();
+    expect(
+      within(topbar).queryByText("Yusung Harness", { selector: "strong" }),
+    ).not.toBeInTheDocument();
     expect(
       within(topbar).queryByText("Artifact Workbench"),
     ).not.toBeInTheDocument();
-    const projectSelect = screen.getByRole("combobox", { name: "Project" });
-    expect(projectSelect).toHaveValue("1");
+    const projectTrigger = within(topbar).getByRole("button", {
+      name: "Switch project. Current project: Yusung Harness",
+    });
+    fireEvent.click(projectTrigger);
     expect(
-      within(projectSelect).getByRole("option", {
-        name: "Remote Agent Commerce · REMOTE",
-      }),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: /Remote Agent Commerce/ }),
+    ).toHaveAttribute("href", "/projects/2");
 
-    fireEvent.change(projectSelect, { target: { value: "2" } });
-    expect(routerPush).toHaveBeenCalledWith("/projects/2");
+    const projectTree = screen.getByRole("complementary", {
+      name: "Project artifact tree",
+    });
+    expect(within(projectTree).queryByRole("combobox")).not.toBeInTheDocument();
 
     const explorer = screen.getByRole("navigation", {
       name: "Artifact types",
