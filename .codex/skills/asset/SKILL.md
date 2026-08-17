@@ -29,6 +29,103 @@ description: 디자인 에셋을 만드는 스킬
 >   - image_gen 으로 산출된 image의 디자인을 참조하여, 에셋을 구현한다.
 > - coder는 designer에게 디자인을 지시받아 html 을 작업한 후 doc-curator에게 전달하여 저장한 후 워크스페이스에서 개발용으로 저장한 파일을 삭제한다.
 
+### 판단 알고리즘
+
+```dot
+digraph AssetWorkflow {
+    // 전체 그래프 설정
+    graph [
+        label="Asset Skill Workflow",
+        labelloc="t",
+        fontsize=16,
+        fontname="Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        rankdir=TB,
+        splines=spline,
+        nodesep=0.5,
+        ranksep=0.6,
+        bgcolor="#f8fafc"
+    ];
+
+    // 공통 노드 & 엣지 스타일
+    node [
+        fontname="Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        fontsize=11,
+        shape=box,
+        style="filled,rounded",
+        color="#cbd5e1",
+        fillcolor="#ffffff",
+        penwidth=1.2,
+        margin="0.2,0.1"
+    ];
+    edge [
+        fontname="Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        fontsize=10,
+        color="#64748b",
+        arrowsize=0.8
+    ];
+
+    // 시작 / 종료 노드
+    start [label="시작\n(에셋 생성 요청)", shape=ellipse, fillcolor="#e0e7ff", color="#6366f1", fontcolor="#312e81", style="filled"];
+    end_not_registered [label="대화 종료\n('project로 등록되지 않았습니다' 반환)", shape=ellipse, fillcolor="#fee2e2", color="#ef4444", fontcolor="#991b1b", style="filled"];
+    end_image_gen_failed [label="작업 중단 및 사유 보고\n(메인 스레드에 전달)", shape=ellipse, fillcolor="#fee2e2", color="#ef4444", fontcolor="#991b1b", style="filled"];
+    end_success [label="에셋 작업 완료\n(HTML 저장 완료)", shape=ellipse, fillcolor="#dcfce7", color="#22c55e", fontcolor="#14532d", style="filled"];
+
+    // 1. 프로젝트 등록 확인 (doc-curator)
+    subgraph cluster_doc_curator_check {
+        label="1. 프로젝트 등록 확인 (doc-curator)";
+        style="filled,rounded";
+        fillcolor="#f1f5f9";
+        color="#cbd5e1";
+
+        check_project [label="yusung-harness-doc MCP\n'get_project' 호출", fillcolor="#e2e8f0"];
+        is_registered [label="프로젝트로\n등록되어 있는가?", shape=diamond, fillcolor="#fef3c7", color="#f59e0b"];
+    }
+
+    // 2. 에셋 디자인 단계 (designer)
+    subgraph cluster_designer {
+        label="2. 에셋 요소 디자인 (designer)";
+        style="filled,rounded";
+        fillcolor="#f1f5f9";
+        color="#cbd5e1";
+
+        call_image_gen [label="image_gen 툴 호출\n(각 에셋 요소별 디자인)", fillcolor="#ede9fe", color="#8b5cf6"];
+        is_image_gen_ok [label="image_gen\n호출 성공 여부?", shape=diamond, fillcolor="#fef3c7", color="#f59e0b"];
+        ref_image [label="산출된 이미지 참조하여\n에셋 디자인 및 구현 지시", fillcolor="#ede9fe", color="#8b5cf6"];
+    }
+
+    // 3. HTML 작업 및 저장·정리 (coder & doc-curator)
+    subgraph cluster_coder_and_save {
+        label="3. HTML 작업 및 정리 (coder & doc-curator)";
+        style="filled,rounded";
+        fillcolor="#f1f5f9";
+        color="#cbd5e1";
+
+        code_html [label="coder:\n디자인 지시 기반 HTML 작업", fillcolor="#e0f2fe", color="#0284c7"];
+        send_to_doc_curator [label="coder ➔ doc-curator:\n작업된 HTML 전달", fillcolor="#e0f2fe", color="#0284c7"];
+        save_html [label="doc-curator:\n에셋 HTML 저장", fillcolor="#e2e8f0", color="#64748b"];
+        cleanup_temp [label="coder:\n워크스페이스 개발용 임시 파일 삭제", fillcolor="#e0f2fe", color="#0284c7"];
+    }
+
+    // 흐름 연결 (Edges)
+    start -> check_project;
+    check_project -> is_registered;
+
+    is_registered -> end_not_registered [label=" 미등록 (No)", color="#ef4444", fontcolor="#dc2626"];
+    is_registered -> call_image_gen [label=" 등록됨 (Yes)", color="#16a34a", fontcolor="#15803d"];
+
+    call_image_gen -> is_image_gen_ok;
+    is_image_gen_ok -> end_image_gen_failed [label=" 호출 불가 (No)", color="#ef4444", fontcolor="#dc2626"];
+    is_image_gen_ok -> ref_image [label=" 호출 성공 (Yes)", color="#16a34a", fontcolor="#15803d"];
+
+    ref_image -> code_html [label=" 디자인 지시"];
+    code_html -> send_to_doc_curator;
+    send_to_doc_curator -> save_html;
+    save_html -> cleanup_temp;
+    cleanup_temp -> end_success;
+}
+
+```
+
 ## 에셋의 생성 원칙
 
 <RULE>
