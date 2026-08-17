@@ -29,6 +29,7 @@ ALLOWED_COMMIT_TYPES = frozenset(
         "build",
         "chore",
         "ci",
+        "del",
         "docs",
         "feat",
         "fix",
@@ -343,7 +344,7 @@ def build_commit_message(request: CommitRequest) -> str:
 
 
 def commit_staged_changes(repo: Path, message: str, previous_head: str) -> str:
-    """기존 hook을 존중하며 staged 변경을 커밋하고 새 commit SHA를 반환한다."""
+    """staged 변경을 커밋하고 최종 메시지까지 검증해 새 SHA를 반환한다."""
 
     commit_result = run_git(
         repo,
@@ -359,6 +360,14 @@ def commit_staged_changes(repo: Path, message: str, previous_head: str) -> str:
     commit_sha = head_result.stdout.strip().lower()
     if commit_sha == previous_head:
         raise CommitError("git commit은 성공했지만 HEAD가 변경되지 않았습니다.")
+
+    message_result = run_git(repo, ["show", "-s", "--format=%B", commit_sha])
+    actual_message = message_result.stdout.rstrip("\n")
+    expected_message = message.rstrip("\n")
+    if actual_message != expected_message:
+        raise CommitError(
+            f"commit {commit_sha}은 생성됐지만 메시지가 예상 형식과 다릅니다."
+        )
     return commit_sha
 
 
