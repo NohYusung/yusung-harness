@@ -1891,10 +1891,19 @@ test("ERD mutation 도구는 structured Dineug v3 document만 service에 전달�
   assert.equal(createTool.definition.inputSchema.safeParse(baseInput).success, true);
   const missingCollection = cloneDocument(erdDocument);
   delete missingCollection.collections.memoEntities;
+  const legacyMemoDocument = cloneDocument(erdDocument);
+  legacyMemoDocument.doc.memoIds = ["memo-45447b7afbd5e544f7d0"];
+  legacyMemoDocument.collections.memoEntities = {
+    "memo-45447b7afbd5e544f7d0": {
+      id: "memo-45447b7afbd5e544f7d0",
+      value: "legacy memo",
+    },
+  };
   for (const invalidDocument of [
     "<!doctype html><html><body>Legacy ERD</body></html>",
     { ...erdDocument, version: "2.0.0" },
     missingCollection,
+    legacyMemoDocument,
   ]) {
     assert.equal(
       createTool.definition.inputSchema.safeParse({

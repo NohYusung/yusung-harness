@@ -3,9 +3,6 @@ import { z } from "zod";
 export const dineugSchemaUrl =
   "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json";
 
-export const erdMetadataMemoPrefix = "[yusung-harness:erd-meta/1.0]\n";
-export const erdForeignKeyMemoPrefix = "[yusung-harness:fk/1.0]\n";
-
 const maximumDocumentBytes = 5 * 1024 * 1024;
 const maximumEntityCount = 5_000;
 const maximumTextLength = 50_000;
@@ -121,86 +118,7 @@ const indexColumnSchema = z
   })
   .strict();
 
-const memoSchema = z
-  .object({
-    id: entityIdSchema,
-    value: textSchema,
-    ui: z
-      .object({
-        x: finiteNumberSchema,
-        y: finiteNumberSchema,
-        width: finiteNumberSchema.positive(),
-        height: finiteNumberSchema.positive(),
-        zIndex: finiteNumberSchema,
-        color: z.string().regex(/^#[0-9a-f]{6}$/i),
-      })
-      .strict(),
-    meta: entityMetaSchema,
-  })
-  .strict();
-
-const erdMetadataMemoSchema = z
-  .object({
-    engine: z.string().min(1).max(512),
-    inventoryFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
-    scope: z.string().min(1).max(512),
-    sourceRevision: z.string().min(1).max(512),
-  })
-  .strict();
-
-const sourceCardinalitySchema = z.enum(["1", "0..1", "1..N", "0..N"]);
-const targetCardinalitySchema = z.enum(["1", "0..1"]);
-const erdForeignKeyMemoSchema = z
-  .object({
-    constraint: z.string().min(1).max(512),
-    onDelete: z.string().min(1).max(128).nullable(),
-    onUpdate: z.string().min(1).max(128).nullable(),
-    sourceCardinality: sourceCardinalitySchema,
-    sourceColumns: z.array(identifierSchema).min(1),
-    sourceTable: identifierSchema,
-    targetCardinality: targetCardinalitySchema,
-    targetColumns: z.array(identifierSchema).min(1),
-    targetTable: identifierSchema,
-  })
-  .strict();
-
-type ErdForeignKeyMemo = z.infer<typeof erdForeignKeyMemoSchema>;
-type ErdMetadataMemo = z.infer<typeof erdMetadataMemoSchema>;
-
-function databaseBitForEngine(engine: string): 1 | 2 | 4 | 8 | 16 | 32 | null {
-  const normalized = engine.toLowerCase();
-  if (normalized.includes("mariadb")) return 1;
-  if (normalized.includes("mssql") || normalized.includes("sql server")) return 2;
-  if (normalized.includes("mysql")) return 4;
-  if (normalized.includes("oracle")) return 8;
-  if (normalized.includes("postgres")) return 16;
-  if (normalized.includes("sqlite")) return 32;
-  return null;
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
-  }
-  if (typeof value === "object" && value !== null) {
-    return `{${Object.keys(value)
-      .sort()
-      .map(
-        (key) =>
-          `${JSON.stringify(key)}:${canonicalJson(
-            (value as Record<string, unknown>)[key],
-          )}`,
-      )
-      .join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function compareStableText(left: string, right: string): number {
-  if (left < right) return -1;
-  if (left > right) return 1;
-  return 0;
-}
+const emptyMemoEntitiesSchema = z.record(z.string(), z.never());
 
 function hasDangerousObjectKey(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(hasDangerousObjectKey);
@@ -215,6 +133,10 @@ function hasDangerousObjectKey(value: unknown): boolean {
 
 function hasDuplicates(values: readonly string[]): boolean {
   return new Set(values).size !== values.length;
+}
+
+function compareStableText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function sameOrderedValues(
@@ -234,71 +156,22 @@ function sameValueSet<T>(left: readonly T[], right: readonly T[]) {
   );
 }
 
-function requireEntity<T>(value: T | undefined, label: string): T {
-  if (value === undefined) {
-    throw new TypeError(`Validated Dineug entity is unavailable: ${label}`);
-  }
-  return value;
-}
-
-function parseCanonicalMemo<T>(
-  value: string,
-  prefix: string,
-  schema: z.ZodType<T>,
-): T | null {
-  if (!value.startsWith(prefix)) return null;
-
-  const serializedPayload = value.slice(prefix.length);
-  let payload: unknown;
-  try {
-    payload = JSON.parse(serializedPayload);
-  } catch {
-    return null;
-  }
-
-  const result = schema.safeParse(payload);
-  if (!result.success || canonicalJson(result.data) !== serializedPayload) {
-    return null;
-  }
-  return result.data;
-}
-
-function relationshipTypeToCardinality(value: 2 | 4 | 8 | 16) {
-  if (value === 2) return "0..1";
-  if (value === 4) return "0..N";
-  if (value === 8) return "1";
-  return "1..N";
-}
-
-function startRelationshipTypeToCardinality(value: 1 | 2) {
-  return value === 1 ? "0..1" : "1";
-}
-
-function relationshipSemanticKey({
-  sourceCardinality,
+function relationshipCoreKey({
   sourceColumns,
   sourceTable,
-  targetCardinality,
   targetColumns,
   targetTable,
-}: Omit<ErdForeignKeyMemo, "constraint" | "onDelete" | "onUpdate">) {
+}: {
+  sourceColumns: readonly string[];
+  sourceTable: string;
+  targetColumns: readonly string[];
+  targetTable: string;
+}) {
   return [
     sourceTable,
     sourceColumns.join(","),
-    sourceCardinality,
     targetTable,
     targetColumns.join(","),
-    targetCardinality,
-  ].join("|");
-}
-
-function inventoryRelationshipKey(relationship: ErdForeignKeyMemo) {
-  return [
-    relationship.sourceTable,
-    relationship.constraint,
-    relationship.sourceColumns.join(","),
-    relationship.targetTable,
-    relationship.targetColumns.join(","),
   ].join("|");
 }
 
@@ -308,125 +181,6 @@ async function sha256Hex(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
-}
-
-function reconstructInventory(
-  document: DineugErdDocument,
-  metadata: ErdMetadataMemo,
-  relationships: ErdForeignKeyMemo[],
-) {
-  const { collections } = document;
-  const tables = Object.values(collections.tableEntities)
-    .toSorted((left, right) => compareStableText(left.name, right.name))
-    .map((table) => {
-      const columns = table.columnIds.map((columnId) => {
-        const column = requireEntity(
-          collections.tableColumnEntities[columnId],
-          columnId,
-        );
-        return {
-          name: column.name,
-          type: column.dataType,
-          nullable: (column.options & 8) === 0,
-          foreignKey: (column.ui.keys & 2) === 2,
-          autoIncrement: (column.options & 1) === 1,
-          default: column.default === "" ? null : column.default,
-          comment: column.comment,
-        };
-      });
-      const primaryKeyColumns = table.columnIds
-        .filter(
-          (columnId) => {
-            const column = requireEntity(
-              collections.tableColumnEntities[columnId],
-              columnId,
-            );
-            return (column.options & 2) === 2;
-          },
-        )
-        .map(
-          (columnId) =>
-            requireEntity(
-              collections.tableColumnEntities[columnId],
-              columnId,
-            ).name,
-        );
-      const uniqueConstraints = Object.values(collections.indexEntities)
-        .filter((index) => index.tableId === table.id)
-        .map((index) => ({
-          name: index.name,
-          columns: index.indexColumnIds.map((indexColumnId) => {
-            const indexColumn = requireEntity(
-              collections.indexColumnEntities[indexColumnId],
-              indexColumnId,
-            );
-            return requireEntity(
-              collections.tableColumnEntities[indexColumn.columnId],
-              indexColumn.columnId,
-            ).name;
-          }),
-        }))
-        .toSorted((left, right) => compareStableText(left.name, right.name));
-
-      return {
-        qualifiedName: table.name,
-        comment: table.comment,
-        columns,
-        primaryKey:
-          primaryKeyColumns.length === 0
-            ? null
-            : { columns: primaryKeyColumns },
-        uniqueConstraints,
-      };
-    });
-
-  return {
-    contract: "ERDInventory/2.0",
-    name: document.settings.databaseName,
-    scope: metadata.scope,
-    engine: metadata.engine,
-    sourceRevision: metadata.sourceRevision,
-    tables,
-    relationships: relationships.toSorted((left, right) =>
-      compareStableText(
-        inventoryRelationshipKey(left),
-        inventoryRelationshipKey(right),
-      ),
-    ),
-  };
-}
-
-async function hasValidInventoryFingerprint(
-  document: DineugErdDocument,
-): Promise<boolean> {
-  let metadata: ErdMetadataMemo | null = null;
-  const relationships: ErdForeignKeyMemo[] = [];
-
-  for (const memoId of document.doc.memoIds) {
-    const memo = requireEntity(
-      document.collections.memoEntities[memoId],
-      memoId,
-    );
-    const parsedMetadata = parseCanonicalMemo(
-      memo.value,
-      erdMetadataMemoPrefix,
-      erdMetadataMemoSchema,
-    );
-    if (parsedMetadata) {
-      metadata = parsedMetadata;
-      continue;
-    }
-    const relationship = parseCanonicalMemo(
-      memo.value,
-      erdForeignKeyMemoPrefix,
-      erdForeignKeyMemoSchema,
-    );
-    if (relationship) relationships.push(relationship);
-  }
-
-  if (!metadata) return false;
-  const inventory = reconstructInventory(document, metadata, relationships);
-  return (await sha256Hex(canonicalJson(inventory))) === metadata.inventoryFingerprint;
 }
 
 function addIssue(
@@ -512,7 +266,7 @@ export const dineugErdDocumentSchema = z
         tableIds: z.array(entityIdSchema).min(1),
         relationshipIds: z.array(entityIdSchema),
         indexIds: z.array(entityIdSchema),
-        memoIds: z.array(entityIdSchema).min(1),
+        memoIds: z.array(entityIdSchema).length(0),
       })
       .strict(),
     collections: z
@@ -522,7 +276,7 @@ export const dineugErdDocumentSchema = z
         relationshipEntities: z.record(z.string(), relationshipSchema),
         indexEntities: z.record(z.string(), indexSchema),
         indexColumnEntities: z.record(z.string(), indexColumnSchema),
-        memoEntities: z.record(z.string(), memoSchema),
+        memoEntities: emptyMemoEntitiesSchema,
       })
       .strict(),
   })
@@ -616,8 +370,15 @@ export const dineugErdDocumentSchema = z
         addIssue(context, `Table column references are inconsistent: ${table.id}`);
       }
     }
+    const expectedTableIds = Object.values(collections.tableEntities)
+      .toSorted((left, right) => compareStableText(left.name, right.name))
+      .map(({ id }) => id);
+    if (!sameOrderedValues(doc.tableIds, expectedTableIds)) {
+      addIssue(context, "Dineug tables must use canonical name order");
+    }
 
     const indexColumnIdsByIndex = new Map<string, string[]>();
+    const singleColumnUniqueIds = new Set<string>();
     for (const indexColumn of Object.values(collections.indexColumnEntities)) {
       const index = collections.indexEntities[indexColumn.indexId];
       const column = collections.tableColumnEntities[indexColumn.columnId];
@@ -642,9 +403,34 @@ export const dineugErdDocumentSchema = z
       ) {
         addIssue(context, `Index column references are inconsistent: ${index.id}`);
       }
+      if (index.indexColumnIds.length === 1) {
+        const indexColumn =
+          collections.indexColumnEntities[index.indexColumnIds[0] ?? ""];
+        if (indexColumn) singleColumnUniqueIds.add(indexColumn.columnId);
+      }
+    }
+    for (const column of Object.values(collections.tableColumnEntities)) {
+      if (((column.options & 4) === 4) !== singleColumnUniqueIds.has(column.id)) {
+        addIssue(context, `Column unique option is inconsistent: ${column.id}`);
+      }
+    }
+    const expectedIndexIds = Object.values(collections.indexEntities)
+      .toSorted((left, right) => {
+        const leftTable = collections.tableEntities[left.tableId];
+        const rightTable = collections.tableEntities[right.tableId];
+        const tableOrder = compareStableText(
+          leftTable?.name ?? "",
+          rightTable?.name ?? "",
+        );
+        if (tableOrder !== 0) return tableOrder;
+        return compareStableText(left.name, right.name);
+      })
+      .map(({ id }) => id);
+    if (!sameOrderedValues(doc.indexIds, expectedIndexIds)) {
+      addIssue(context, "Dineug indexes must use canonical table/name order");
     }
 
-    const relationshipKeys: string[] = [];
+    const relationshipKeysById = new Map<string, string>();
     const foreignKeyColumnIds = new Set<string>();
     for (const relationship of Object.values(
       collections.relationshipEntities,
@@ -671,6 +457,10 @@ export const dineugErdDocumentSchema = z
         }
       }
       if (!endpointsValid) continue;
+      if (relationship.start.columnIds.length !== relationship.end.columnIds.length) {
+        addIssue(context, `Relationship column counts differ: ${relationship.id}`);
+        continue;
+      }
 
       relationship.end.columnIds.forEach((id) => foreignKeyColumnIds.add(id));
       const isIdentifying = relationship.end.columnIds.every(
@@ -681,24 +471,20 @@ export const dineugErdDocumentSchema = z
         addIssue(context, `Relationship identification is inconsistent: ${relationship.id}`);
       }
 
-      relationshipKeys.push(
-        relationshipSemanticKey({
-          sourceCardinality: relationshipTypeToCardinality(
-            relationship.relationshipType,
-          ),
-          sourceColumns: relationship.end.columnIds.map(
-            (id) => collections.tableColumnEntities[id]?.name ?? "",
-          ),
-          sourceTable: endTable.name,
-          targetCardinality: startRelationshipTypeToCardinality(
-            relationship.startRelationshipType,
-          ),
-          targetColumns: relationship.start.columnIds.map(
-            (id) => collections.tableColumnEntities[id]?.name ?? "",
-          ),
-          targetTable: startTable.name,
-        }),
-      );
+      const coreKey = relationshipCoreKey({
+        sourceColumns: relationship.end.columnIds.map(
+          (id) => collections.tableColumnEntities[id]?.name ?? "",
+        ),
+        sourceTable: endTable.name,
+        targetColumns: relationship.start.columnIds.map(
+          (id) => collections.tableColumnEntities[id]?.name ?? "",
+        ),
+        targetTable: startTable.name,
+      });
+      if ([...relationshipKeysById.values()].includes(coreKey)) {
+        addIssue(context, `Duplicate core relationship: ${coreKey}`);
+      }
+      relationshipKeysById.set(relationship.id, coreKey);
     }
 
     for (const column of Object.values(collections.tableColumnEntities)) {
@@ -708,50 +494,16 @@ export const dineugErdDocumentSchema = z
       }
     }
 
-    let metadataMemoCount = 0;
-    let metadataEngine: string | null = null;
-    const memoRelationshipKeys: string[] = [];
-    for (const memo of Object.values(collections.memoEntities)) {
-      const metadata = parseCanonicalMemo(
-        memo.value,
-        erdMetadataMemoPrefix,
-        erdMetadataMemoSchema,
-      );
-      if (metadata) {
-        metadataMemoCount += 1;
-        metadataEngine = metadata.engine;
-        continue;
-      }
-
-      const foreignKey = parseCanonicalMemo(
-        memo.value,
-        erdForeignKeyMemoPrefix,
-        erdForeignKeyMemoSchema,
-      );
-      if (!foreignKey) {
-        addIssue(context, `Unknown or invalid ERD memo: ${memo.id}`);
-        continue;
-      }
-      memoRelationshipKeys.push(relationshipSemanticKey(foreignKey));
-    }
-
-    if (metadataMemoCount !== 1) {
-      addIssue(context, "Dineug ERD must contain exactly one metadata memo");
-    } else if (
-      metadataEngine === null ||
-      databaseBitForEngine(metadataEngine) !== document.settings.database
-    ) {
-      addIssue(context, "Dineug database setting does not match metadata engine");
-    }
-    const sortedRelationshipKeys = relationshipKeys.toSorted();
-    const sortedMemoRelationshipKeys = memoRelationshipKeys.toSorted();
+    const orderedRelationshipKeys = doc.relationshipIds.map(
+      (id) => relationshipKeysById.get(id) ?? "",
+    );
     if (
-      sortedRelationshipKeys.length !== sortedMemoRelationshipKeys.length ||
-      sortedRelationshipKeys.some(
-        (value, index) => value !== sortedMemoRelationshipKeys[index],
+      !sameOrderedValues(
+        orderedRelationshipKeys,
+        orderedRelationshipKeys.toSorted(),
       )
     ) {
-      addIssue(context, "Dineug relationships and FK memos do not match");
+      addIssue(context, "Dineug relationships must use canonical core order");
     }
   });
 
@@ -760,6 +512,87 @@ export type DineugErdDocument = z.infer<typeof dineugErdDocumentSchema>;
 export type ErdDineugParseResult =
   | { data: DineugErdDocument; error: null }
   | { data: null; error: string };
+
+async function stableEntityId(kind: string, key: string): Promise<string> {
+  return `${kind}-${(await sha256Hex(key)).slice(0, 20)}`;
+}
+
+async function canonicalEntityIdError(
+  document: DineugErdDocument,
+): Promise<string | null> {
+  const { collections } = document;
+
+  for (const table of Object.values(collections.tableEntities)) {
+    if (table.id !== (await stableEntityId("table", table.name))) {
+      return `Dineug table ID does not match its name: ${table.id}`;
+    }
+  }
+  for (const column of Object.values(collections.tableColumnEntities)) {
+    const table = collections.tableEntities[column.tableId];
+    if (
+      !table ||
+      column.id !== (await stableEntityId("column", `${table.name}.${column.name}`))
+    ) {
+      return `Dineug column ID does not match its table/name: ${column.id}`;
+    }
+  }
+  for (const index of Object.values(collections.indexEntities)) {
+    const table = collections.tableEntities[index.tableId];
+    if (
+      !table ||
+      index.id !== (await stableEntityId("index", `${table.name}.${index.name}`))
+    ) {
+      return `Dineug index ID does not match its table/name: ${index.id}`;
+    }
+  }
+  for (const indexColumn of Object.values(
+    collections.indexColumnEntities,
+  )) {
+    const index = collections.indexEntities[indexColumn.indexId];
+    const column = collections.tableColumnEntities[indexColumn.columnId];
+    const table = index ? collections.tableEntities[index.tableId] : undefined;
+    const ordinal = index?.indexColumnIds.indexOf(indexColumn.id) ?? -1;
+    if (
+      !index ||
+      !column ||
+      !table ||
+      ordinal < 0 ||
+      indexColumn.id !==
+        (await stableEntityId(
+          "index-column",
+          `${table.name}.${index.name}|${ordinal}|${column.name}`,
+        ))
+    ) {
+      return `Dineug index-column ID does not match its semantics: ${indexColumn.id}`;
+    }
+  }
+  for (const relationshipId of document.doc.relationshipIds) {
+    const relationship = collections.relationshipEntities[relationshipId];
+    if (!relationship) return `Dineug relationship is unavailable: ${relationshipId}`;
+    const sourceTable = collections.tableEntities[relationship.end.tableId];
+    const targetTable = collections.tableEntities[relationship.start.tableId];
+    if (!sourceTable || !targetTable) {
+      return `Dineug relationship references an unknown table: ${relationshipId}`;
+    }
+
+    const key = relationshipCoreKey({
+      sourceColumns: relationship.end.columnIds.map(
+        (id) => collections.tableColumnEntities[id]?.name ?? "",
+      ),
+      sourceTable: sourceTable.name,
+      targetColumns: relationship.start.columnIds.map(
+        (id) => collections.tableColumnEntities[id]?.name ?? "",
+      ),
+      targetTable: targetTable.name,
+    });
+    const expectedId = await stableEntityId("relationship", key);
+    if (relationshipId !== expectedId) {
+      return "Dineug ERD relationship IDs do not match their core endpoints.";
+    }
+  }
+
+  return null;
+}
 
 /** 저장된 Dineug 문서를 파싱하고 custom element에 전달할 보안 경계를 검증한다. */
 export async function parseErdDineugDocument(
@@ -796,17 +629,11 @@ export async function parseErdDineugDocument(
     };
   }
 
-  try {
-    if (!(await hasValidInventoryFingerprint(result.data))) {
-      return {
-        data: null,
-        error: "Dineug ERD inventory fingerprint does not match its document.",
-      };
-    }
-  } catch {
+  const entityIdError = await canonicalEntityIdError(result.data);
+  if (entityIdError) {
     return {
       data: null,
-      error: "Dineug ERD inventory fingerprint could not be verified.",
+      error: entityIdError,
     };
   }
 

@@ -173,7 +173,7 @@ export function createErdDocument(
       tableIds: ["table-7dfb4cf67742cb066030"],
       relationshipIds: [],
       indexIds: [],
-      memoIds: ["memo-45447b7afbd5e544f7d0"],
+      memoIds: [],
     },
     collections: {
       tableEntities: {
@@ -216,22 +216,7 @@ export function createErdDocument(
       relationshipEntities: {},
       indexEntities: {},
       indexColumnEntities: {},
-      memoEntities: {
-        "memo-45447b7afbd5e544f7d0": {
-          id: "memo-45447b7afbd5e544f7d0",
-          value:
-            '[yusung-harness:erd-meta/1.0]\n{"engine":"SQLite","inventoryFingerprint":"aa9617591e09d1950a341027458cd78dfdd2bdca7763b2846d2938bd012c50e4","scope":"main","sourceRevision":"test-revision"}',
-          ui: {
-            x: 700,
-            y: 100,
-            zIndex: 2,
-            width: 620,
-            height: 130,
-            color: "#ede9fe",
-          },
-          meta: { updateAt: 0, createAt: 0 },
-        },
-      },
+      memoEntities: {},
     },
     ...overrides,
   };

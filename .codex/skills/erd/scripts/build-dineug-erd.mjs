@@ -9,8 +9,6 @@ export const INVENTORY_CONTRACT = "ERDInventory/2.0";
 export const DINEUG_SCHEMA_URL =
   "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json";
 export const DINEUG_VERSION = "3.0.0";
-export const METADATA_MEMO_PREFIX = "[yusung-harness:erd-meta/1.0]\n";
-export const FOREIGN_KEY_MEMO_PREFIX = "[yusung-harness:fk/1.0]\n";
 export const MAXIMUM_DOCUMENT_BYTES = 5 * 1024 * 1024;
 export const MAXIMUM_COLLECTION_ENTITIES = 5_000;
 export const MINIMUM_CANVAS_SIZE = 2_000;
@@ -23,11 +21,7 @@ const CARD_BOTTOM_PADDING = 24;
 const LAYER_GAP = 180;
 const COMPONENT_GAP = 140;
 const TABLE_GAP = 90;
-const CANVAS_PADDING = 120;
-const MEMO_WIDTH = 520;
-const METADATA_MEMO_HEIGHT = 160;
-const FOREIGN_KEY_MEMO_HEIGHT = 150;
-const MEMO_GAP = 28;
+const CANVAS_PADDING = 100;
 const DATABASE_CODES = new Map([
   ["mariadb", 1],
   ["mssql", 2],
@@ -106,7 +100,6 @@ export function stableId(kind, key) {
 export function relationshipKey(relationship) {
   return [
     relationship.sourceTable,
-    relationship.constraint,
     relationship.sourceColumns.join(","),
     relationship.targetTable,
     relationship.targetColumns.join(","),
@@ -355,21 +348,28 @@ export function normalizeInventory(rawInventory) {
     tableMap.set(table.qualifiedName, table);
   }
 
-  const relationships = rawInventory.relationships
-    .map(normalizeRelationship)
-    .sort((left, right) =>
-      compareStrings(relationshipKey(left), relationshipKey(right)),
-    );
-  const relationshipKeys = new Set();
+  const relationshipsByKey = new Map();
+  for (const relationship of rawInventory.relationships.map(normalizeRelationship)) {
+    const key = relationshipKey(relationship);
+    const existing = relationshipsByKey.get(key);
+    if (existing) {
+      if (
+        existing.sourceCardinality !== relationship.sourceCardinality ||
+        existing.targetCardinality !== relationship.targetCardinality
+      ) {
+        fail(`relationship ${key} has conflicting cardinality`);
+      }
+      continue;
+    }
+    relationshipsByKey.set(key, relationship);
+  }
+  const relationships = [...relationshipsByKey.values()].sort((left, right) =>
+    compareStrings(relationshipKey(left), relationshipKey(right)),
+  );
   const relationshipForeignKeys = new Set();
 
   for (const relationship of relationships) {
     const key = relationshipKey(relationship);
-
-    if (relationshipKeys.has(key)) {
-      fail(`inventory contains duplicate relationship ${key}`);
-    }
-    relationshipKeys.add(key);
     if (relationship.sourceColumns.length !== relationship.targetColumns.length) {
       fail(`relationship ${relationship.constraint} has mismatched column counts`);
     }
@@ -432,18 +432,6 @@ export function normalizeInventory(rawInventory) {
     tables,
     relationships,
   };
-}
-
-export function inventoryFingerprint(inventory) {
-  return fingerprint({
-    contract: inventory.contract,
-    name: inventory.name,
-    scope: inventory.scope,
-    engine: inventory.engine,
-    sourceRevision: inventory.sourceRevision,
-    tables: inventory.tables,
-    relationships: inventory.relationships,
-  });
 }
 
 function tableHeight(table) {
@@ -603,25 +591,13 @@ function layoutTables(inventory) {
     }
   }
 
-  const annotationX = maximumTableRight + LAYER_GAP;
-  let memoBottom = CANVAS_PADDING + METADATA_MEMO_HEIGHT;
-
-  if (inventory.relationships.length > 0) {
-    memoBottom =
-      CANVAS_PADDING +
-      METADATA_MEMO_HEIGHT +
-      MEMO_GAP +
-      inventory.relationships.length * (FOREIGN_KEY_MEMO_HEIGHT + MEMO_GAP) -
-      MEMO_GAP;
-  }
-
   const width = Math.max(
     MINIMUM_CANVAS_SIZE,
-    Math.ceil(annotationX + MEMO_WIDTH + CANVAS_PADDING),
+    Math.ceil(maximumTableRight + CANVAS_PADDING),
   );
   const height = Math.max(
     MINIMUM_CANVAS_SIZE,
-    Math.ceil(Math.max(maximumTableBottom, memoBottom) + CANVAS_PADDING),
+    Math.ceil(maximumTableBottom + CANVAS_PADDING),
   );
 
   if (width > MAXIMUM_CANVAS_SIZE || height > MAXIMUM_CANVAS_SIZE) {
@@ -630,7 +606,7 @@ function layoutTables(inventory) {
     );
   }
 
-  return { positions, annotationX, width, height };
+  return { positions, width, height };
 }
 
 function entityMeta() {
@@ -673,10 +649,6 @@ function relationshipDirections(startLayout, endLayout) {
   if (startLayout.y < endLayout.y) return [8, 4];
   if (startLayout.y > endLayout.y) return [4, 8];
   return [2, 1];
-}
-
-function memoValue(prefix, payload) {
-  return `${prefix}${canonicalJson(payload)}`;
 }
 
 export function collectionEntityCount(document) {
@@ -723,8 +695,7 @@ export function assertDocumentBudgets(document) {
 
 export function buildDocument(rawInventory) {
   const inventory = normalizeInventory(rawInventory);
-  const semanticFingerprint = inventoryFingerprint(inventory);
-  const { positions, annotationX, width, height } = layoutTables(inventory);
+  const { positions, width, height } = layoutTables(inventory);
   const tableEntities = {};
   const tableColumnEntities = {};
   const relationshipEntities = {};
@@ -847,28 +818,7 @@ export function buildDocument(rawInventory) {
     }
   });
 
-  const metadataMemoId = stableId("memo", "metadata");
-  memoIds.push(metadataMemoId);
-  memoEntities[metadataMemoId] = {
-    id: metadataMemoId,
-    value: memoValue(METADATA_MEMO_PREFIX, {
-      engine: inventory.engine,
-      inventoryFingerprint: semanticFingerprint,
-      scope: inventory.scope,
-      sourceRevision: inventory.sourceRevision,
-    }),
-    ui: {
-      x: annotationX,
-      y: CANVAS_PADDING,
-      zIndex: inventory.tables.length + 2,
-      width: MEMO_WIDTH,
-      height: METADATA_MEMO_HEIGHT,
-      color: "#fff7ed",
-    },
-    meta: entityMeta(),
-  };
-
-  inventory.relationships.forEach((relationship, relationshipPosition) => {
+  inventory.relationships.forEach((relationship) => {
     const key = relationshipKey(relationship);
     const id = stableId("relationship", key);
     const sourceTable = inventory.tables.find(
@@ -924,35 +874,6 @@ export function buildDocument(rawInventory) {
       meta: entityMeta(),
     };
 
-    const memoId = stableId("memo", key);
-    memoIds.push(memoId);
-    memoEntities[memoId] = {
-      id: memoId,
-      value: memoValue(FOREIGN_KEY_MEMO_PREFIX, {
-        constraint: relationship.constraint,
-        onDelete: relationship.onDelete,
-        onUpdate: relationship.onUpdate,
-        sourceCardinality: relationship.sourceCardinality,
-        sourceColumns: relationship.sourceColumns,
-        sourceTable: relationship.sourceTable,
-        targetCardinality: relationship.targetCardinality,
-        targetColumns: relationship.targetColumns,
-        targetTable: relationship.targetTable,
-      }),
-      ui: {
-        x: annotationX,
-        y:
-          CANVAS_PADDING +
-          METADATA_MEMO_HEIGHT +
-          MEMO_GAP +
-          relationshipPosition * (FOREIGN_KEY_MEMO_HEIGHT + MEMO_GAP),
-        zIndex: inventory.tables.length + 3 + relationshipPosition,
-        width: MEMO_WIDTH,
-        height: FOREIGN_KEY_MEMO_HEIGHT,
-        color: "#f8fafc",
-      },
-      meta: entityMeta(),
-    };
   });
 
   const document = {
@@ -1057,7 +978,7 @@ function main() {
     `${JSON.stringify({
       status: "built",
       output: options.output,
-      inventoryFingerprint: inventoryFingerprint(inventory),
+      documentFingerprint: fingerprint(document),
       tables: inventory.tables.length,
       relationships: inventory.relationships.length,
       indexes: inventory.tables.reduce(

@@ -703,7 +703,7 @@ export class McpService {
       {
         title: "Create ERD",
         description:
-          "Creates a validated Dineug v3 entity-relationship document for the current database schema of a Project.",
+          "Creates a validated memo-free Dineug v3 entity-relationship document for the current database schema of a Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           title: z.string().trim().min(1),
@@ -725,7 +725,7 @@ export class McpService {
       {
         title: "Update ERD",
         description:
-          "Replaces the title and Dineug v3 document of an ERD in the same Project.",
+          "Replaces the title and memo-free Dineug v3 document of an ERD in the same Project.",
         inputSchema: z.object({
           projectId: projectIdSchema,
           erdId: erdIdSchema,

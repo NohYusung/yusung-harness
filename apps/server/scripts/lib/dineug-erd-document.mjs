@@ -8,8 +8,6 @@ export const DINEUG_SCHEMA_URL =
   "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json";
 export const DINEUG_VERSION = "3.0.0";
 export const INVENTORY_CONTRACT = "ERDInventory/2.0";
-export const METADATA_MEMO_PREFIX = "[yusung-harness:erd-meta/1.0]\n";
-export const FOREIGN_KEY_MEMO_PREFIX = "[yusung-harness:fk/1.0]\n";
 export const MAXIMUM_DOCUMENT_BYTES = 5 * 1024 * 1024;
 export const MAXIMUM_COLLECTION_ENTITIES = 5_000;
 
@@ -18,7 +16,12 @@ const minimumCanvasSize = 2_000;
 const maximumCoordinate = 1_000_000;
 const maximumIdentifierLength = 512;
 const maximumDisplayStringLength = 50_000;
-const idPattern = /^(?:table|column|relationship|index|index-column|memo)-[a-f0-9]{20}$/u;
+const tableWidth = 420;
+const tableBaseHeight = 88;
+const tableHorizontalGap = 180;
+const tableVerticalGap = 100;
+const canvasPadding = 100;
+const idPattern = /^(?:table|column|relationship|index|index-column)-[a-f0-9]{20}$/u;
 const sourceCardinalities = new Set(["1", "0..1", "1..N", "0..N"]);
 const targetCardinalities = new Set(["1", "0..1"]);
 const collectionNames = [
@@ -28,12 +31,6 @@ const collectionNames = [
   "indexEntities",
   "indexColumnEntities",
   "memoEntities",
-];
-const metadataKeys = [
-  "engine",
-  "inventoryFingerprint",
-  "scope",
-  "sourceRevision",
 ];
 const foreignKeyKeys = [
   "constraint",
@@ -147,11 +144,10 @@ export const canonicalJson = (value) => JSON.stringify(sortJsonKeys(value));
 export const stableId = (kind, key) =>
   `${kind}-${createHash("sha256").update(key).digest("hex").slice(0, 20)}`;
 
-/** 관계의 ordered physical identity를 문자열 key로 고정한다. */
+/** 저장되는 FK endpoint만으로 관계의 canonical identity를 고정한다. */
 export const relationshipKey = (relationship) =>
   [
     relationship.sourceTable,
-    relationship.constraint,
     relationship.sourceColumns.join(","),
     relationship.targetTable,
     relationship.targetColumns.join(","),
@@ -326,7 +322,7 @@ export const normalizeInventory = (rawInventory) => {
   const tablesByName = new Map(tables.map((table) => [table.qualifiedName, table]));
   if (tablesByName.size !== tables.length) fail("inventory contains duplicate tables");
 
-  const relationships = rawInventory.relationships
+  const normalizedRelationships = rawInventory.relationships
     .map((relationship, relationshipIndex) => {
       const path = `inventory.relationships[${relationshipIndex}]`;
       if (!isObject(relationship)) fail(`${path} must be an object`);
@@ -373,17 +369,24 @@ export const normalizeInventory = (rawInventory) => {
       }
 
       return result;
-    })
-    .sort((left, right) =>
-      compareStrings(relationshipKey(left), relationshipKey(right)),
-    );
-  const relationshipKeys = new Set();
+    });
+  const relationshipsByKey = new Map();
   const foreignKeyColumnKeys = new Set();
 
-  for (const relationship of relationships) {
+  /** 폐기되는 constraint/action만 다른 동일 endpoint 관계는 한 선으로 축약한다. */
+  for (const relationship of normalizedRelationships) {
     const key = relationshipKey(relationship);
-    if (relationshipKeys.has(key)) fail(`inventory contains duplicate relationship ${key}`);
-    relationshipKeys.add(key);
+    const existing = relationshipsByKey.get(key);
+    if (existing) {
+      if (
+        existing.sourceCardinality !== relationship.sourceCardinality ||
+        existing.targetCardinality !== relationship.targetCardinality
+      ) {
+        fail(`inventory contains conflicting relationship cardinality ${key}`);
+      }
+      continue;
+    }
+    relationshipsByKey.set(key, relationship);
 
     const sourceTable = tablesByName.get(relationship.sourceTable);
     const targetTable = tablesByName.get(relationship.targetTable);
@@ -410,6 +413,9 @@ export const normalizeInventory = (rawInventory) => {
       }
     }
   }
+  const relationships = [...relationshipsByKey.values()].sort((left, right) =>
+    compareStrings(relationshipKey(left), relationshipKey(right)),
+  );
 
   const engine = requireString(rawInventory.engine, "inventory.engine");
   databaseBit(engine);
@@ -438,22 +444,15 @@ export const normalizeInventory = (rawInventory) => {
   const collectionCount =
     tables.length +
     tables.reduce((count, table) => count + table.columns.length, 0) +
-    relationships.length * 2 +
+    relationships.length +
     constraintCount +
-    constraintColumnCount +
-    1;
+    constraintColumnCount;
   if (collectionCount > MAXIMUM_COLLECTION_ENTITIES) {
     fail(`inventory expands beyond ${MAXIMUM_COLLECTION_ENTITIES} collection entities`);
   }
 
   return inventory;
 };
-
-/** canonical physical inventory의 SHA-256 fingerprint를 계산한다. */
-export const inventoryFingerprint = (rawInventory) =>
-  createHash("sha256")
-    .update(canonicalJson(normalizeInventory(rawInventory)))
-    .digest("hex");
 
 /** 이름이 없던 V1 key constraint에 충돌 없는 legacy 이름을 부여한다. */
 const legacyConstraintName = (kind, tableName, columns) =>
@@ -718,6 +717,15 @@ const stronglyConnectedComponents = (tables, relationships) => {
   return components;
 };
 
+/** table column 수를 Dineug 카드 높이로 변환한다. */
+const tableHeight = (columnCount) => tableBaseHeight + columnCount * 30;
+
+/** 가장 바깥 table 경계에 고정 padding을 더해 canvas 크기를 계산한다. */
+const tableOnlyCanvasSize = ({ bottom, right }) => ({
+  height: Math.max(minimumCanvasSize, Math.ceil(bottom + canvasPadding)),
+  width: Math.max(minimumCanvasSize, Math.ceil(right + canvasPadding)),
+});
+
 /** SCC condensation DAG를 위상 계층화해 referenced table을 왼쪽에 둔다. */
 const topologicalLayers = (tables, relationships) => {
   const components = stronglyConnectedComponents(tables, relationships);
@@ -781,12 +789,8 @@ const topologicalLayers = (tables, relationships) => {
     );
 };
 
-/** SCC 축약·위상 계층과 annotation rail을 반영한 bounded 좌표를 만든다. */
+/** SCC 축약·위상 계층의 table 영역만 반영한 bounded 좌표를 만든다. */
 const layoutTables = (tables, relationships) => {
-  const tableWidth = 420;
-  const horizontalGap = 180;
-  const verticalGap = 100;
-  const padding = 100;
   const tableByName = new Map(tables.map((table) => [table.qualifiedName, table]));
   const components = topologicalLayers(tables, relationships);
   const componentsByLayer = new Map();
@@ -796,47 +800,46 @@ const layoutTables = (tables, relationships) => {
     componentsByLayer.set(component.layer, layerComponents);
   }
   const positions = new Map();
-  let tableBottom = padding;
+  let tableRight = canvasPadding;
+  let tableBottom = canvasPadding;
   for (const [layer, layerComponents] of [...componentsByLayer.entries()].sort(
     ([left], [right]) => left - right,
   )) {
-    let nextY = padding;
+    let nextY = canvasPadding;
     for (const component of layerComponents) {
       for (const tableName of component.tableNames) {
         const table = tableByName.get(tableName);
-        const height = 88 + table.columns.length * 30;
+        const height = tableHeight(table.columns.length);
         positions.set(tableName, {
-          x: padding + layer * (tableWidth + horizontalGap),
+          x:
+            canvasPadding +
+            layer * (tableWidth + tableHorizontalGap),
           y: nextY,
           width: tableWidth,
           height,
         });
-        nextY += height + verticalGap;
-        tableBottom = Math.max(tableBottom, nextY);
+        tableRight = Math.max(
+          tableRight,
+          canvasPadding +
+            layer * (tableWidth + tableHorizontalGap) +
+            tableWidth,
+        );
+        tableBottom = Math.max(tableBottom, nextY + height);
+        nextY += height + tableVerticalGap;
       }
-      nextY += verticalGap;
+      nextY += tableVerticalGap;
     }
   }
 
-  const layerCount = Math.max(...components.map(({ layer }) => layer)) + 1;
-  const annotationX =
-    padding + layerCount * tableWidth + Math.max(0, layerCount - 1) * horizontalGap + 180;
-  const annotationWidth = 620;
-  const annotationHeight = 250 + relationships.length * 190;
-  const width = Math.max(
-    minimumCanvasSize,
-    annotationX + annotationWidth + padding,
-  );
-  const height = Math.max(
-    minimumCanvasSize,
-    tableBottom + padding,
-    annotationHeight + padding,
-  );
+  const { height, width } = tableOnlyCanvasSize({
+    bottom: tableBottom,
+    right: tableRight,
+  });
   if (width > maximumCanvasSize || height > maximumCanvasSize) {
     fail(`inventory layout exceeds ${maximumCanvasSize}x${maximumCanvasSize}; reduce the database scope`);
   }
 
-  return { annotationX, height, positions, width };
+  return { height, positions, width };
 };
 
 /** 두 table 사이의 Dineug relationship endpoint와 direction을 계산한다. */
@@ -878,14 +881,6 @@ const relationshipPoints = (target, source) => {
 
 /** 모든 Dineug entity에 고정 epoch metadata를 제공한다. */
 const entityMeta = () => ({ createAt: 0, updateAt: 0 });
-
-/** provenance payload를 화면에 영향을 주지 않는 memo entity로 저장한다. */
-const createMemo = (id, value, ui) => ({
-  id,
-  value,
-  ui,
-  meta: entityMeta(),
-});
 
 /** canonical inventory를 공식 Dineug ERDEditorSchemaV3 문서로 만든다. */
 export const buildDineugErdDocument = (rawInventory) => {
@@ -964,28 +959,6 @@ export const buildDineugErdDocument = (rawInventory) => {
   const indexEntities = {};
   const indexColumnEntities = {};
   const indexIds = [];
-  const memoEntities = {};
-  const metadataMemoId = stableId("memo", "metadata");
-  const metadata = {
-    engine: inventory.engine,
-    inventoryFingerprint: inventoryFingerprint(inventory),
-    scope: inventory.scope,
-    sourceRevision: inventory.sourceRevision,
-  };
-
-  memoEntities[metadataMemoId] = createMemo(
-    metadataMemoId,
-    `${METADATA_MEMO_PREFIX}${canonicalJson(metadata)}`,
-    {
-      x: layout.annotationX,
-      y: 100,
-      zIndex: inventory.tables.length + 1,
-      width: 620,
-      height: 130,
-      color: "#ede9fe",
-    },
-  );
-  const memoIds = [metadataMemoId];
 
   /** 이름 있는 UNIQUE constraint만 Dineug index collections에 투영한다. */
   for (const table of inventory.tables) {
@@ -1029,10 +1002,9 @@ export const buildDineugErdDocument = (rawInventory) => {
     }
   }
 
-  for (const [relationshipIndex, relationship] of inventory.relationships.entries()) {
+  for (const relationship of inventory.relationships) {
     const key = relationshipKey(relationship);
     const relationshipId = stableId("relationship", key);
-    const memoId = stableId("memo", key);
     const sourceTable = inventory.tables.find(
       ({ qualifiedName }) => qualifiedName === relationship.sourceTable,
     );
@@ -1068,19 +1040,6 @@ export const buildDineugErdDocument = (rawInventory) => {
       },
       meta: entityMeta(),
     };
-    memoEntities[memoId] = createMemo(
-      memoId,
-      `${FOREIGN_KEY_MEMO_PREFIX}${canonicalJson(relationship)}`,
-      {
-        x: layout.annotationX,
-        y: 260 + relationshipIndex * 190,
-        zIndex: inventory.tables.length + relationshipIndex + 2,
-        width: 620,
-        height: 170,
-        color: "#dbeafe",
-      },
-    );
-    memoIds.push(memoId);
   }
 
   const document = {
@@ -1110,7 +1069,7 @@ export const buildDineugErdDocument = (rawInventory) => {
       tableIds,
       relationshipIds,
       indexIds,
-      memoIds,
+      memoIds: [],
     },
     collections: {
       tableEntities,
@@ -1118,7 +1077,7 @@ export const buildDineugErdDocument = (rawInventory) => {
       relationshipEntities,
       indexEntities,
       indexColumnEntities,
-      memoEntities,
+      memoEntities: {},
     },
   };
 
@@ -1146,31 +1105,6 @@ const validateUiNumbers = (ui, fields, path) => {
       requireNumber(ui[field], `${path}.${field}`);
     }
   }
-};
-
-/** prefix 뒤의 canonical JSON memo payload를 strict key 집합으로 파싱한다. */
-const parseMemoPayload = (value, prefix, keys, path) => {
-  requireString(value, path, {
-    allowEmpty: false,
-    maximum: maximumDisplayStringLength,
-  });
-  if (!value.startsWith(prefix)) fail(`${path} has an unsupported memo prefix`);
-
-  let payload;
-  try {
-    payload = JSON.parse(value.slice(prefix.length));
-  } catch (error) {
-    throw new TypeError(`Invalid Dineug ERD document: ${path} contains invalid JSON`, {
-      cause: error,
-    });
-  }
-  if (!isObject(payload)) fail(`${path} payload must be an object`);
-  requireExactKeys(payload, keys, `${path} payload`);
-  if (`${prefix}${canonicalJson(payload)}` !== value) {
-    fail(`${path} payload must use compact key-sorted JSON`);
-  }
-
-  return payload;
 };
 
 /** 공식 v3 shape와 yusung-harness physical 의미 무결성을 함께 검증한다. */
@@ -1236,7 +1170,7 @@ export const validateDineugErdDocument = (document) => {
   const tableIds = requireIdArray(doc.tableIds, "doc.tableIds", { allowEmpty: false });
   const relationshipIds = requireIdArray(doc.relationshipIds, "doc.relationshipIds");
   const indexIds = requireIdArray(doc.indexIds, "doc.indexIds");
-  const memoIds = requireIdArray(doc.memoIds, "doc.memoIds", { allowEmpty: false });
+  const memoIds = requireIdArray(doc.memoIds, "doc.memoIds");
 
   const collections = document.collections;
   if (!isObject(collections)) fail("collections must be an object");
@@ -1268,6 +1202,9 @@ export const validateDineugErdDocument = (document) => {
   requireDocParity(relationshipIds, relationshipEntries, "doc.relationshipIds");
   requireDocParity(indexIds, indexEntries, "doc.indexIds");
   requireDocParity(memoIds, memoEntries, "doc.memoIds");
+  if (memoIds.length !== 0 || memoEntries.length !== 0) {
+    fail("Dineug ERD memoIds and memoEntities must be empty");
+  }
 
   const tablesById = new Map();
   const tableNames = new Set();
@@ -1403,24 +1340,8 @@ export const validateDineugErdDocument = (document) => {
     fail("indexColumnEntities must be sequenced exactly once by an index");
   }
 
-  /** Dineug table/index collections를 fingerprint 가능한 V2 table semantics로 복구한다. */
-  const inventoryTables = [...tablesById.values()].map((table) => {
-    const columns = table.columnIds.map((columnId) => {
-      const column = columnsById.get(columnId);
-      return {
-        name: column.name,
-        type: column.dataType,
-        nullable: !(column.options & 8),
-        foreignKey: Boolean(column.ui.keys & 2),
-        autoIncrement: Boolean(column.options & 1),
-        default: column.default === "" ? null : column.default,
-        comment: column.comment,
-      };
-    });
-    const primaryColumns = table.columnIds
-      .map((columnId) => columnsById.get(columnId))
-      .filter((column) => column.options & 2)
-      .map(({ name }) => name);
+  /** 단일-column UK option bit와 이름 있는 index collection을 대조한다. */
+  for (const table of tablesById.values()) {
     const constraints = indexIds
       .map((indexId) => indexesById.get(indexId))
       .filter(({ tableId }) => tableId === table.id)
@@ -1445,112 +1366,51 @@ export const validateDineugErdDocument = (document) => {
         fail(`table ${table.name} unique option bits must match named UKs`);
       }
     }
-    return {
-      qualifiedName: table.name,
-      comment: table.comment,
-      columns,
-      primaryKey:
-        primaryColumns.length === 0
-          ? null
-          : {
-              columns: primaryColumns,
-            },
-      uniqueConstraints: constraints,
-    };
-  });
-
-  let metadata = null;
-  const foreignKeys = [];
-  for (const [recordKey, memo] of memoEntries) {
-    const path = `collections.memoEntities.${recordKey}`;
-    if (!isObject(memo)) fail(`${path} must be an object`);
-    requireExactKeys(memo, ["id", "value", "ui", "meta"], path);
-    if (memo.id !== recordKey || !idPattern.test(memo.id)) fail(`${path}.id must equal its hash-derived record key`);
-    validateUiNumbers(memo.ui, ["x", "y", "zIndex", "width", "height", "color"], `${path}.ui`);
-    if (memo.ui.width <= 0 || memo.ui.height <= 0) {
-      fail(`${path}.ui must render as a positive-size annotation`);
-    }
-    validateMeta(memo.meta, `${path}.meta`);
-
-    if (memo.value.startsWith(METADATA_MEMO_PREFIX)) {
-      if (metadata) fail("document must contain exactly one metadata memo");
-      metadata = parseMemoPayload(memo.value, METADATA_MEMO_PREFIX, metadataKeys, `${path}.value`);
-      if (memo.id !== stableId("memo", "metadata")) fail(`${path}.id does not match metadata memo`);
-    } else if (memo.value.startsWith(FOREIGN_KEY_MEMO_PREFIX)) {
-      const foreignKey = parseMemoPayload(memo.value, FOREIGN_KEY_MEMO_PREFIX, foreignKeyKeys, `${path}.value`);
-      foreignKeys.push({ foreignKey, memoId: memo.id, path });
-    } else {
-      fail(`${path}.value has an unsupported memo contract`);
-    }
   }
-  if (!metadata) fail("document must contain exactly one metadata memo");
-  requireString(metadata.scope, "metadata.scope");
-  requireString(metadata.sourceRevision, "metadata.sourceRevision");
-  const metadataEngine = requireString(metadata.engine, "metadata.engine");
-  if (settings.database !== databaseBit(metadataEngine)) {
-    fail("settings.database must match metadata.engine");
-  }
-  if (typeof metadata.inventoryFingerprint !== "string" || !/^[a-f0-9]{64}$/u.test(metadata.inventoryFingerprint)) {
-    fail("metadata.inventoryFingerprint must be a SHA-256 hex digest");
-  }
-  if (foreignKeys.length !== relationshipEntries.length) fail("every relationship must have exactly one FK memo");
 
-  /** 모든 FK를 함께 정규화해 column foreignKey flag와 source-column union도 검증한다. */
-  const inventory = normalizeInventory({
-    contract: INVENTORY_CONTRACT,
-    name: settings.databaseName,
-    scope: metadata.scope,
-    engine: metadata.engine,
-    sourceRevision: metadata.sourceRevision,
-    tables: inventoryTables,
-    relationships: foreignKeys.map(({ foreignKey }) => foreignKey),
-  });
-  const normalizedRelationshipsByKey = new Map(
-    inventory.relationships.map((relationship) => [
-      relationshipKey(relationship),
-      relationship,
-    ]),
-  );
-
-  const foreignKeyKeysSeen = new Set();
+  /** 관계 entity 자체에서 core endpoint identity와 cardinality 무결성을 검증한다. */
+  const relationshipKeysSeen = new Set();
   const relationshipSourceColumnIds = new Set();
-  for (const { foreignKey, memoId, path } of foreignKeys) {
-    const key = relationshipKey(foreignKey);
-    const normalized = normalizedRelationshipsByKey.get(key);
-    if (!normalized) fail(`${path} does not normalize to an inventory relationship`);
-    if (foreignKeyKeysSeen.has(key)) fail(`${path} duplicates FK semantics`);
-    foreignKeyKeysSeen.add(key);
-    if (memoId !== stableId("memo", key)) fail(`${path}.id does not match FK semantics`);
-    const relationshipId = stableId("relationship", key);
+  const canonicalRelationships = [];
+  for (const relationshipId of relationshipIds) {
     const stored = relationshipsById.get(relationshipId);
-    if (!stored) fail(`${path} has no matching relationship entity`);
-    const targetTable = [...tablesById.values()].find(({ name }) => name === normalized.targetTable);
-    const sourceTable = [...tablesById.values()].find(({ name }) => name === normalized.sourceTable);
-    if (!targetTable || !sourceTable || stored.start.table.id !== targetTable.id || stored.end.table.id !== sourceTable.id) {
-      fail(`${path} relationship endpoints do not match FK tables`);
+    const sourceTable = stored.end.table;
+    const targetTable = stored.start.table;
+    const sourceColumns = stored.end.columnIds.map(
+      (columnId) => columnsById.get(columnId).name,
+    );
+    const targetColumns = stored.start.columnIds.map(
+      (columnId) => columnsById.get(columnId).name,
+    );
+    const key = relationshipKey({
+      sourceColumns,
+      sourceTable: sourceTable.name,
+      targetColumns,
+      targetTable: targetTable.name,
+    });
+    const expectedId = stableId("relationship", key);
+
+    if (relationshipId !== expectedId) {
+      fail(`relationship ${relationshipId} id does not match core endpoints`);
     }
-    const targetColumnIds = normalized.targetColumns.map((name) => stableId("column", `${normalized.targetTable}.${name}`));
-    const sourceColumnIds = normalized.sourceColumns.map((name) => stableId("column", `${normalized.sourceTable}.${name}`));
-    for (const sourceColumnId of sourceColumnIds) {
+    if (relationshipKeysSeen.has(key)) {
+      fail(`document contains duplicate core relationship ${key}`);
+    }
+    relationshipKeysSeen.add(key);
+    canonicalRelationships.push({ id: expectedId, key });
+
+    for (const sourceColumnId of stored.end.columnIds) {
       relationshipSourceColumnIds.add(sourceColumnId);
     }
-    if (JSON.stringify(stored.start.columnIds) !== JSON.stringify(targetColumnIds) || JSON.stringify(stored.end.columnIds) !== JSON.stringify(sourceColumnIds)) {
-      fail(`${path} relationship endpoints do not match FK columns`);
-    }
-    const sourceColumns = sourceColumnIds.map((id) => columnsById.get(id));
-    if (stored.relationship.relationshipType !== relationshipTypeForCardinality(normalized.sourceCardinality)) {
-      fail(`${path} relationshipType does not match source cardinality`);
-    }
-    if (
-      stored.relationship.startRelationshipType !==
-      (normalized.targetCardinality === "0..1" ? 1 : 2)
-    ) {
-      fail(`${path} startRelationshipType does not match target cardinality`);
-    }
-    if (stored.relationship.identification !== sourceColumns.every((column) => column.options & 2)) {
-      fail(`${path} identification does not match FK primary-key membership`);
+    const identifying = stored.end.columnIds.every(
+      (columnId) => Boolean(columnsById.get(columnId).options & 2),
+    );
+    if (stored.relationship.identification !== identifying) {
+      fail(`relationship ${relationshipId} identification does not match FK primary-key membership`);
     }
   }
+
+  /** column FK UI bit는 모든 관계 source endpoint의 합집합과 같아야 한다. */
   for (const column of columnsById.values()) {
     if (
       Boolean(column.ui.keys & 2) !==
@@ -1562,31 +1422,24 @@ export const validateDineugErdDocument = (document) => {
     }
   }
 
-  if (inventoryFingerprint(inventory) !== metadata.inventoryFingerprint) {
-    fail("metadata inventory fingerprint does not match document semantics");
-  }
-  const expectedTableIds = inventory.tables.map((table) =>
-    stableId("table", table.qualifiedName),
-  );
-  const expectedIndexIds = inventory.tables.flatMap((table) =>
-    table.uniqueConstraints.map((constraint) =>
-      stableId("index", `${table.qualifiedName}.${constraint.name}`),
-    ),
-  );
-  const expectedRelationshipIds = inventory.relationships.map((relationship) =>
-    stableId("relationship", relationshipKey(relationship)),
-  );
-  const expectedMemoIds = [
-    stableId("memo", "metadata"),
-    ...inventory.relationships.map((relationship) =>
-      stableId("memo", relationshipKey(relationship)),
-    ),
-  ];
+  /** doc ID 배열은 저장되는 core 의미의 stable order를 사용해야 한다. */
+  const expectedTableIds = [...tablesById.values()]
+    .sort((left, right) => compareStrings(left.name, right.name))
+    .map(({ id }) => id);
+  const expectedIndexIds = [...indexesById.values()]
+    .sort(
+      (left, right) =>
+        compareStrings(left.table.name, right.table.name) ||
+        compareStrings(left.name, right.name),
+    )
+    .map(({ id }) => id);
+  const expectedRelationshipIds = canonicalRelationships
+    .sort((left, right) => compareStrings(left.key, right.key))
+    .map(({ id }) => id);
   for (const [actual, expected, path] of [
     [tableIds, expectedTableIds, "doc.tableIds"],
     [indexIds, expectedIndexIds, "doc.indexIds"],
     [relationshipIds, expectedRelationshipIds, "doc.relationshipIds"],
-    [memoIds, expectedMemoIds, "doc.memoIds"],
   ]) {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       fail(`${path} must use canonical semantic order`);
@@ -1594,6 +1447,151 @@ export const validateDineugErdDocument = (document) => {
   }
 
   return document;
+};
+
+/** 기존 memo-bearing v3 문서를 memo-free core relationship 계약으로 승격한다. */
+export const migrateLegacyMemoDineugDocument = (document) => {
+  if (!isObject(document) || !isObject(document.doc) || !isObject(document.collections)) {
+    fail("legacy Dineug document root is incomplete");
+  }
+  if (
+    !Array.isArray(document.doc.memoIds) ||
+    !isObject(document.collections.memoEntities) ||
+    !Array.isArray(document.doc.relationshipIds) ||
+    !isObject(document.collections.relationshipEntities) ||
+    !isObject(document.collections.tableEntities) ||
+    !isObject(document.collections.tableColumnEntities)
+  ) {
+    fail("legacy Dineug document collections are incomplete");
+  }
+  if (
+    document.doc.memoIds.length === 0 &&
+    Object.keys(document.collections.memoEntities).length === 0
+  ) {
+    fail("legacy Dineug document does not contain memo entities");
+  }
+
+  /** JSON clone으로 호출자가 보유한 저장 document를 변경하지 않는다. */
+  let migrated;
+  try {
+    migrated = JSON.parse(JSON.stringify(document));
+  } catch (error) {
+    throw new TypeError("Invalid Dineug ERD document: legacy document is not serializable", {
+      cause: error,
+    });
+  }
+
+  /** relationship endpoint의 table/column 이름을 core key 계산용으로 인덱싱한다. */
+  const tablesById = new Map(
+    Object.values(migrated.collections.tableEntities).map((table) => [
+      table.id,
+      table,
+    ]),
+  );
+  const columnsById = new Map(
+    Object.values(migrated.collections.tableColumnEntities).map((column) => [
+      column.id,
+      column,
+    ]),
+  );
+  const migratedRelationships = new Map();
+
+  /** old constraint-derived ID 순서와 무관하게 동일 core 선을 결정론적으로 축약한다. */
+  const legacyRelationships = migrated.doc.relationshipIds
+    .map((id) => migrated.collections.relationshipEntities[id])
+    .sort((left, right) => compareStrings(left?.id ?? "", right?.id ?? ""));
+  for (const relationship of legacyRelationships) {
+    if (!isObject(relationship) || !isObject(relationship.start) || !isObject(relationship.end)) {
+      fail("legacy relationship entity is incomplete");
+    }
+    const sourceTable = tablesById.get(relationship.end.tableId);
+    const targetTable = tablesById.get(relationship.start.tableId);
+    if (!sourceTable || !targetTable) {
+      fail(`legacy relationship ${relationship.id} references an unknown table`);
+    }
+    const sourceColumns = relationship.end.columnIds?.map(
+      (columnId) => columnsById.get(columnId)?.name,
+    );
+    const targetColumns = relationship.start.columnIds?.map(
+      (columnId) => columnsById.get(columnId)?.name,
+    );
+    if (
+      !Array.isArray(sourceColumns) ||
+      !Array.isArray(targetColumns) ||
+      sourceColumns.some((name) => typeof name !== "string") ||
+      targetColumns.some((name) => typeof name !== "string")
+    ) {
+      fail(`legacy relationship ${relationship.id} references an unknown column`);
+    }
+    const key = relationshipKey({
+      sourceColumns,
+      sourceTable: sourceTable.name,
+      targetColumns,
+      targetTable: targetTable.name,
+    });
+    const id = stableId("relationship", key);
+    const signature = canonicalJson({
+      identification: relationship.identification,
+      relationshipType: relationship.relationshipType,
+      start: {
+        columnIds: relationship.start.columnIds,
+        tableId: relationship.start.tableId,
+      },
+      startRelationshipType: relationship.startRelationshipType,
+      end: {
+        columnIds: relationship.end.columnIds,
+        tableId: relationship.end.tableId,
+      },
+    });
+    const existing = migratedRelationships.get(id);
+    if (existing) {
+      if (existing.signature !== signature) {
+        fail(`legacy document contains conflicting core relationship ${key}`);
+      }
+      continue;
+    }
+    migratedRelationships.set(id, {
+      key,
+      relationship: { ...relationship, id },
+      signature,
+    });
+  }
+
+  /** 새 relationship collection과 doc order를 core key 기준으로 교체한다. */
+  const orderedRelationships = [...migratedRelationships.values()].sort(
+    (left, right) => compareStrings(left.key, right.key),
+  );
+  migrated.doc.relationshipIds = orderedRelationships.map(
+    ({ relationship }) => relationship.id,
+  );
+  migrated.collections.relationshipEntities = Object.fromEntries(
+    orderedRelationships.map(({ relationship }) => [
+      relationship.id,
+      relationship,
+    ]),
+  );
+
+  /** memo와 annotation rail을 제거하고 table 영역으로 canvas를 되돌린다. */
+  const tableBounds = Object.values(migrated.collections.tableEntities).reduce(
+    (bounds, table) => ({
+      bottom: Math.max(
+        bounds.bottom,
+        table.ui.y + tableHeight(table.columnIds.length),
+      ),
+      right: Math.max(bounds.right, table.ui.x + tableWidth),
+    }),
+    { bottom: 0, right: 0 },
+  );
+  const canvasSize = tableOnlyCanvasSize(tableBounds);
+  migrated.settings = {
+    ...migrated.settings,
+    height: canvasSize.height,
+    width: canvasSize.width,
+  };
+  migrated.doc.memoIds = [];
+  migrated.collections.memoEntities = {};
+
+  return migrated;
 };
 
 /** strict validation 뒤 key-sorted compact JSON 문자열을 반환한다. */

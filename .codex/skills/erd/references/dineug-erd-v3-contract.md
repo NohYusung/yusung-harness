@@ -1,6 +1,6 @@
 # Dineug v3 ERD contract
 
-이 계약은 `ERDInventory/2.0`을 Dineug ERD Editor가 직접 여는 결정론적 `.erd` JSON으로 변환하고 검증하는 기준이다.
+이 계약은 `ERDInventory/2.0`을 Dineug ERD Editor가 직접 여는 결정론적이고 memo-free인 `.erd` JSON으로 변환하고 검증하는 기준이다.
 
 ## 목차
 
@@ -9,8 +9,8 @@
 - [ID와 순서](#id와-순서)
 - [table-column-index 매핑](#table-column-index-매핑)
 - [FK 매핑](#fk-매핑)
-- [memo 계약](#memo-계약)
-- [SCC layout](#scc-layout)
+- [memo-free 계약](#memo-free-계약)
+- [table-only SCC layout](#table-only-scc-layout)
 - [크기 제한](#크기-제한)
 - [검증과 저장](#검증과-저장)
 
@@ -22,7 +22,7 @@
 - column ordinal, PK column ordinal, UK column ordinal과 composite FK endpoint ordinal을 보존한다.
 - nullable, foreignKey와 autoIncrement는 필수 boolean이며 누락값을 `false`로 보정하지 않는다.
 - PK와 UK는 column 플래그가 아니라 제약 단위로 기록한다.
-- PK name은 Dineug v3에 보존 위치가 없으므로 inventory에 넣지 않는다. 이름 보존 대상은 named UK와 FK constraint다.
+- PK name은 Dineug v3에 보존 위치가 없으므로 inventory에 넣지 않는다. named UK는 index name으로 보존한다.
 
 ```ts
 interface ERDInventoryV2 {
@@ -65,10 +65,16 @@ interface ERDInventoryV2 {
 }
 ```
 
+- `ERDInventory/2.0` shape는 호환성을 위해 그대로 유지한다.
+- root `scope`, `sourceRevision`과 relationship `constraint`, `onDelete`, `onUpdate`는 source 추적·검증·보고용 비저장 context다.
+- 비저장 context는 `.erd` payload, entity ID, collection 순서, document fingerprint와 문서 동등성에 영향을 주지 않는다.
 - `sourceTable`은 FK를 소유한 table이고 `targetTable`은 참조되는 table이다.
-- `foreignKey: true`인 column 집합은 모든 relationship의 `sourceTable/sourceColumns` union과 정확히 같아야 한다.
+- core relationship key는 `sourceTable|sourceColumnsCsv|targetTable|targetColumnsCsv`다. column CSV는 입력의 physical ordinal을 보존한다.
+- 같은 core key와 같은 source/target cardinality를 가진 relationship은 하나로 정규화한다.
+- 같은 core key에서 source 또는 target cardinality가 하나라도 다르면 모순된 입력으로 거부한다.
+- `foreignKey: true`인 column 집합은 정규화된 relationship의 `sourceTable/sourceColumns` union과 정확히 같아야 한다.
 - 관계 없는 scope는 빈 `relationships`를 허용한다.
-- 확인되지 않은 cardinality, PK, UK, FK action을 추측하지 않는다.
+- 확인되지 않은 cardinality, PK, UK와 FK action을 추측하지 않는다.
 
 ## Dineug root와 collections
 
@@ -97,10 +103,11 @@ interface ERDInventoryV2 {
 ```
 
 - 여섯 collection을 모두 포함한다. 별도 custom root, `lww`, HTML, Excalidraw element와 embedded file을 추가하지 않는다.
-- `settings.databaseName`에는 inventory `name`을 저장한다. database `scope`는 이 필드로 대체하지 않고 metadata memo에 별도로 보존한다.
+- `settings.databaseName`에는 inventory `name`, `settings.database`에는 inventory `engine`의 Dineug code를 저장한다.
 - 모든 collection key는 내부 entity `id`와 같아야 한다.
 - 모든 entity `meta`는 결정론적인 `{ "updateAt": 0, "createAt": 0 }`이다.
 - `doc.*Ids`는 대응 collection을 중복과 orphan 없이 정확히 한 번씩 참조한다.
+- `doc.memoIds`는 정확히 `[]`, `collections.memoEntities`는 정확히 `{}`다.
 
 ## ID와 순서
 
@@ -111,15 +118,14 @@ interface ERDInventoryV2 {
 | --- | --- | --- |
 | table | `table` | `qualifiedName` |
 | column | `column` | `qualifiedName.columnName` |
-| relationship | `relationship` | `sourceTable|constraint|sourceColumnsCsv|targetTable|targetColumnsCsv` |
+| relationship | `relationship` | `sourceTable|sourceColumnsCsv|targetTable|targetColumnsCsv` |
 | unique index | `index` | `qualifiedName.constraintName` |
 | index column | `index-column` | `indexKey|ordinal|columnName` |
-| metadata memo | `memo` | `metadata` |
-| FK memo | `memo` | relationship key |
 
-- table은 qualified name, UK는 constraint name, FK는 relationship key 순으로 정렬한다. 문자열 정렬은 locale에 의존하지 않는 `a < b ? -1 : a > b ? 1 : 0` 비교만 사용한다.
+- table은 qualified name, UK는 constraint name, relationship은 core relationship key 순으로 정렬한다.
+- 문자열 정렬은 locale에 의존하지 않는 `a < b ? -1 : a > b ? 1 : 0` 비교만 사용한다.
 - column, PK, UK와 FK column 배열은 physical ordinal을 보존한다.
-- metadata memo가 `doc.memoIds`의 첫 항목이며 FK memo가 relationship key 순으로 뒤따른다.
+- relationship의 constraint 이름과 referential action은 ID 또는 정렬 key에 포함하지 않는다.
 
 ## table-column-index 매핑
 
@@ -152,28 +158,29 @@ interface ERDInventoryV2 {
 - target cardinality `0..1`은 `startRelationshipType: 1`, `1`은 `2`다.
 - source FK column이 모두 table PK에 포함되면 `identification: true`, 아니면 `false`다.
 - source/target column 수, ordinal, table 소유와 양방향 reference가 일치해야 한다.
+- core relationship key가 같은 FK는 cardinality가 같을 때 하나의 `relationshipEntities` entity로 표현한다.
 
-## memo 계약
-
-- Dineug가 지원하지 않는 provenance와 FK constraint 의미는 보이는 양수 크기의 `memoEntities`로 보존한다.
-- memo payload는 prefix 다음에 key-sorted compact JSON을 붙인다.
-- metadata memo value:
+## memo-free 계약
 
 ```text
-[yusung-harness:erd-meta/1.0]\n{"engine":...,"inventoryFingerprint":...,"scope":...,"sourceRevision":...}
+ERDInventory/2.0
+├─ persisted: name, engine, tables, columns, PK, UK, relationship endpoints/cardinality
+└─ context only: scope, sourceRevision, relationship.constraint/onDelete/onUpdate
+                          │
+                          ▼
+Dineug v3 document
+├─ table/column/index/relationship collections
+├─ doc.memoIds: []
+└─ collections.memoEntities: {}
 ```
 
-- FK마다 정확히 하나인 memo value:
+- provenance, source revision, scope, inventory fingerprint, FK constraint 이름과 `ON DELETE`/`ON UPDATE`를 memo나 custom field로 저장하지 않는다.
+- metadata memo, FK memo, memo prefix와 오른쪽 annotation rail은 생성하지 않는다.
+- validator는 `doc.memoIds` 또는 `collections.memoEntities`가 비어 있지 않으면 즉시 거부한다.
+- 기존 memo-bearing Dineug v3 문서는 startup migration 입력일 수 있지만 신규 memo-free validator의 valid document는 아니다.
+- legacy 변환기는 memo를 제거하고 관계를 core key로 다시 키잉한 canonical document를 만들어야 한다. 렌더 단계의 필터나 CSS로 memo를 숨기지 않는다.
 
-```text
-[yusung-harness:fk/1.0]\n{"constraint":...,"onDelete":...,"onUpdate":...,"sourceCardinality":...,"sourceColumns":...,"sourceTable":...,"targetCardinality":...,"targetColumns":...,"targetTable":...}
-```
-
-- metadata key는 정확히 `engine`, `inventoryFingerprint`, `scope`, `sourceRevision`다.
-- FK key는 정확히 `constraint`, `onDelete`, `onUpdate`, `sourceCardinality`, `sourceColumns`, `sourceTable`, `targetCardinality`, `targetColumns`, `targetTable`다.
-- extra key, pretty JSON, 임의 prefix, timestamp와 절대 경로를 넣지 않는다.
-
-## SCC layout
+## table-only SCC layout
 
 ```text
 target table ──FK graph edge──> source table
@@ -188,30 +195,44 @@ target table ──FK graph edge──> source table
  same SCC=same layer, members=name order
                     │
                     ▼
-     metadata/FK memo annotation rail
+       table bounds only canvas sizing
 ```
 
 - graph edge는 참조 대상에서 FK 소유 table 방향이다.
 - Tarjan SCC를 qualified name 순회로 계산하고 condensation DAG를 stable topological order로 계층화한다.
 - 같은 SCC의 순환 참조 table은 같은 layer에 qualified name 순으로 배치한다.
 - component와 table 간격, z-index, endpoint 좌표와 방향은 builder 상수로만 결정한다.
-- metadata memo를 먼저, FK memo를 relationship key 순으로 table 영역 오른쪽 annotation rail에 배치한다.
+- memo 또는 annotation rail의 좌표·크기는 layout과 canvas 계산에 포함하지 않는다.
+- `rightmostTable`은 모든 table의 `x + width` 최댓값, `bottommostTable`은 `y + height` 최댓값이다.
+- `settings.width`는 `max(2000, rightmostTable + 100)`, `settings.height`는 `max(2000, bottommostTable + 100)`이다.
 - `.erd` document를 손으로 후처리하지 않는다. layout 변경은 builder를 수정한 뒤 재생성한다.
 
 ## 크기 제한
 
 - compact `JSON.stringify(document)`는 최대 5 MiB, 즉 5,242,880 UTF-8 bytes다.
-- 여섯 collection의 entity 개수 합계는 최대 5,000개다.
+- 여섯 collection의 entity 개수 합계는 최대 5,000개다. memo collection은 항상 0개다.
 - `settings.width`와 `settings.height`는 각각 2,000 이상 20,000 이하다.
-- memo width와 height는 양수이고 모든 좌표는 finite number다.
+- table과 relationship endpoint를 포함한 모든 좌표는 finite number다.
 - 한도를 넘으면 table, column, UK 또는 FK를 생략하지 않는다. 사용자와 scope를 줄여 별도 ERD로 생성한다.
 
 ## 검증과 저장
 
-- build 전에 unique table/column/constraint, PK·UK column, FK endpoint와 cardinality enum을 검사한다.
-- build 후 root, settings, doc/collection reference, bit, stable ID, memo payload와 전체 inventory 일치를 검사한다.
-- standalone validation도 `settings.databaseName`을 inventory `name`으로, metadata memo를 `scope`, `engine`, `sourceRevision`으로 사용하여 document semantics의 `inventoryFingerprint`를 다시 계산한다.
-- 같은 inventory를 두 번 build한 `.erd` 파일은 byte-for-byte 같아야 한다.
+- build 전에 unique table/column/UK constraint, PK·UK column, FK endpoint와 cardinality enum을 검사한다.
+- relationship은 core key로 정규화하고 같은 endpoint의 cardinality 충돌을 검사한다.
+- build 후 root, settings, doc/collection reference, stable ID, canonical order, PK·UK·FK bit, endpoint와 cardinality를 inventory의 persisted projection에 직접 대조한다.
+- document에서 inventory를 재구성할 때 memo를 사용하지 않는다. scope, sourceRevision, FK constraint 이름과 referential action은 대조 대상이 아니다.
+- 비저장 context만 다른 두 inventory는 byte-for-byte 같은 `.erd`를 만들어야 한다.
+- `documentFingerprint`는 compact canonical document bytes의 SHA-256으로 계산하며 document 자체에는 저장하지 않는다.
 - mutation의 `document`에는 검증된 `.erd` 파일을 JSON parse한 구조화 object를 전달한다.
-- 조회 record의 `document` canonical JSON 문자열은 다시 parse하고 같은 validator와 inventory로 검증한다.
+- 조회 record의 `document` canonical JSON 문자열은 다시 parse하고 같은 validator와 persisted projection으로 검증한다.
+- unchanged는 document fingerprint만으로 결정하지 않는다. 기존 record와 새 build의 canonical bytes가 정확히 같아야 한다.
 - 기존 HTML 또는 Excalidraw record는 legacy로 보고하며 자동 변환·삭제·덮어쓰지 않는다.
+
+## 완료 조건
+
+- `doc.memoIds: []`와 `collections.memoEntities: {}`가 정확히 유지된다.
+- table·column·PK·UK와 정규화된 core relationship이 누락·중복 없이 공식 collection에 존재한다.
+- stable ID, collection key, canonical order, option/key bit, composite ordinal, FK endpoint와 cardinality가 모두 유효하다.
+- relationship 수가 늘어도 annotation rail 때문에 canvas width 또는 height가 증가하지 않는다.
+- 비저장 context 변경은 document bytes와 document fingerprint를 바꾸지 않고 endpoint 또는 cardinality 변경은 둘 다 바꾼다.
+- 같은 persisted projection의 반복 build는 byte-identical하고 저장 후 재조회 document도 검증된 build와 정확히 같다.
