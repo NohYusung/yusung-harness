@@ -159,6 +159,38 @@ class CommitScriptTests(unittest.TestCase):
             "- 스테이징 변경만 커밋",
         )
 
+    def test_del_type_serializes_more_than_four_summaries_in_order(self) -> None:
+        self.stage_change()
+        summaries = (
+            "공지사항 생성 controller 제거",
+            "공지사항 서비스 검증 로직 제거",
+            "공지사항 조회 필터 제거",
+            "공지사항 예외 응답 변환 제거",
+            "공지사항 회귀 테스트 제거",
+        )
+
+        result = self.run_script(
+            commit_type="del",
+            title="공지사항 API 제거",
+            summaries=summaries,
+        )
+
+        self.assertEqual(
+            result.returncode,
+            0,
+            msg=f"stdout={result.stdout!r}\nstderr={result.stderr!r}",
+        )
+        self.assertEqual(
+            self.git("log", "-1", "--format=%B").stdout.strip(),
+            "del: 공지사항 API 제거\n\n"
+            "변경 요약:\n"
+            "- 공지사항 생성 controller 제거\n"
+            "- 공지사항 서비스 검증 로직 제거\n"
+            "- 공지사항 조회 필터 제거\n"
+            "- 공지사항 예외 응답 변환 제거\n"
+            "- 공지사항 회귀 테스트 제거",
+        )
+
     def test_commits_only_staged_changes_without_adding_or_resetting(self) -> None:
         self.stage_change()
         (self.repository / "unstaged.txt").write_text(
@@ -249,13 +281,15 @@ class CommitScriptTests(unittest.TestCase):
 
         self.assert_rejected_without_mutation(result, original_head)
 
-    def test_rejects_invalid_commit_type(self) -> None:
+    def test_rejects_feature_alias_and_unknown_commit_types(self) -> None:
         self.stage_change()
         original_head = self.head()
 
-        result = self.run_script(commit_type="feature")
+        for commit_type in ("feature", "unknown"):
+            with self.subTest(commit_type=commit_type):
+                result = self.run_script(commit_type=commit_type)
 
-        self.assert_rejected_without_mutation(result, original_head)
+                self.assert_rejected_without_mutation(result, original_head)
 
     def test_rejects_empty_staged_changes(self) -> None:
         original_head = self.head()
@@ -357,6 +391,33 @@ class CommitScriptTests(unittest.TestCase):
 
         self.assertIn("hook rejected commit", result.stderr)
         self.assert_rejected_without_mutation(result, original_head)
+
+    def test_reports_hook_modified_commit_without_automatic_reset(self) -> None:
+        self.stage_change()
+        original_head = self.head()
+        hook_path = self.hooks_directory / "commit-msg"
+        hook_path.write_text(
+            "#!/bin/sh\n"
+            "printf '\\nhook가 메시지를 변경함\\n' >> \"$1\"\n"
+            "exit 0\n",
+            encoding="utf-8",
+        )
+        hook_path.chmod(0o755)
+
+        result = self.run_script(expected_head=original_head)
+
+        created_head = self.head()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotEqual(created_head, original_head)
+        self.assertIn(created_head, result.stderr)
+        self.assertIn(
+            "hook가 메시지를 변경함",
+            self.git("log", "-1", "--format=%B").stdout,
+        )
+        self.assertEqual(
+            self.git("diff", "--cached", "--name-only").stdout,
+            "",
+        )
 
     def test_rejects_git_config_environment_hook_override(self) -> None:
         self.stage_change()
