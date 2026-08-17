@@ -31,6 +31,7 @@ import {
   type DomainTreeRow,
 } from "@/lib/domain-tree";
 import type {
+  Architecture,
   ArchitecturePlan,
   ArtifactDocument,
   Design,
@@ -45,6 +46,7 @@ import type {
   Task,
   Wireframe,
 } from "@/types/dashboard";
+import { ArchitectureWorkspace } from "./ArchitectureWorkspace";
 import type { WorkspaceRelation } from "./ArtifactBrowser";
 
 type WorkbenchRelation = WorkspaceRelation | "tasks" | "reviews";
@@ -919,12 +921,19 @@ export function ArtifactWorkbench({
   const selectedHtmlArtifact = selectedEntry
     ? getHtmlSelection(selectedEntry)
     : null;
+  /** Architecture 선택에서만 canonical deployment graph preview에 원본 레코드를 제공한다. */
+  const selectedArchitecture =
+    selectedEntry?.relation === "architectures"
+      ? (selectedEntry.record as Architecture)
+      : null;
   const selectedErd =
     selectedEntry?.relation === "erds"
       ? (selectedEntry.record as Erd)
       : null;
   const hasVisualPreview =
-    selectedHtmlArtifact !== null || selectedErd !== null;
+    selectedHtmlArtifact !== null ||
+    selectedArchitecture !== null ||
+    selectedErd !== null;
   const isVisualMetadataCollapsed =
     selectedHtmlArtifact !== null && isHtmlMetadataCollapsed;
   /** Architecture Plan에서만 content/html 탭 preview에 원본 레코드를 제공한다. */
@@ -2231,7 +2240,17 @@ export function ArtifactWorkbench({
                     ) : null}
                   </div>
                 ) : null}
-                {selectedErd ? (
+                {selectedArchitecture ? (
+                  <div
+                    className="flex h-full min-h-0 min-w-0 overflow-hidden pt-[18px]"
+                    data-preview-expanded="false"
+                    data-record-preview
+                  >
+                    <ArchitectureWorkspace
+                      architectures={[selectedArchitecture]}
+                    />
+                  </div>
+                ) : selectedErd ? (
                   <div
                     className="mt-[18px] min-h-0 min-w-0"
                     data-preview-expanded="false"

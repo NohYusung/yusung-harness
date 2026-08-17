@@ -65,6 +65,27 @@ test("Domain은 통합 계층 Workbench를, Architecture는 배포 graph를 사�
   assert.doesNotMatch(architectureWorkspace, /getLatestDomainErd|parseDomainErd/);
 });
 
+test("ArtifactWorkbench는 선택한 Architecture 한 건만 graph workspace에 전달한다", () => {
+  const workbench = source("components/features/dashboard/ArtifactWorkbench.tsx");
+
+  assert.match(
+    workbench,
+    /import\s*\{[\s\S]*?\bArchitectureWorkspace\b[\s\S]*?\}\s*from\s*["'][^"']*ArchitectureWorkspace["']/,
+  );
+  assert.match(
+    workbench,
+    /const\s+selectedArchitecture\s*=\s*selectedEntry\?\.relation\s*===\s*["']architectures["']/,
+  );
+  assert.match(
+    workbench,
+    /<ArchitectureWorkspace\b[\s\S]*?architectures=\{\s*\[\s*selectedArchitecture\s*\]\s*\}/,
+  );
+  assert.doesNotMatch(
+    workbench,
+    /<ArchitectureWorkspace\b[\s\S]*?architectures=\{\s*context\.architectures\s*\}/,
+  );
+});
+
 test("통합 Workbench는 Domain과 Architecture record type을 독립적으로 조립한다", () => {
   const workbench = source(
     "components/features/dashboard/ArtifactWorkbench.tsx",

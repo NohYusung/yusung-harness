@@ -22,6 +22,32 @@ const dineugMocks = vi.hoisted(() => ({
 }));
 const originalInnerWidth = window.innerWidth;
 
+function createDeploymentArchitectureContent({
+  name,
+  nodeName,
+}: {
+  name: string;
+  nodeName: string;
+}) {
+  return JSON.stringify({
+    kind: "deployment-architecture",
+    schemaVersion: 1,
+    name,
+    environments: [
+      { id: "production", name: "Production", kind: "cloud" },
+    ],
+    nodes: [
+      {
+        id: "api",
+        name: nodeName,
+        kind: "service",
+        environmentId: "production",
+      },
+    ],
+    connections: [],
+  });
+}
+
 function setWindowInnerWidth(width: number) {
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
@@ -274,6 +300,168 @@ describe("Dashboard artifact workbench visual contract", () => {
 
   afterEach(() => {
     setWindowInnerWidth(originalInnerWidth);
+  });
+
+  it("선택한 valid Architecture만 graph로 렌더하고 canonical JSON 원문을 노출하지 않는다", () => {
+    const selectedContent = createDeploymentArchitectureContent({
+      name: "Selected architecture A",
+      nodeName: "Selected API A",
+    });
+    const newerContent = createDeploymentArchitectureContent({
+      name: "Newer architecture B",
+      nodeName: "Newer API B",
+    });
+    const selectedArchitecture = createArtifact({
+      content: selectedContent,
+      id: 501,
+      title: "Selected production A",
+      updatedAt: "2026-07-21T09:00:00.000Z",
+    });
+    const newerArchitecture = createArtifact({
+      content: newerContent,
+      id: 502,
+      title: "Newer production B",
+      updatedAt: "2026-07-21T10:00:00.000Z",
+    });
+    const context = createProjectContext({
+      architectures: [newerArchitecture, selectedArchitecture],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="architectures"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={selectedArchitecture.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    const selectedRow = screen.getByRole("option", {
+      name: /Selected production A/,
+    });
+    const detailPane = screen.getByRole("complementary", {
+      name: selectedArchitecture.title,
+    });
+    const graph = within(detailPane).getByRole("region", {
+      name: "Selected architecture A deployment architecture",
+    });
+
+    expect(selectedRow).toHaveAttribute("aria-selected", "true");
+    expect(within(graph).getByText("Selected API A")).toBeInTheDocument();
+    expect(within(detailPane).queryByText("Newer API B")).not.toBeInTheDocument();
+    expect(detailPane).not.toHaveTextContent('"kind":"deployment-architecture"');
+    expect(detailPane.querySelector("pre")).toBeNull();
+    expect(detailPane.querySelector("code")).toBeNull();
+  });
+
+  it("선택한 legacy Architecture를 newer valid graph로 대체하지 않고 원문 fallback으로 표시한다", () => {
+    const legacyArchitecture = createArtifact({
+      content: "Legacy gateway -> worker -> database",
+      id: 511,
+      title: "Selected legacy A",
+      updatedAt: "2026-07-21T09:00:00.000Z",
+    });
+    const newerArchitecture = createArtifact({
+      content: createDeploymentArchitectureContent({
+        name: "Newer valid B",
+        nodeName: "Newer valid API B",
+      }),
+      id: 512,
+      title: "Newer valid architecture B",
+      updatedAt: "2026-07-21T10:00:00.000Z",
+    });
+    const context = createProjectContext({
+      architectures: [newerArchitecture, legacyArchitecture],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="architectures"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={legacyArchitecture.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    const detailPane = screen.getByRole("complementary", {
+      name: legacyArchitecture.title,
+    });
+    const legacyAlert = within(detailPane).getByRole("alert");
+
+    expect(legacyAlert).toHaveTextContent("Deployment graph unavailable");
+    expect(legacyAlert).toHaveTextContent(legacyArchitecture.content);
+    expect(
+      within(detailPane).queryByRole("region", {
+        name: "Newer valid B deployment architecture",
+      }),
+    ).not.toBeInTheDocument();
+    expect(within(detailPane).queryByText("Newer valid API B")).not.toBeInTheDocument();
+  });
+
+  it("Architecture graph를 visual preview grid와 단일 내부 scroll owner에 배치한다", () => {
+    const architecture = createArtifact({
+      content: createDeploymentArchitectureContent({
+        name: "Bounded production graph",
+        nodeName: "Bounded API",
+      }),
+      id: 521,
+      title: "Bounded architecture",
+    });
+    const context = createProjectContext({ architectures: [architecture] });
+
+    render(
+      <Dashboard
+        activeRelation="architectures"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={architecture.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    const detailPane = screen.getByRole("complementary", {
+      name: architecture.title,
+    });
+    const recordDetails = within(detailPane).getByRole("region", {
+      name: "Record details",
+    });
+    const detailScrollBoundary = recordDetails.parentElement;
+    const metadata = recordDetails.querySelector<HTMLElement>(
+      "[data-record-metadata]",
+    );
+    const preview = recordDetails.querySelector<HTMLElement>(
+      "[data-record-preview]",
+    );
+    const graph = within(recordDetails).getByRole("region", {
+      name: "Bounded production graph deployment architecture",
+    });
+    const graphScrollOwner = graph.parentElement;
+
+    expect(detailScrollBoundary).toHaveClass("overflow-hidden");
+    expect(recordDetails).toHaveClass(
+      "grid",
+      "h-full",
+      "min-h-0",
+      "min-w-0",
+      "grid-rows-[auto_auto_minmax(0,1fr)]",
+    );
+    expect(recordDetails).toHaveAttribute("data-metadata-collapsed", "false");
+    expect(metadata).toHaveAttribute("aria-hidden", "false");
+    expect(preview).not.toBeNull();
+    expect(preview).toHaveClass(
+      "h-full",
+      "min-h-0",
+      "min-w-0",
+      "overflow-hidden",
+    );
+    expect(preview).toHaveAttribute("data-preview-expanded", "false");
+    expect(graphScrollOwner).toHaveClass(
+      "min-h-0",
+      "flex-1",
+      "overflow-y-auto",
+    );
   });
 
   it("Wireframe preview는 Desktop이 기본이고 같은 iframe에서 Mobile viewport로 전환한다", () => {
