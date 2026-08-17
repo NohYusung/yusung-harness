@@ -46,6 +46,7 @@ import type {
 } from "@/types/dashboard";
 import { ArchitectureWorkspace } from "./ArchitectureWorkspace";
 import type { WorkspaceRelation } from "./ArtifactBrowser";
+import { ProjectPicker } from "./ProjectPicker";
 
 type WorkbenchRelation = WorkspaceRelation | "tasks" | "reviews";
 
@@ -1215,8 +1216,6 @@ export function ArtifactWorkbench({
         }),
       )
     : filteredEntries;
-  const currentProject =
-    projects.find((project) => project.id === context.id) ?? projects[0];
   const currentRepository = context.repoPaths[0];
   const repositoryPath = currentRepository?.path ?? "No repository connected";
 
@@ -1571,10 +1570,10 @@ export function ArtifactWorkbench({
       data-mobile-pane={mobilePane}
       style={viewportLayoutStyle}
     >
-      <header className="flex min-w-0 items-center gap-2 overflow-hidden border-b border-sidebar-line bg-sidebar px-2 text-sidebar-ink shadow-card sm:gap-4 sm:px-4">
-        <strong className="block min-w-0 shrink truncate text-xs leading-tight font-semibold tracking-[-0.01em] sm:text-base md:min-w-[250px]">
-          Yusung Harness
-        </strong>
+      <header className="relative z-40 flex min-w-0 items-center gap-2 overflow-visible border-b border-sidebar-line bg-sidebar px-2 text-sidebar-ink shadow-card sm:gap-4 sm:px-4">
+        <div className="min-w-0 flex-1 md:w-[250px] md:flex-none">
+          <ProjectPicker currentProjectId={context.id} projects={projects} />
+        </div>
 
         <label className="relative hidden min-w-0 max-w-[680px] flex-1 md:block">
           <span className="sr-only">Search records</span>
@@ -1664,30 +1663,6 @@ export function ArtifactWorkbench({
             </span>
           </div>
           <div className="min-h-0 overflow-auto">
-            <div className="m-3 rounded-card border border-sidebar-line bg-sidebar-hover p-3 shadow-card">
-              <label className="sr-only" htmlFor="workbench-project">
-                Project
-              </label>
-              <select
-                id="workbench-project"
-                className="h-[38px] w-full border-0 bg-transparent text-[13px] font-semibold text-sidebar-ink focus-visible:ring-2 focus-visible:ring-focus-dark focus-visible:outline-none"
-                onChange={(event) =>
-                  router.push(`/projects/${event.currentTarget.value}`)
-                }
-                value={currentProject?.id ?? context.id}
-              >
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title} ·{" "}
-                    {project.repoPaths[0]?.repoType ?? "LOCAL"}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-[7px] mb-0 truncate font-mono text-[10px] text-sidebar-subtle">
-                {repositoryPath}
-              </p>
-            </div>
-
             <nav aria-label="Artifact types" className="px-2 pt-2 pb-3">
               <p className="m-0 px-2.5 py-2 font-mono text-[10px] tracking-[0.1em] text-sidebar-subtle uppercase">
                 Project records

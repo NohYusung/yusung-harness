@@ -882,8 +882,10 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(recordsPane).toBeInTheDocument();
     expect(detailPane).toBeInTheDocument();
 
-    expect(within(topbar).getByText("Yusung Harness")).toBeInTheDocument();
-    expect(within(topbar).queryByText("YH")).not.toBeInTheDocument();
+    expect(
+      within(topbar).queryByText("Yusung Harness", { selector: "strong" }),
+    ).not.toBeInTheDocument();
+    expect(within(topbar).getByText("YH")).toBeInTheDocument();
     expect(
       within(topbar).queryByText("Artifact Workbench"),
     ).not.toBeInTheDocument();
@@ -896,6 +898,13 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(
       within(topbar).getByRole("navigation", { name: "Mobile panes" }),
     ).toBeInTheDocument();
+    expect(
+      within(topbar).getByLabelText("Current project: Yusung Harness"),
+    ).toBeInTheDocument();
+    expect(within(treePane).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(
+      within(treePane).queryByText("/workspace/yusung-harness"),
+    ).not.toBeInTheDocument();
 
     const recordsHeader = recordsPane.previousElementSibling;
     if (!(recordsHeader instanceof HTMLElement)) {
@@ -1873,7 +1882,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       throw new Error("Search label is missing");
     }
 
-    expect(topbar).toHaveClass("overflow-hidden");
+    expect(topbar).toHaveClass("relative", "z-40", "overflow-visible");
     expect(topbar.parentElement).toHaveClass(
       "w-screen",
       "min-w-0",
