@@ -8,7 +8,7 @@ description: 요구사항과 검증된 코드 근거를 구현 Plan과 기능 �
 - 사용자의 구현 요구사항을 구현자가 추가 기획 결정을 하지 않아도 되는 Plan과 Task로 변환한다.
 - 코드베이스와 프로젝트 문서로 확인한 사실만 근거로 사용한다.
 - Plan은 구현 범위와 검증 방법을 설계하며 코드 구현, 테스트 실행 또는 새로운 아키텍처 결정을 대신하지 않는다.
-- 목표, 사용자 가치 또는 핵심 범위가 안정되지 않았으면 Plan을 억지로 작성하지 말고 `draft` 단계가 필요하다는 blocker를 반환한다.
+- 목표, 사용자 가치 또는 핵심 범위가 안정되지 않았으면 Plan을 억지로 작성하지 말고 `research` 단계가 필요하다는 blocker를 반환한다.
 - 기술스택, 인프라, 배포, 로그 또는 시스템 경계의 새로운 결정이 필요하면 `architect`의 결정을 선행한다.
 
 # 작업 에이전트
@@ -53,7 +53,8 @@ description: 요구사항과 검증된 코드 근거를 구현 Plan과 기능 �
 ## 조건부 입력
 
 - 기존 Plan 수정 시 `planId`, 기존 Task 목록과 변경 의도
-- Draft에서 승계한 목표, 범위, 결정과 가정
+- Research에서 승계한 문제, 목표 사용자, 가치, 범위, 잠정 선호, 결정과 가정
+- Research 입력은 `Research Metadata`, `Problem and Audience`, `Expected Value and Success Signals`, `Goals and Non-goals`, `Verified Findings`, `Hypotheses and Assumptions`, `Alternatives and Provisional Preference`, `Decisions and Open Questions`, `Sources`, `Next Step`의 고정 section과 유효한 evidence metadata를 포함해야 한다.
 - 아키텍처 영향이 있으면 `get_architecture({ projectId })` 결과에서 `type: "PLAN"`을 선택해 확인한 현행 Architecture PLAN
 - Architecture PLAN이 없거나 새 결정·충돌 해소가 필요하면 architect가 승인한 아키텍처 결정
 - researcher가 공식 자료로 검증한 시의성 있는 외부 제약

@@ -23,19 +23,19 @@ import type {
   ArtifactDocument,
   ArtifactRecord,
   Domain,
-  Draft,
   Erd,
   HtmlArtifactDocument,
   Plan,
   ProjectContext,
   Request,
+  Research,
   Task,
 } from "@/types/dashboard";
 
 /** 상단 workspace 메뉴와 URL type query가 공유하는 relation. */
 export type WorkspaceRelation =
   | "plans"
-  | "drafts"
+  | "research"
   | "domains"
   | "architectures"
   | "wireframes"
@@ -49,7 +49,7 @@ export type WorkspaceRelation =
 /** ArtifactBrowser의 text 문서와 HTML 문서 record union. */
 type WorkspaceArtifact =
   | Plan
-  | Draft
+  | Research
   | Domain
   | Architecture
   | Erd
@@ -117,7 +117,11 @@ const relationConfig: Record<
   { code: string; label: string; tone: string }
 > = {
   plans: { code: "PL", label: "Plan", tone: "bg-primary-soft text-primary" },
-  drafts: { code: "DR", label: "Draft", tone: "bg-warning-soft text-warning" },
+  research: {
+    code: "RS",
+    label: "Research",
+    tone: "bg-warning-soft text-warning",
+  },
   domains: {
     code: "DM",
     label: "Domain",
@@ -175,9 +179,15 @@ function getEntries(
     return context.plans.map((artifact) => ({ artifact, relation }));
   }
 
-  /** Draft workspace는 text 문서 record를 제공한다. */
-  if (relation === "drafts") {
-    return context.drafts.map((artifact) => ({ artifact, relation }));
+  /** Research workspace는 최신 근거 문서부터 안정적으로 제공한다. */
+  if (relation === "research") {
+    return [...context.research]
+      .sort(
+        (left, right) =>
+          Date.parse(right.updatedAt) - Date.parse(left.updatedAt) ||
+          right.id - left.id,
+      )
+      .map((artifact) => ({ artifact, relation }));
   }
 
   /** Domain workspace는 계층형 비즈니스 Markdown 페이지를 제공한다. */
@@ -787,6 +797,7 @@ export function ArtifactBrowser({
       ),
     [entries, query, statusFilter],
   );
+  /** 명시한 record ID만 detail로 열고 목록 상태에서는 선택을 비운다. */
   const selectedEntry = selectedArtifactId
     ? entries.find((entry) => entry.artifact.id === selectedArtifactId) ?? null
     : null;

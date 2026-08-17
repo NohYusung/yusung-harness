@@ -46,7 +46,7 @@ model Project {
   domains       Domain[]
   wireframes    Wireframe[]
   architectures Architecture[]
-  drafts        Draft[]
+  research      Research[]
   assets        Asset[]
   designs       Design[]
   reviews       Review[]
@@ -196,7 +196,7 @@ model Task {
   @@index([planId])
 }
 
-model Draft {
+model Research {
   id        Int      @id @default(autoincrement())
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id])

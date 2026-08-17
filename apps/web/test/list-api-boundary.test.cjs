@@ -18,7 +18,7 @@ test("Web API는 project 목록과 9종 project-scoped REST list helper를 제�
   const resources = [
     ["Plans", "plans", "planListResponseSchema"],
     ["Tasks", "tasks", "taskListResponseSchema"],
-    ["Drafts", "drafts", "draftListResponseSchema"],
+    ["Research", "research", "researchListResponseSchema"],
     ["Domains", "domains", "domainListResponseSchema"],
     ["Architectures", "architectures", "architectureListResponseSchema"],
     ["Wireframes", "wireframes", "wireframeListResponseSchema"],
@@ -56,7 +56,7 @@ test("getProjectDashboard는 선택한 plan 범위의 Task와 REST helper를 한
     "getProjects()",
     "getPlans(projectId)",
     "getTasks(projectId, selectedPlanId)",
-    "getDrafts(projectId)",
+    "getResearch(projectId)",
     "getDomains(projectId)",
     "getArchitectures(projectId)",
     "getWireframes(projectId)",
@@ -81,6 +81,7 @@ test("getProjectDashboard는 선택한 plan 범위의 Task와 REST helper를 한
   );
   assert.doesNotMatch(page, /getProjectContext|getPlans|getTasks|getDrafts|getDomains|getArchitectures|getWireframes|getAssets|getDesigns|getReviews|Promise\.all\s*\(\s*\[\s*getProjects/);
   assert.match(page, /dynamic\s*=\s*["']force-dynamic["']/);
+  assert.doesNotMatch(api, /getDrafts|draftListResponseSchema|["']drafts["']/);
   assert.doesNotMatch(api, /getArchitecturePlans|architecture-plans|architecturePlanListResponseSchema/);
   assert.doesNotMatch(api, /architecturePlans/);
 });

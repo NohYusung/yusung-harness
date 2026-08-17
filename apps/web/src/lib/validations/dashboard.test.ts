@@ -30,14 +30,14 @@ describe("projectContextSchema HTML artifacts", () => {
     ).toBe(true);
   });
 
-  it("Asset의 plain text html과 Draft의 누락된 content를 구분한다", () => {
+  it("Asset의 plain text html과 Research의 누락된 content를 구분한다", () => {
     const invalidAsset = createAsset({ html: "Primary color: #3559c7" });
-    const draft = createArtifact({ content: "Draft text remains content." });
+    const research = createArtifact({ content: "Research text remains content." });
     const result = projectContextSchema.safeParse(
-      createProjectContext({ assets: [invalidAsset], drafts: [draft] }),
+      { ...createProjectContext({ assets: [invalidAsset] }), research: [research] },
     );
 
     expect(result.success).toBe(false);
-    expect(draft.content).toBe("Draft text remains content.");
+    expect(research.content).toBe("Research text remains content.");
   });
 });

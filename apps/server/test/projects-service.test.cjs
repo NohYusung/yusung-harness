@@ -137,7 +137,7 @@ test("ProjectsService.list는 repository 경로와 논리 Architecture workspace
     select: {
       plans: true,
       tasks: true,
-      drafts: true,
+      research: true,
       domains: true,
       architectures: true,
       wireframes: true,
@@ -152,6 +152,7 @@ test("ProjectsService.list는 repository 경로와 논리 Architecture workspace
   });
   assert.equal(Object.hasOwn(calls[0][1].select, "repoPath"), false);
   assert.equal(Object.hasOwn(calls[0][1].select, "repoType"), false);
+  assert.equal(Object.hasOwn(calls[0][1].select._count.select, "drafts"), false);
   assert.equal(result[0]._count.architectures, 1);
   assert.equal(result[1]._count.architectures, 0);
   assert.deepEqual(rows.map((row) => row._count.architectures), [2, 0]);

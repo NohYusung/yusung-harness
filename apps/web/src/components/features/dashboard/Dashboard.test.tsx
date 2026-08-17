@@ -86,7 +86,7 @@ describe("Dashboard", () => {
     ).not.toBeInTheDocument();
     for (const label of [
       "Plans",
-      "Drafts",
+      "Research",
       "Domain",
       "Architecture",
       "Wireframes",

@@ -10,6 +10,7 @@ import type {
   Plan,
   ProjectContext,
   ProjectSummary,
+  Research,
   Request,
   Review,
   Task,
@@ -121,6 +122,13 @@ export function createArchitecture(
     html: "",
     ...overrides,
   };
+}
+
+/** 조사 결과 Markdown 문서를 생성하는 Research fixture. */
+export function createResearch(
+  overrides: Partial<Research> = {},
+): Research {
+  return createArtifact({ title: "Research", ...overrides });
 }
 
 export function createPlan(overrides: Partial<Plan> = {}): Plan {
@@ -267,7 +275,7 @@ export function createProjectContext(
     description: "Harness agent Project records",
     plans: [],
     tasks: [],
-    drafts: [],
+    research: [],
     domains: [],
     architectures: [],
     wireframes: [],
@@ -296,7 +304,7 @@ export function createProjectSummary(
     _count: {
       plans: context.plans.length,
       tasks: context.tasks.length,
-      drafts: context.drafts.length,
+      research: context.research.length,
       domains: context.domains.length,
       architectures: architectureWorkspaceCount,
       wireframes: context.wireframes.length,

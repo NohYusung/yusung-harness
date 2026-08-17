@@ -7,13 +7,13 @@ import {
   designListResponseSchema,
   databaseListResponseSchema,
   domainListResponseSchema,
-  draftListResponseSchema,
   erdListResponseSchema,
   planListResponseSchema,
   projectListResponseSchema,
   createRequestInputSchema,
   requestListResponseSchema,
   requestResponseSchema,
+  researchListResponseSchema,
   reviewListResponseSchema,
   taskListResponseSchema,
   updateRequestInputSchema,
@@ -27,12 +27,12 @@ import type {
   Database,
   Design,
   Domain,
-  Draft,
   Erd,
   ListResponse,
   Plan,
   ProjectDashboard,
   ProjectSummary,
+  Research,
   Request,
   Review,
   Task,
@@ -134,9 +134,9 @@ export function getTasks(projectId: number, planId: number): Promise<Task[]> {
   );
 }
 
-/** 프로젝트의 Draft 목록을 조회한다. */
-export function getDrafts(projectId: number): Promise<Draft[]> {
-  return getProjectResource(projectId, "drafts", draftListResponseSchema);
+/** 프로젝트의 Research Markdown 목록을 조회한다. */
+export function getResearch(projectId: number): Promise<Research[]> {
+  return getProjectResource(projectId, "research", researchListResponseSchema);
 }
 
 /** 프로젝트의 계층형 비즈니스 Domain Markdown 페이지를 조회한다. */
@@ -256,7 +256,7 @@ export async function getProjectDashboard(
     projects,
     plans,
     selectedPlanTasks,
-    drafts,
+    research,
     domains,
     architectures,
     wireframes,
@@ -273,7 +273,7 @@ export async function getProjectDashboard(
     selectedPlanId
       ? getTasks(projectId, selectedPlanId)
       : Promise.resolve(null),
-    getDrafts(projectId),
+    getResearch(projectId),
     getDomains(projectId),
     getArchitectures(projectId),
     getWireframes(projectId),
@@ -305,7 +305,7 @@ export async function getProjectDashboard(
       description: project.description,
       plans,
       tasks,
-      drafts,
+      research,
       domains,
       architectures,
       wireframes,

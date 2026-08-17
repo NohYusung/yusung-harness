@@ -312,7 +312,7 @@ test("fresh DB와 이미 통합된 DB는 backup 없이 safe no-op한다", async 
   }
 });
 
-test("DB migration scripts는 prepare→preflight→migrate 순서를 고정한다", () => {
+test("DB migration scripts는 prepare→Architecture preflight→Research preflight→migrate 순서를 고정한다", () => {
   const packageJson = JSON.parse(
     readFileSync(join(serverRoot, "package.json"), "utf8"),
   );
@@ -327,15 +327,19 @@ test("DB migration scripts는 prepare→preflight→migrate 순서를 고정한�
     const preflightIndex = command.indexOf(
       "node scripts/preflight-architecture-consolidation.mjs",
     );
+    const researchPreflightIndex = command.indexOf(
+      "node scripts/preflight-research-migration.mjs",
+    );
     const migrateIndex = command.indexOf(migrateCommand);
 
     assert.ok(prepareIndex >= 0);
     assert.ok(preflightIndex > prepareIndex);
-    assert.ok(migrateIndex > preflightIndex);
+    assert.ok(researchPreflightIndex > preflightIndex);
+    assert.ok(migrateIndex > researchPreflightIndex);
     assert.match(
       command,
       new RegExp(
-        `node scripts/prepare-sqlite\\.mjs && node scripts/preflight-architecture-consolidation\\.mjs && ${migrateCommand.replaceAll(" ", "\\s+")}`,
+        `node scripts/prepare-sqlite\\.mjs && node scripts/preflight-architecture-consolidation\\.mjs && node scripts/preflight-research-migration\\.mjs && ${migrateCommand.replaceAll(" ", "\\s+")}`,
       ),
       `${scriptName}는 preflight 실패 시 migrate deploy를 실행하지 않아야 한다`,
     );

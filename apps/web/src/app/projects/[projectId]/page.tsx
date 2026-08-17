@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /** project route의 type query가 허용하는 상단 workspace relation 목록. */
 const workspaceRelations = [
   "plans",
-  "drafts",
+  "research",
   "domains",
   "architectures",
   "wireframes",

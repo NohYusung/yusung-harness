@@ -33,7 +33,7 @@ export class ProjectsService {
           select: {
             plans: true,
             tasks: true,
-            drafts: true,
+            research: true,
             domains: true,
             architectures: true,
             wireframes: true,

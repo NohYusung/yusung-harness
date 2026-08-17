@@ -25,14 +25,14 @@ describe("ArtifactBrowser", () => {
     routerReplace.mockClear();
   });
 
-  it("선택한 빈 Draft의 로컬 empty 상태를 표시한다", () => {
-    const context = createProjectContext({
-      drafts: [createArtifact({ title: "Draft 1" })],
+  it("선택한 Research의 로컬 empty 상태를 표시한다", () => {
+    const context = Object.assign(createProjectContext(), {
+      research: [createArtifact({ title: "Research 1" })],
     });
 
     render(
       <ArtifactBrowser
-        activeRelation="drafts"
+        activeRelation="research"
         context={context}
         selectedArtifactId={null}
         selectedTaskId={null}
@@ -40,10 +40,10 @@ describe("ArtifactBrowser", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Draft 1" }),
+      screen.getByRole("heading", { name: "Research 1" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "No Draft records" }),
+      screen.queryByRole("heading", { name: "No Research records" }),
     ).not.toBeInTheDocument();
   });
 
@@ -302,34 +302,36 @@ describe("ArtifactBrowser", () => {
   });
 
   it("모바일 detail의 Back to list는 이전 record trigger로 focus를 복원한다", () => {
-    const draft = createArtifact({ id: 7, title: "Draft focus target" });
-    const context = createProjectContext({ drafts: [draft] });
+    const research = createArtifact({ id: 7, title: "Research focus target" });
+    const context = Object.assign(createProjectContext(), {
+      research: [research],
+    });
     const { rerender } = render(
       <ArtifactBrowser
-        activeRelation="drafts"
+        activeRelation="research"
         context={context}
         selectedArtifactId={null}
         selectedTaskId={null}
       />,
     );
     const recordTrigger = screen.getByRole("button", {
-      name: /Draft focus target/,
+      name: /Research focus target/,
     });
 
     recordTrigger.focus();
     fireEvent.click(recordTrigger);
     rerender(
       <ArtifactBrowser
-        activeRelation="drafts"
+        activeRelation="research"
         context={context}
-        selectedArtifactId={draft.id}
+        selectedArtifactId={research.id}
         selectedTaskId={null}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Back to list" }));
     rerender(
       <ArtifactBrowser
-        activeRelation="drafts"
+        activeRelation="research"
         context={context}
         selectedArtifactId={null}
         selectedTaskId={null}
@@ -338,7 +340,7 @@ describe("ArtifactBrowser", () => {
 
     expect(recordTrigger).toHaveFocus();
     expect(routerReplace).toHaveBeenLastCalledWith(
-      "/projects/1?type=drafts",
+      "/projects/1?type=research",
       { scroll: false },
     );
   });

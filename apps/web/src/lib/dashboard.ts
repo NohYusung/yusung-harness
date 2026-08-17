@@ -16,7 +16,7 @@ export function deriveDashboardSummary(
   const {
     plans,
     tasks,
-    drafts,
+    research,
     domains,
     architectures,
     wireframes,
@@ -34,7 +34,7 @@ export function deriveDashboardSummary(
   const totalArtifacts =
     plans.length +
     tasks.length +
-    drafts.length +
+    research.length +
     domains.length +
     architectureWorkspaceCount +
     wireframes.length +
@@ -57,7 +57,7 @@ export function deriveDashboardSummary(
   const activityDates = [
     ...plans.map(({ updatedAt }) => updatedAt),
     ...tasks.map(({ updatedAt }) => updatedAt),
-    ...drafts.map(({ updatedAt }) => updatedAt),
+    ...research.map(({ updatedAt }) => updatedAt),
     ...domains.map(({ updatedAt }) => updatedAt),
     ...architectures.map(({ updatedAt }) => updatedAt),
     ...wireframes.map(({ updatedAt }) => updatedAt),

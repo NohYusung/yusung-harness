@@ -21,7 +21,11 @@ export function ProjectWorkspaceNav({
   /** 고정된 메뉴 순서와 primitive count만 RSC 경계를 통과한다. */
   const items = [
     { count: context.plans.length, label: "Plan", relation: "plans" },
-    { count: context.drafts.length, label: "Draft", relation: "drafts" },
+    {
+      count: context.research.length,
+      label: "Research",
+      relation: "research",
+    },
     { count: context.domains.length, label: "Domain", relation: "domains" },
     {
       count: architectureCount,

@@ -153,8 +153,8 @@ function createWorkbenchFixture() {
     domains: [
       createDomain({ id: 40, title: "Harness business domain" }),
     ],
-    drafts: [
-      createArtifact({ id: 30, title: "Dashboard information model" }),
+    research: [
+      createArtifact({ id: 30, title: "Dashboard research evidence" }),
     ],
     plans: [plan, otherPlan],
     reviews: [createReview({ id: 90, title: "MCP boundary review" })],
@@ -998,15 +998,15 @@ describe("Dashboard artifact workbench visual contract", () => {
       expect(column).not.toHaveClass("max-lg:hidden");
     }
 
-    fireEvent.click(screen.getByRole("button", { name: /Drafts/ }));
-    const draftRow = within(recordsPane).getByRole("option", {
-      name: /Dashboard information model/,
+    fireEvent.click(screen.getByRole("button", { name: /Research/ }));
+    const researchRow = within(recordsPane).getByRole("option", {
+      name: /Dashboard research evidence/,
     });
-    const draftColumns = Array.from(draftRow.children);
-    expect(draftColumns[1]).toHaveTextContent(/^30$/);
-    expect(draftColumns[2]).toHaveTextContent(/^Dashboard information model$/);
-    expect(draftColumns[2]?.querySelector("small")).toBeNull();
-    expect(draftColumns[5]).toHaveTextContent(
+    const researchColumns = Array.from(researchRow.children);
+    expect(researchColumns[1]).toHaveTextContent(/^30$/);
+    expect(researchColumns[2]).toHaveTextContent(/^Dashboard research evidence$/);
+    expect(researchColumns[2]?.querySelector("small")).toBeNull();
+    expect(researchColumns[5]).toHaveTextContent(
       /^2026년 7월 18일 오전 11:00$/,
     );
   });
@@ -1542,18 +1542,18 @@ describe("Dashboard artifact workbench visual contract", () => {
   it("선택된 범용 record detail header에는 제목과 닫기 제어만 제공한다", () => {
     renderWorkbench();
 
-    fireEvent.click(screen.getByRole("button", { name: /Drafts/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Research/ }));
     fireEvent.click(
       within(
         screen.getByRole("listbox", { name: "Artifact records" }),
-      ).getByRole("option", { name: /Dashboard information model/ }),
+      ).getByRole("option", { name: /Dashboard research evidence/ }),
     );
 
     const detailPane = screen.getByRole("complementary", {
-      name: "Dashboard information model",
+      name: "Dashboard research evidence",
     });
     const detailHeading = within(detailPane).getByRole("heading", {
-      name: "Dashboard information model",
+      name: "Dashboard research evidence",
     });
     const detailHeader = detailHeading.parentElement?.parentElement;
 
@@ -1565,7 +1565,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       within(detailHeader).getByRole("button", { name: "Close detail pane" }),
     ).toBeInTheDocument();
     expect(
-      within(detailHeader).queryByText(/^DRAFT · #30$/),
+      within(detailHeader).queryByText(/^RESEARCH · #30$/),
     ).not.toBeInTheDocument();
   });
 
@@ -1609,9 +1609,9 @@ describe("Dashboard artifact workbench visual contract", () => {
     const cases = [
       {
         contentTitle: null,
-        relationName: /Drafts/,
-        rowName: /Dashboard information model/,
-        typeLabel: "Draft",
+        relationName: /Research/,
+        rowName: /Dashboard research evidence/,
+        typeLabel: "Research",
       },
       {
         contentTitle: getDesktopHtmlPreviewTitle("Artifact workbench flow"),
@@ -1797,7 +1797,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     ).not.toBeInTheDocument();
     for (const label of [
       "Plans",
-      "Drafts",
+      "Research",
       "Domains",
       "Architecture",
       "Wireframes",
@@ -2704,26 +2704,88 @@ describe("Dashboard artifact workbench visual contract", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("status 필드가 없는 Draft의 Metadata에 Status 행을 렌더하지 않는다", () => {
+  it("Research 여러 record를 updatedAt 최신순으로 표시하고 최신 record를 기본 선택한다", () => {
     const { context } = createWorkbenchFixture();
-    const draft = createArtifact({
-      id: 30,
-      title: "Dashboard information model",
+    const older = createArtifact({
+      id: 301,
+      title: "Older research evidence",
+      updatedAt: "2026-07-18T01:00:00.000Z",
     });
-    const projectContext = { ...context, drafts: [draft] };
+    const newer = createArtifact({
+      id: 302,
+      title: "Newer research evidence",
+      updatedAt: "2026-07-18T03:00:00.000Z",
+    });
+    const projectContext = { ...context, research: [older, newer] };
 
     render(
       <Dashboard
-        activeRelation="drafts"
+        activeRelation="research"
         context={projectContext}
         projects={[createProjectSummary(projectContext)]}
-        selectedArtifactId={draft.id}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    const records = screen.getByRole("listbox", { name: "Artifact records" });
+    const rows = within(records).getAllByRole("option");
+
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining("Newer research evidence"),
+      expect.stringContaining("Older research evidence"),
+    ]);
+    expect(
+      screen.getByRole("complementary", { name: "Newer research evidence" }),
+    ).toBeInTheDocument();
+  });
+
+  it("stale Research id는 첫 record로 대체하지 않고 not-found 상태를 표시한다", () => {
+    const { context } = createWorkbenchFixture();
+    const projectContext = {
+      ...context,
+      research: [createArtifact({ id: 311, title: "Existing research" })],
+    };
+
+    render(
+      <Dashboard
+        activeRelation="research"
+        context={projectContext}
+        projects={[createProjectSummary(projectContext)]}
+        selectedArtifactId={999}
+        selectedTaskId={null}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Research not found" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Research #999 does not exist in this project.")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("complementary", { name: "Existing research" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("status 필드가 없는 Research의 Metadata에 Status 행을 렌더하지 않는다", () => {
+    const { context } = createWorkbenchFixture();
+    const research = createArtifact({
+      id: 30,
+      title: "Dashboard research evidence",
+    });
+    const projectContext = { ...context, research: [research] };
+
+    render(
+      <Dashboard
+        activeRelation="research"
+        context={projectContext}
+        projects={[createProjectSummary(projectContext)]}
+        selectedArtifactId={research.id}
         selectedTaskId={null}
       />,
     );
 
     const detailPane = screen.getByRole("complementary", {
-      name: draft.title,
+      name: research.title,
     });
     expect(
       within(detailPane).queryByText("Status", { selector: "dt" }),
@@ -2742,10 +2804,10 @@ describe("Dashboard artifact workbench visual contract", () => {
       typeLabelOccurrences: number;
     }> = [
       {
-        relationName: /Drafts/,
+        relationName: /Research/,
         role: "option",
-        rowName: /Dashboard information model/,
-        status: "Draft",
+        rowName: /Dashboard research evidence/,
+        status: "Research",
         typeLabelOccurrences: 1,
       },
       {
@@ -3095,9 +3157,9 @@ describe("Dashboard artifact workbench visual contract", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("Draft 본문의 Markdown을 의미 요소로 렌더하고 raw HTML은 실행하지 않는다", () => {
+  it("Research 본문의 Markdown을 의미 요소로 렌더하고 raw HTML은 실행하지 않는다", () => {
     const { context } = createWorkbenchFixture();
-    const draft = createArtifact({
+    const research = createArtifact({
       content: `# Rendered heading
 
 ## Evidence section
@@ -3108,27 +3170,27 @@ describe("Dashboard artifact workbench visual contract", () => {
 <button id="unsafe-markup" onclick="window.__unsafeMarkdownExecuted = true">Unsafe button</button>
 <script>window.__unsafeMarkdownExecuted = true</script>`,
       id: 30,
-      title: "Structured Markdown draft",
+      title: "Structured Markdown research",
     });
-    const projectContext = { ...context, drafts: [draft] };
+    const projectContext = { ...context, research: [research] };
 
     const { container } = render(
       <Dashboard
-        activeRelation="drafts"
+        activeRelation="research"
         context={projectContext}
         projects={[createProjectSummary(projectContext)]}
-        selectedArtifactId={draft.id}
+        selectedArtifactId={research.id}
         selectedTaskId={null}
       />,
     );
 
     const detailPane = screen.getByRole("complementary", {
-      name: "Structured Markdown draft",
+      name: "Structured Markdown research",
     });
     const metadataContent = getMetadataContent(detailPane);
 
     expect(
-      within(metadataContent).getByText("Structured Markdown draft"),
+      within(metadataContent).getByText("Structured Markdown research"),
     ).toBeInTheDocument();
 
     expect(

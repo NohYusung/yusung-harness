@@ -103,8 +103,8 @@ const createContracts = [
     forbiddenFields: ["id", "taskId", "planId"],
   },
   {
-    resource: "drafts",
-    model: "draft",
+    resource: "research",
+    model: "research",
     fields: ["projectId", "title", "content"],
     forbiddenFields: ["id"],
   },
@@ -158,13 +158,13 @@ test("6개 직접 생성 service는 create 입력과 허용된 Prisma 쓰기 경
 
 const directCreateCases = [
   {
-    resource: "drafts",
-    exportName: "DraftsService",
-    model: "draft",
+    resource: "research",
+    exportName: "ResearchService",
+    model: "research",
     input: {
       projectId: 7,
-      title: "Draft",
-      content: "Draft content",
+      title: "Research",
+      content: "Research content",
     },
     expectedData: (input) => input,
   },

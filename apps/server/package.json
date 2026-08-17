@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "predev": "prisma generate && node scripts/prepare-sqlite.mjs && node scripts/preflight-architecture-consolidation.mjs && prisma migrate deploy && node scripts/backfill-erd-documents.mjs",
+    "predev": "prisma generate && node scripts/prepare-sqlite.mjs && node scripts/preflight-architecture-consolidation.mjs && node scripts/preflight-research-migration.mjs && prisma migrate deploy && node scripts/backfill-erd-documents.mjs",
     "dev": "nest start --watch",
     "prebuild": "prisma generate",
     "build": "nest build",
@@ -11,10 +11,10 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.cjs",
     "test:boundary": "node --test test/*-boundary.test.cjs",
-    "prestart": "node scripts/prepare-sqlite.mjs && node scripts/preflight-architecture-consolidation.mjs && prisma migrate deploy && node scripts/backfill-erd-documents.mjs",
+    "prestart": "node scripts/prepare-sqlite.mjs && node scripts/preflight-architecture-consolidation.mjs && node scripts/preflight-research-migration.mjs && prisma migrate deploy && node scripts/backfill-erd-documents.mjs",
     "start": "node dist/main.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "node scripts/prepare-sqlite.mjs && node scripts/preflight-architecture-consolidation.mjs && prisma migrate dev && node scripts/backfill-erd-documents.mjs"
+    "prisma:migrate": "node scripts/prepare-sqlite.mjs && node scripts/preflight-architecture-consolidation.mjs && node scripts/preflight-research-migration.mjs && prisma migrate dev && node scripts/backfill-erd-documents.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

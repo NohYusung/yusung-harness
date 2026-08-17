@@ -28,7 +28,7 @@ describe("ProjectWorkspaceNavScroller", () => {
   it("mount와 active relation 변경 때 후반 active tab을 nearest 위치로 reveal한다", () => {
     const items = [
       { count: 0, label: "Plan", relation: "plans" },
-      { count: 0, label: "Draft", relation: "drafts" },
+      { count: 2, label: "Research", relation: "research" },
       { count: 0, label: "Domain", relation: "domains" },
       { count: 1, label: "Architecture", relation: "architectures" },
       { count: 1, label: "Wireframe", relation: "wireframes" },
@@ -49,6 +49,9 @@ describe("ProjectWorkspaceNavScroller", () => {
     expect(
       screen.getByRole("link", { name: "Architecture 1" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Research 2" }),
+    ).toHaveAttribute("href", "/projects/1?type=research");
 
     expect(navigation.querySelector(".overflow-x-auto")).toBeInTheDocument();
     expect(wireframeLink).toHaveAttribute("aria-current", "page");

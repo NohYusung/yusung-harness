@@ -80,12 +80,14 @@ describe("dashboard API helpers", () => {
   });
 
   it("선택한 Plan 대시보드는 project 목록과 plan-scoped Task REST list를 병렬 조립한다", async () => {
-    const context = createProjectContext({ id: 7 });
+    const context = Object.assign(createProjectContext({ id: 7 }), {
+      research: [],
+    });
     const projects = [createProjectSummary(context)];
     const relationResponses = [
       context.plans,
       context.tasks,
-      context.drafts,
+      context.research,
       context.domains,
       context.architectures,
       context.wireframes,
@@ -116,7 +118,7 @@ describe("dashboard API helpers", () => {
         "/projects",
         "/plans/7",
         "/tasks/7/13",
-        "/drafts/7",
+        "/research/7",
         "/domains/7",
         "/architectures/7",
         "/wireframes/7",
@@ -154,6 +156,9 @@ describe("dashboard API helpers", () => {
       workLogs: [
         createArtifact({ id: 101, title: "Implementation work log" }),
       ],
+      research: [
+        createArtifact({ id: 111, title: "Agent orchestration research" }),
+      ],
       databases: [
         createArtifact({ id: 301, title: "Project database schema" }),
       ],
@@ -161,15 +166,18 @@ describe("dashboard API helpers", () => {
     });
     const project = createProjectSummary(context);
     Object.assign(project._count, {
+      research: context.research.length,
       workLogs: context.workLogs.length,
       databases: context.databases.length,
       erds: context.erds.length,
     });
     expect(project._count.architectures).toBe(1);
+    expect((project._count as typeof project._count & { research: number }).research).toBe(1);
+    expect(project._count).not.toHaveProperty("drafts");
     const dataByPath: Record<string, unknown[]> = {
       "/projects": [project],
       "/plans/1": context.plans,
-      "/drafts/1": context.drafts,
+      "/research/1": context.research,
       "/domains/1": context.domains,
       "/architectures/1": context.architectures,
       "/wireframes/1": context.wireframes,
@@ -200,6 +208,7 @@ describe("dashboard API helpers", () => {
 
     expect(dashboard.context).toMatchObject({
       architectures: context.architectures,
+      research: context.research,
       workLogs: context.workLogs,
       databases: context.databases,
       erds: context.erds,
@@ -208,12 +217,13 @@ describe("dashboard API helpers", () => {
       expect.arrayContaining([
         "http://127.0.0.1:4000/worklogs/1",
         "http://127.0.0.1:4000/architectures/1",
+        "http://127.0.0.1:4000/research/1",
         "http://127.0.0.1:4000/db/1",
         "http://127.0.0.1:4000/erd/1",
       ]),
     );
     expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain(
-      "http://127.0.0.1:4000/architecture-plans/1",
+      "http://127.0.0.1:4000/drafts/1",
     );
   });
 

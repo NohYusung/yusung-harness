@@ -12,7 +12,7 @@ const prismaSource = (relativePath) =>
 const artifactRelations = [
   "plans",
   "tasks",
-  "drafts",
+  "research",
   "domains",
   "architectures",
   "wireframes",

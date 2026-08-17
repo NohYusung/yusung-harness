@@ -97,6 +97,7 @@ Architecture
 prisma generate
   → prepare-sqlite.mjs
   → preflight-architecture-consolidation.mjs
+  → preflight-research-migration.mjs
   → prisma migrate deploy
   → backfill-erd-documents.mjs
   → nest start --watch
@@ -107,6 +108,7 @@ prisma generate
 ```text
 prepare-sqlite.mjs
   → preflight-architecture-consolidation.mjs
+  → preflight-research-migration.mjs
   → prisma migrate deploy
   → backfill-erd-documents.mjs
   → node dist/main.js
@@ -117,6 +119,7 @@ prepare-sqlite.mjs
 ```text
 prepare-sqlite.mjs
   → preflight-architecture-consolidation.mjs
+  → preflight-research-migration.mjs
   → prisma migrate dev
   → backfill-erd-documents.mjs
 ```
@@ -173,7 +176,7 @@ Architecture consolidation preflight: {"action":"noop","state":"fresh|already-co
 2. preflight 출력의 `backupPath` 파일이 존재하고 현재 SHA-256이 기록된 `sha256`과 exact-match하는지 확인한다.
 3. partial migration DB를 row 단위로 고치지 말고, 출력된 backup 파일로 `databasePath` 전체를 복원한다.
 4. 복원 DB에서 integrity `ok`, FK 위반 0건과 preflight의 `counts`가 다시 일치하는지 확인한다.
-5. 애플리케이션 코드를 revision `f408a8cb8108cde0843900076b69da86815a7906`로 되돌려 server와 web을 재기동한다.
+5. 애플리케이션 코드를 Architecture 통합 기준 revision `e1f3b43c23f75db0c9067606ff6a485dedd507ca`로 되돌려 server와 web을 재기동한다.
 6. 이전 revision의 프로젝트 조회와 Architecture·계획 조회가 정상일 때만 writer를 다시 연다.
 
 #### rollback 금지 경계
@@ -181,6 +184,37 @@ Architecture consolidation preflight: {"action":"noop","state":"fresh|already-co
 - migration 이후 새 `upsert_architecture`가 한 번이라도 성공하면 preflight backup에는 새 PLAN·PRODUCTION 쓰기가 없으므로 전체 backup rollback을 수행하지 않는다.
 - 이 경계 이후 결함은 새 쓰기를 보존하는 forward-fix migration 또는 검증된 type별 데이터 보정으로 해결한다.
 - post-upsert 문제를 이유로 이전 revision만 재기동하거나 preflight backup으로 DB를 덮어쓰지 않는다.
+
+## Research 단일 산출물 계약
+
+- 제품 Discovery와 live 외부 근거 검증은 `Research` 하나에서 관리한다.
+- 여러 Research row를 허용하며 조회는 `updatedAt DESC`다.
+- REST는 `GET /research/:projectId`, MCP는 `get_research`, `create_research`, `update_research`를 제공한다.
+- 일반 조사는 Project 없이 반환할 수 있지만 저장·수정은 등록된 Project와 같은 `projectId`에서만 허용한다.
+- 신규 Research는 항상 live 검색과 실제 원문 확인을 거친다.
+- evidence는 `searched_at`부터 7일 동안만 유효하다. scope는 claims/include/exclude/versions/regions 고정 key와 정렬된 배열의 canonical minified JSON이며, 기존·신규 문자열이 byte-exact로 다르면 만료 전에도 다시 검색한다.
+- 검색 상태, 시각, 유효기간, scope와 source URL은 별도 column이 아니라 고정 Research Markdown에 기록한다.
+- Research는 잠정 제품 방향이며 사용자 명령 없이 Plan으로 자동 전환하지 않는다.
+
+```text
+Project
+└─ Research[]
+   ├─ Discovery: 문제·사용자·가치·가설·대안
+   └─ Evidence: verified findings·상충·sources·7일 유효기간
+```
+
+### Draft 제거 migration과 preflight
+
+- migration은 빈 `Research` table과 `Research_projectId_idx`를 만든 뒤 기존 Draft table과 2개 row를 복사 없이 삭제한다.
+- `preflight-research-migration.mjs`는 Draft 있음·Research 없음 상태에서만 ready를 반환한다.
+- ready 전 `BEGIN IMMEDIATE`에서 Draft full-row snapshot, count·fingerprint metadata와 5분 write-block lease trigger를 원자적으로 설치한다.
+- active lease 동안 Draft INSERT·UPDATE·DELETE는 차단되고, source DB integrity·FK 확인 뒤 `/private/tmp` full backup, SHA-256과 restore rehearsal을 완료한다.
+- migration은 lease가 유효한 동안 current Draft count와 양방향 full-row EXCEPT가 snapshot과 exact-match할 때만 DROP을 수행한다. 불일치나 lease 만료는 DROP 전 전체 transaction을 중단한다.
+- 5분 안에 migration을 시작하지 못하면 preflight를 다시 실행해 새 snapshot·backup·lease evidence를 발급한다.
+- fresh DB 또는 Research-only DB는 no-op이며 두 table이 함께 있거나 지원하지 않는 partial schema는 migration을 차단한다.
+- migration 실패 또는 첫 Research write 전 smoke 실패는 전체 DB backup과 Architecture 기준 revision을 함께 복원한다.
+- preflight 또는 backup 실패는 현재 실행이 소유한 guard를 즉시 해제한다. backup 복원 직후 guard가 남아 있으면 writer를 닫은 채 lease 만료를 확인한 후 이전 app을 연다.
+- 첫 `create_research` 또는 `update_research` 성공 뒤에는 backup rollback을 금지하고 forward-fix한다.
 
 ## HTML 산출물 계약
 
@@ -224,7 +258,7 @@ model Project {
     tasks Task[]
     wireframes Wireframe[]
     architectures Architecture[]
-    drafts Draft[]
+    research Research[]
     assets Asset[]
     designs Design[]
     reviews Review[]
@@ -323,7 +357,7 @@ model Task {
     @@index([planId])
 }
 
-model Draft {
+model Research {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])

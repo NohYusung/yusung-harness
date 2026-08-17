@@ -23,8 +23,10 @@ test("ProjectWorkspaceNav server wrapper는 context를 primitive nav items로 �
   assert.doesNotMatch(wrapper, /getLatestDeploymentArchitecture/);
   assert.match(
     wrapper,
-    /label:\s*["']Plan["'][\s\S]*?label:\s*["']Draft["'][\s\S]*?label:\s*["']Domain["'][\s\S]*?label:\s*["']Architecture["'][\s\S]*?label:\s*["']Wireframe["'][\s\S]*?label:\s*["']Asset["'][\s\S]*?label:\s*["']Design["']/,
+    /label:\s*["']Plan["'][\s\S]*?label:\s*["']Research["'][\s\S]*?label:\s*["']Domain["'][\s\S]*?label:\s*["']Architecture["'][\s\S]*?label:\s*["']Wireframe["'][\s\S]*?label:\s*["']Asset["'][\s\S]*?label:\s*["']Design["']/,
   );
+  assert.match(wrapper, /count:\s*context\.research\.length[\s\S]*?label:\s*["']Research["'][\s\S]*?relation:\s*["']research["']/);
+  assert.doesNotMatch(wrapper, /context\.drafts|relation:\s*["']drafts["']/);
   assert.match(wrapper, /context\.wireframes\.length/);
   assert.match(wrapper, /context\.domains\.length/);
   assert.match(wrapper, /context\.assets\.length/);

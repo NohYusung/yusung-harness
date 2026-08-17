@@ -9,7 +9,7 @@ const packageJson = JSON.parse(
 );
 const scriptPath = join(serverRoot, "scripts", "prepare-sqlite.mjs");
 
-test("DB migration scripts는 prepare와 Architecture preflight 후 migrate를 실행한다", () => {
+test("DB migration scripts는 prepare와 Architecture·Research preflight 후 migrate를 실행한다", () => {
   for (const [scriptName, migrateCommand] of [
     ["predev", "prisma migrate deploy"],
     ["prestart", "prisma migrate deploy"],
@@ -20,6 +20,9 @@ test("DB migration scripts는 prepare와 Architecture preflight 후 migrate를 �
     const preflight = command.indexOf(
       "node scripts/preflight-architecture-consolidation.mjs",
     );
+    const researchPreflight = command.indexOf(
+      "node scripts/preflight-research-migration.mjs",
+    );
     const migrate = command.indexOf(migrateCommand);
 
     assert.match(command, /node scripts\/prepare-sqlite\.mjs/);
@@ -27,12 +30,14 @@ test("DB migration scripts는 prepare와 Architecture preflight 후 migrate를 �
       command,
       /node scripts\/preflight-architecture-consolidation\.mjs/,
     );
+    assert.match(command, /node scripts\/preflight-research-migration\.mjs/);
     assert.ok(prepare < preflight, `${scriptName}는 prepare 후 preflight해야 한다`);
-    assert.ok(preflight < migrate, `${scriptName}는 preflight 후 migrate해야 한다`);
+    assert.ok(preflight < researchPreflight, `${scriptName}는 Architecture 후 Research preflight해야 한다`);
+    assert.ok(researchPreflight < migrate, `${scriptName}는 preflight 후 migrate해야 한다`);
     assert.match(
       command,
       new RegExp(
-        `node scripts/prepare-sqlite\\.mjs && node scripts/preflight-architecture-consolidation\\.mjs && ${migrateCommand.replaceAll(" ", "\\s+")}`,
+        `node scripts/prepare-sqlite\\.mjs && node scripts/preflight-architecture-consolidation\\.mjs && node scripts/preflight-research-migration\\.mjs && ${migrateCommand.replaceAll(" ", "\\s+")}`,
       ),
       `${scriptName}는 preflight 실패 시 migrate deploy를 중단해야 한다`,
     );

@@ -39,7 +39,7 @@ describe("deriveDashboardSummary", () => {
         createPlan({ id: 11, status: "IN_PROGRESS" }),
       ],
       tasks: [completedTask, pendingTask],
-      drafts: [createArtifact({ id: 3, title: "Draft" })],
+      research: [createArtifact({ id: 3, title: "Research" })],
       domains: [createDomain({ id: 9, title: "Domain" })],
       architectures: [
         createArchitecture({

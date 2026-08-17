@@ -41,9 +41,9 @@ function getProjectInventory(
       label: `Task ${context.tasks.length} · ${completedTasks} complete`,
     },
     {
-      code: "DR",
-      count: context.drafts.length,
-      label: `Draft ${context.drafts.length}`,
+      code: "RS",
+      count: context.research.length,
+      label: `Research ${context.research.length}`,
     },
     {
       code: "DM",

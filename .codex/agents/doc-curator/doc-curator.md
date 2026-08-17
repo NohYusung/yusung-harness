@@ -54,7 +54,7 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | get_workLog | 특정 프로젝트의 workLog 목록 반환 |
 > | get_domain | 특정 프로젝트의 domain 목록 반환 |
 > | get_task | 특정 프로젝트의 task 목록 반환 |
-> | get_draft | 특정 프로젝트의 draft 목록 반환 |
+> | get_research | 특정 프로젝트의 Research 목록 반환 |
 > | get_wireframe | 특정 프로젝트의 wireframe 목록 반환 |
 > | get_review | 특정 프로젝트의 review 목록 반환 |
 > | get_db | 특정 프로젝트의 db 목록 반환 |
@@ -68,7 +68,7 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | ---------------- | ---------------- | --- |
 > | create_project | 프로젝트 문서 생성 |[프로젝트 문서 생성 정책](./references/yusung-harness-doc-Project.md)|
 > | create_plan | 계획 문서 생성 |[계획 문서 생성 정책](./references/yusung-harness-doc-Plan.md)|
-> | create_draft | 드래프트 문서 생성 |[드래프트 문서 생성 정책](./references/yusung-harness-doc-Draft.md)|
+> | create_research | Research 문서 생성 |[Research 저장 정책](./references/yusung-harness-doc-Research.md)|
 > | create_task | 태스크 문서 생성 |[태스크 문서 생성 정책](./references/yusung-harness-doc-Task.md)|
 > | create_design | 디자인 문서 생성 |[디자인 문서 생성 정책](./references/yusung-harness-doc-Design.md)|
 > | create_wireframe | 와이어 프레임 문서 생성 |[와이어 프레임 문서 생성 정책](./references/yusung-harness-doc-Wireframe.md)|
@@ -94,3 +94,4 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | update_request | 요구사항 문서 업데이트 |[요구사항 문서 업데이트 정책](./references/yusung-harness-doc-Request.md)|
 > | update_plan | 계획 문서 업데이트 |[계획 문서 업데이트 정책](./references/yusung-harness-doc-Plan.md)|
 > | update_task | 태스크 문서 업데이트 |[태스크 문서 업데이트 정책](./references/yusung-harness-doc-Task.md)|
+> | update_research | Research 문서 업데이트 |[Research 저장 정책](./references/yusung-harness-doc-Research.md)|

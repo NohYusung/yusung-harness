@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Wireframe } from "@/types/dashboard";
+import * as dashboardSchemas from "@/lib/validations/dashboard";
 import {
   architectureListResponseSchema,
   databaseListResponseSchema,
   designListResponseSchema,
-  draftListResponseSchema,
   erdListResponseSchema,
   planListResponseSchema,
   projectListResponseSchema,
@@ -48,7 +48,6 @@ const cases = [
     createProjectSummary(createProjectContext()),
   ],
   ["plans", planListResponseSchema, createPlan()],
-  ["drafts", draftListResponseSchema, createArtifact()],
   ["tasks", taskListResponseSchema, createTask()],
   ["wireframes", wireframeListResponseSchema, wireframe],
   ["designs", designListResponseSchema, createDesign()],
@@ -71,6 +70,19 @@ describe("project-scoped list response schemas", () => {
       expect(schema.safeParse({ records: [record] }).success).toBe(false);
     });
   }
+
+  it("research는 Markdown document list envelope을 검증한다", () => {
+    expect("researchListResponseSchema" in dashboardSchemas).toBe(true);
+    const schema = (
+      dashboardSchemas as typeof dashboardSchemas & {
+        researchListResponseSchema: typeof planListResponseSchema;
+      }
+    ).researchListResponseSchema;
+    const research = createArtifact({ title: "Research evidence" });
+
+    expect(schema.safeParse({ data: [research] }).success).toBe(true);
+    expect(schema.safeParse([research]).success).toBe(false);
+  });
 
   it("wireframes는 nullable parentId와 계층 index path를 누락 없이 유지한다", () => {
     const previousStep = {

@@ -5,11 +5,11 @@ import { AssetsModule } from "../services/assets/assets.module";
 import { DbModule } from "../services/db/db.module";
 import { DesignsModule } from "../services/designs/designs.module";
 import { DomainsModule } from "../services/domains/domains.module";
-import { DraftsModule } from "../services/drafts/drafts.module";
 import { ErdModule } from "../services/erd/erd.module";
 import { FilesModule } from "../services/files/files.module";
 import { PlansModule } from "../services/plans/plans.module";
 import { ProjectsModule } from "../services/projects/projects.module";
+import { ResearchModule } from "../services/research/research.module";
 import { RequestsModule } from "../services/requests/requests.module";
 import { ReviewsModule } from "../services/reviews/reviews.module";
 import { TasksModule } from "../services/tasks/tasks.module";
@@ -25,7 +25,7 @@ import { McpService } from "./mcp.service";
     TasksModule,
     PlansModule,
     AssetsModule,
-    DraftsModule,
+    ResearchModule,
     DomainsModule,
     ArchitecturesModule,
     WireframesModule,

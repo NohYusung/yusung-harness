@@ -116,7 +116,7 @@ test("Project loading shell도 resolved workspace와 같은 full-bleed geometry�
   );
 });
 
-test("Plan·Draft browser root는 둥근 card가 아닌 full-bleed split workspace다", () => {
+test("Plan·Research browser root는 둥근 card가 아닌 full-bleed split workspace다", () => {
   const browser = source("components/features/dashboard/ArtifactBrowser.tsx");
 
   assertFullBleedRoot(
@@ -131,7 +131,7 @@ test("Plan·Draft browser root는 둥근 card가 아닌 full-bleed split workspa
   assert.match(
     browser,
     /className=["'][^"']*\bgrid\b[^"']*\bmin-h-0\b[^"']*\bflex-1\b[^"']*\blg:grid-cols-\[minmax\(20rem,1fr\)_22\.5rem\][^"']*["']/,
-    "Plan·Draft body는 mobile에서도 bounded grid이고 desktop에서는 유동 list와 고정 inspector split이어야 한다",
+    "Plan·Research body는 mobile에서도 bounded grid이고 desktop에서는 유동 list와 고정 inspector split이어야 한다",
   );
   assert.match(
     browser,

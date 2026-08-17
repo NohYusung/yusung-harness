@@ -1,12 +1,12 @@
 import { Controller, Get, Param, ParseIntPipe } from "@nestjs/common";
-import { DraftsService } from "./drafts.service";
+import { ResearchService } from "./research.service";
 
-@Controller("drafts/:projectId")
-export class DraftsController {
-  constructor(private readonly draftsService: DraftsService) {}
+@Controller("research/:projectId")
+export class ResearchController {
+  constructor(private readonly researchService: ResearchService) {}
 
   /**
-   * 프로젝트 초안 목록 조회
+   * 프로젝트 Research 목록 조회
    */
   @Get()
   async list(
@@ -17,7 +17,7 @@ export class DraftsController {
     // 2. Get context
 
     // 3. Get result
-    const data = await this.draftsService.list({ projectId });
+    const data = await this.researchService.list({ projectId });
 
     // 4. Send response
     return { data };

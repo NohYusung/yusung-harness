@@ -150,7 +150,7 @@ const markdownComponents: Components = {
   ),
 };
 
-/** Draft 등 text artifact의 Markdown/GFM을 raw HTML 실행 없이 렌더링한다. */
+/** Research 등 text artifact의 Markdown/GFM을 raw HTML 실행 없이 렌더링한다. */
 export function MarkdownContent({ content }: MarkdownContentProps) {
   const markdown = content.trim();
 

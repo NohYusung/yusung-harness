@@ -24,7 +24,7 @@ export interface ListResponse<T> {
 export interface ArtifactCounts {
   plans: number;
   tasks: number;
-  drafts: number;
+  research: number;
   domains: number;
   architectures: number;
   wireframes: number;
@@ -98,7 +98,8 @@ export interface Plan extends ArtifactDocument {
   tasks: Task[];
 }
 
-export type Draft = ArtifactDocument;
+/** 프로젝트 구현 판단을 뒷받침하는 조사 결과 Markdown 문서. */
+export type Research = ArtifactDocument;
 /** 업무 도메인의 책임과 규칙을 설명하는 계층형 Markdown 페이지. */
 export interface Domain extends ArtifactDocument {
   parentId: number | null;
@@ -133,7 +134,7 @@ export interface ProjectContext {
   description: string;
   plans: Plan[];
   tasks: Task[];
-  drafts: Draft[];
+  research: Research[];
   domains: Domain[];
   architectures: Architecture[];
   wireframes: Wireframe[];

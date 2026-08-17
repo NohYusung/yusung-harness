@@ -8,12 +8,12 @@ import type {
   Database,
   Design,
   Domain,
-  Draft,
   Erd,
   ListResponse,
   Plan,
   ProjectContext,
   ProjectSummary,
+  Research,
   Request,
   Review,
   Task,
@@ -43,7 +43,7 @@ const projectBaseSchema = z.object({
 const artifactCountsSchema = z.object({
   plans: z.number().int().nonnegative(),
   tasks: z.number().int().nonnegative(),
-  drafts: z.number().int().nonnegative(),
+  research: z.number().int().nonnegative(),
   domains: z.number().int().nonnegative(),
   architectures: z.number().int().nonnegative().max(1),
   wireframes: z.number().int().nonnegative(),
@@ -170,10 +170,11 @@ export const planListResponseSchema: z.ZodType<ListResponse<Plan>> = z.object({
   data: z.array(planSchema),
 });
 
-/** Draft 목록 API의 `{ data }` 응답을 검증한다. */
-export const draftListResponseSchema: z.ZodType<ListResponse<Draft>> = z.object({
-  data: z.array(artifactDocumentSchema),
-});
+/** Research Markdown 목록 API의 `{ data }` 응답을 검증한다. */
+export const researchListResponseSchema: z.ZodType<ListResponse<Research>> =
+  z.object({
+    data: z.array(artifactDocumentSchema),
+  });
 
 /** Task 목록 API의 `{ data }` 응답을 검증한다. */
 export const taskListResponseSchema: z.ZodType<ListResponse<Task>> = z.object({
@@ -256,7 +257,7 @@ export const projectContextSchema: z.ZodType<ProjectContext> =
   projectBaseSchema.extend({
     plans: z.array(planSchema),
     tasks: z.array(taskSchema),
-    drafts: z.array(artifactDocumentSchema),
+    research: z.array(artifactDocumentSchema),
     domains: z.array(domainSchema),
     architectures: z.array(architectureSchema),
     wireframes: z.array(wireframeSchema),

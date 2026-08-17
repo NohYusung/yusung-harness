@@ -47,7 +47,7 @@ const productSources = (relativeDirectory) => {
 const artifactRelations = [
   "plans",
   "tasks",
-  "drafts",
+  "research",
   "domains",
   "architectures",
   "wireframes",
@@ -73,6 +73,11 @@ test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응�
       `${relation} 배열을 런타임에 검증해야 한다`,
     );
   }
+  assert.match(types, /export\s+type\s+Research\s*=\s*ArtifactDocument/);
+  assert.match(types, /interface\s+ArtifactCounts[\s\S]*?research:\s*number/);
+  assert.match(types, /interface\s+ProjectContext[\s\S]*?research:\s*Research\[\]/);
+  assert.doesNotMatch(types, /\bDraft\b|drafts:/);
+  assert.doesNotMatch(validation, /draftListResponseSchema|drafts:/);
 
   const taskType = types.match(/interface\s+Task\s*\{([\s\S]*?)\n\}/)?.[1];
   const planType = types.match(/interface\s+Plan[^\{]*\{([\s\S]*?)\n\}/)?.[1];
@@ -116,7 +121,7 @@ test("API client는 project 목록과 9종 REST list의 Zod 조립 경계를 소
   for (const helper of [
     "getPlans",
     "getTasks",
-    "getDrafts",
+    "getResearch",
     "getDomains",
     "getArchitectures",
     "getWireframes",
@@ -187,8 +192,9 @@ test("App Router page는 목록 redirect/empty와 project Server Component 경�
   assert.match(projectPage, /:\s*["']plans["']/);
   assert.match(
     projectPage,
-    /workspaceRelations\s*=\s*\[[^\]]*["']plans["'][^\]]*["']drafts["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']designs["']/s,
+    /workspaceRelations\s*=\s*\[[^\]]*["']plans["'][^\]]*["']research["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']designs["']/s,
   );
+  assert.doesNotMatch(projectPage, /["']drafts["']/);
   assert.doesNotMatch(projectPage, /["']architecturePlans["']/);
 });
 
@@ -210,6 +216,20 @@ test("Architecture route는 view=plan|current만 허용하고 legacy architectur
     /query\.type\s*&&\s*!isWorkspaceRelation\(query\.type\)[\s\S]*?notFound\(\)/,
   );
   assert.doesNotMatch(projectPage, /["']architecturePlans["']/);
+});
+
+test("Research route는 type=research&id deep link를 허용하고 legacy drafts type을 notFound 처리한다", () => {
+  const projectPage = source("app/projects/[projectId]/page.tsx");
+
+  assert.match(projectPage, /["']research["']/);
+  assert.match(projectPage, /selectedArtifactId\s*=\s*toArtifactId\(query\.id\)/);
+  assert.match(projectPage, /activeRelation=\{activeRelation\}/);
+  assert.match(projectPage, /selectedArtifactId=\{selectedArtifactId\}/);
+  assert.doesNotMatch(projectPage, /["']drafts["']/);
+  assert.match(
+    projectPage,
+    /query\.type\s*&&\s*!isWorkspaceRelation\(query\.type\)[\s\S]*?notFound\(\)/,
+  );
 });
 
 test("Project route는 명시한 artifact id가 양의 safe integer가 아니면 notFound 처리한다", () => {
@@ -258,8 +278,10 @@ test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한�
   );
   assert.match(
     workbench,
-    /relationOrder\s*:[^=]*=\s*\[[^\]]*["']plans["'][^\]]*["']tasks["'][^\]]*["']drafts["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']designs["'][^\]]*["']reviews["']/s,
+    /relationOrder\s*:[^=]*=\s*\[[^\]]*["']plans["'][^\]]*["']tasks["'][^\]]*["']research["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']designs["'][^\]]*["']reviews["']/s,
   );
+  assert.match(workbench, /research:\s*\{[\s\S]*?code:\s*["']RS["'][\s\S]*?label:\s*["']Research["']/);
+  assert.doesNotMatch(workbench, /drafts:\s*\{|code:\s*["']DR["']/);
   assert.match(workbench, /aria-label=["']Project artifact tree["']/);
   assert.match(workbench, /aria-label=["']Artifact types["']/);
   assert.match(

@@ -99,7 +99,7 @@ interface RelationConfig {
 const relationOrder: readonly WorkbenchRelation[] = [
   "plans",
   "tasks",
-  "drafts",
+  "research",
   "domains",
   "architectures",
   "wireframes",
@@ -125,10 +125,10 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
     plural: "Tasks",
     dotClassName: "bg-success",
   },
-  drafts: {
-    code: "DR",
-    label: "Draft",
-    plural: "Drafts",
+  research: {
+    code: "RS",
+    label: "Research",
+    plural: "Research",
     dotClassName: "bg-warning",
   },
   domains: {
@@ -269,6 +269,7 @@ function getInitialArchitectureView(
 function keepsEmptySelection(relation: WorkbenchRelation): boolean {
   return (
     relation === "domains" ||
+    relation === "research" ||
     relation === "architectures" ||
     relation === "requests" ||
     relation === "workLogs" ||
@@ -286,7 +287,11 @@ function getEntries(
   const entriesByRelation: Record<WorkbenchRelation, WorkbenchRecord[]> = {
     plans: context.plans,
     tasks: planTasks,
-    drafts: context.drafts,
+    research: [...context.research].sort(
+      (left, right) =>
+        Date.parse(right.updatedAt) - Date.parse(left.updatedAt) ||
+        right.id - left.id,
+    ),
     domains: context.domains,
     architectures: context.architectures,
     wireframes: context.wireframes,
@@ -1098,6 +1103,12 @@ export function ArtifactWorkbench({
       : versionFilter;
   const isRequestView = typeFilter === "requests";
   const isDomainView = typeFilter === "domains";
+  const isResearchView = typeFilter === "research";
+  /** 명시한 Research ID가 없으면 최신 record로 조용히 대체하지 않는다. */
+  const isResearchNotFound =
+    activeRelation === "research" &&
+    selectedArtifactId !== null &&
+    (initialEntry === null || initialEntry === undefined);
   const isArchitectureView = typeFilter === "architectures";
   /** 명시한 Architecture ID가 현재 type과 맞지 않으면 다른 record로 대체하지 않는다. */
   const isArchitectureNotFound =
@@ -2243,6 +2254,8 @@ export function ArtifactWorkbench({
                   ? selectedArchitectureView === "plan"
                     ? "No Architecture Plan records"
                     : "No Current Architecture records"
+                  : isResearchView && context.research.length === 0
+                    ? "No Research records"
                   : isDomainView && context.domains.length === 0
                   ? "No Domain pages"
                   : isDomainView
@@ -2255,6 +2268,8 @@ export function ArtifactWorkbench({
                 ? selectedArchitectureView === "plan"
                   ? "Save the implementation plan through the Architecture workflow."
                   : "Save a production deployment snapshot through the Architecture workflow."
+                : isResearchView && context.research.length === 0
+                  ? "Run the Research workflow to save verified findings and sources."
                 : isDomainView && context.domains.length === 0
                 ? "Create business Domain pages through the Domain MCP workflow."
                 : isDomainView
@@ -2311,7 +2326,11 @@ export function ArtifactWorkbench({
                   : requestEditorMode?.type === "update"
                     ? "Edit request"
                     : selectedEntry?.record.title ??
-                      (isDomainView
+                      (isResearchView
+                        ? isResearchNotFound
+                          ? "Research not found"
+                          : "Select a Research"
+                        : isDomainView
                         ? domainNotFoundId === null
                           ? "Select a Domain"
                           : "Domain not found"
@@ -2553,6 +2572,22 @@ export function ArtifactWorkbench({
                     <MarkdownContent content={getContent(selectedEntry)} />
                   </div>
                 )}
+              </section>
+            ) : isResearchView ? (
+              <section
+                aria-label="Research selection state"
+                className="rounded-card border border-line bg-surface px-6 py-10 text-center shadow-card"
+              >
+                <p className="m-0 text-base font-semibold text-ink">
+                  {isResearchNotFound
+                    ? "Research not found"
+                    : "Select a Research"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  {isResearchNotFound
+                    ? `Research #${selectedArtifactId} does not exist in this project.`
+                    : "Choose a Research record to read its verified findings and sources."}
+                </p>
               </section>
             ) : isDomainView ? (
               <section

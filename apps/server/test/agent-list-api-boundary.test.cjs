@@ -21,9 +21,9 @@ const domains = [
     orderField: "version",
   },
   {
-    resource: "drafts",
-    model: "draft",
-    className: "Drafts",
+    resource: "research",
+    model: "research",
+    className: "Research",
     orderField: "updatedAt",
   },
   {
@@ -285,7 +285,7 @@ test("resource module과 AppModule은 목록 controller를 등록한다", () => 
   for (const moduleName of [
     "ProjectsModule",
     "PlansModule",
-    "DraftsModule",
+    "ResearchModule",
     "TasksModule",
     "DomainsModule",
     "DbModule",
@@ -330,7 +330,7 @@ test("MCP get_project는 projectId가 있으면 11종 domain list service를 병
   const domainServices = [
     "plans",
     "tasks",
-    "drafts",
+    "research",
     "domains",
     "db",
     "erd",

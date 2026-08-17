@@ -15,12 +15,12 @@ import { AssetsService } from "../services/assets/assets.service";
 import { DbService } from "../services/db/db.service";
 import { DesignsService } from "../services/designs/designs.service";
 import { DomainsService } from "../services/domains/domains.service";
-import { DraftsService } from "../services/drafts/drafts.service";
 import { dineugErdDocumentSchema } from "../services/erd/dineug-document";
 import { ErdService } from "../services/erd/erd.service";
 import { FilesService } from "../services/files/files.service";
 import { PlansService } from "../services/plans/plans.service";
 import { ProjectsService } from "../services/projects/projects.service";
+import { ResearchService } from "../services/research/research.service";
 import { RequestsService } from "../services/requests/requests.service";
 import { ReviewsService } from "../services/reviews/reviews.service";
 import { TasksService } from "../services/tasks/tasks.service";
@@ -168,7 +168,7 @@ export class McpService {
     private readonly projectsService: ProjectsService,
     private readonly plansService: PlansService,
     private readonly tasksService: TasksService,
-    private readonly draftsService: DraftsService,
+    private readonly researchService: ResearchService,
     private readonly domainsService: DomainsService,
     private readonly architecturesService: ArchitecturesService,
     private readonly wireframesService: WireframesService,
@@ -182,7 +182,7 @@ export class McpService {
     private readonly filesService: FilesService,
   ) {}
 
-  /** 41개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 42개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -210,7 +210,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 41개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 42개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -402,13 +402,13 @@ export class McpService {
         this.execute(() => this.tasksService.list({ projectId, planId })),
     );
 
-    /** 선택한 프로젝트의 draft 목록을 조회한다. */
+    /** 선택한 프로젝트의 research 목록을 조회한다. */
     server.registerTool(
-      "get_draft",
+      "get_research",
       {
-        title: "Get Draft",
-        description: "Returns Drafts owned by the selected Project.",
-        inputSchema: z.object({ projectId: projectIdSchema }),
+        title: "Get Research",
+        description: "Returns Research owned by the selected Project.",
+        inputSchema: z.object({ projectId: projectIdSchema }).strict(),
         annotations: {
           readOnlyHint: true,
           destructiveHint: false,
@@ -417,7 +417,7 @@ export class McpService {
         },
       },
       ({ projectId }) =>
-        this.execute(() => this.draftsService.list({ projectId })),
+        this.execute(() => this.researchService.list({ projectId })),
     );
 
     /** 선택한 프로젝트의 wireframe 목록을 조회한다. */
@@ -583,17 +583,19 @@ export class McpService {
       (input) => this.execute(() => this.plansService.update(input)),
     );
 
-    /** 프로젝트에 text draft를 생성한다. */
+    /** 프로젝트에 text research를 생성한다. */
     server.registerTool(
-      "create_draft",
+      "create_research",
       {
-        title: "Create Draft",
-        description: "Creates a text Draft for a Project.",
-        inputSchema: z.object({
-          projectId: projectIdSchema,
-          title: z.string().trim().min(1),
-          content: z.string().min(1),
-        }),
+        title: "Create Research",
+        description: "Creates text Research for a Project.",
+        inputSchema: z
+          .object({
+            projectId: projectIdSchema,
+            title: z.string().min(1),
+            content: z.string().min(1),
+          })
+          .strict(),
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -601,7 +603,32 @@ export class McpService {
           openWorldHint: false,
         },
       },
-      (input) => this.execute(() => this.draftsService.create(input)),
+      (input) => this.execute(() => this.researchService.create(input)),
+    );
+
+    /** 같은 프로젝트가 소유한 research의 제목과 내용을 교체한다. */
+    server.registerTool(
+      "update_research",
+      {
+        title: "Update Research",
+        description:
+          "Replaces the title and content of Research in the same Project.",
+        inputSchema: z
+          .object({
+            projectId: projectIdSchema,
+            researchId: z.number().int().positive(),
+            title: z.string().min(1),
+            content: z.string().min(1),
+          })
+          .strict(),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      (input) => this.execute(() => this.researchService.update(input)),
     );
 
     /** 프로젝트의 root 또는 child Markdown Domain 페이지를 생성한다. */
@@ -1254,7 +1281,7 @@ export class McpService {
       projects,
       plans,
       tasks,
-      drafts,
+      research,
       domains,
       architectures,
       wireframes,
@@ -1267,7 +1294,7 @@ export class McpService {
       this.projectsService.list(),
       this.plansService.list({ projectId }),
       this.tasksService.list({ projectId }),
-      this.draftsService.list({ projectId }),
+      this.researchService.list({ projectId }),
       this.domainsService.list({ projectId }),
       this.architecturesService.list({ projectId }),
       this.wireframesService.list({ projectId }),
@@ -1292,7 +1319,7 @@ export class McpService {
       description: project.description,
       plans,
       tasks,
-      drafts,
+      research,
       domains,
       architectures,
       wireframes,

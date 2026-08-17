@@ -16,7 +16,7 @@
 
 - 긴 작업에서도 기획 의도와 구현 맥락이 사라지지 않습니다.
 - 에이전트마다 역할과 책임이 분리되어 계획, 구현, 테스트와 리뷰가 뒤섞이지 않습니다.
-- Draft, Plan, Task, Design, Review 같은 산출물이 채팅 안에서 휘발되지 않고 프로젝트 단위로 축적됩니다.
+- Research, Plan, Task, Design, Review 같은 산출물이 채팅 안에서 휘발되지 않고 프로젝트 단위로 축적됩니다.
 - Codex 전용 설정과 Project Workbench를 같은 설치 흐름으로 대상 프로젝트에 배포할 수 있습니다.
 - 기존 프로젝트에 안전하게 설치하고, 충돌을 확인하며 업데이트할 수 있습니다.
 
@@ -25,9 +25,9 @@
 | 구성 요소 | 역할 |
 | --- | --- |
 | Agent Team | Architect, Coder, Designer 등 8개 역할이 작업을 분담합니다. |
-| Workflow Skills | 기획, 설계, 구현, 테스트와 통합을 14개 스킬로 표준화합니다. |
+| Workflow Skills | 조사, 설계, 구현, 테스트와 통합을 15개 스킬로 표준화합니다. |
 | Installer | Codex 하네스와 전체 `apps/` workspace를 프로젝트에 안전하게 배포합니다. |
-| Document MCP | 에이전트 산출물을 41개 MCP 도구로 조회·생성·수정합니다. |
+| Document MCP | 에이전트 산출물을 42개 MCP 도구로 조회·생성·수정합니다. |
 | Project Workbench | 프로젝트의 요청, 계획, 태스크, 설계와 작업 기록을 웹에서 탐색합니다. |
 | Conventions | NestJS, TypeScript, React와 Next.js 코드 규칙을 저장소 안에서 공유합니다. |
 
@@ -85,7 +85,7 @@ flowchart LR
 | `designer` | UX/UI, 디자인 에셋과 실제 화면 디자인을 담당합니다. |
 | `doc-curator` | 다른 에이전트의 산출물을 MCP 문서 저장소에 보관하고 관리합니다. |
 | `planner` | 요구사항을 분석하고 Plan과 Task로 실행 범위를 나눕니다. |
-| `researcher` | 공식 자료와 최신 웹 정보를 중심으로 근거를 조사합니다. |
+| `researcher` | 제품 Discovery와 최신 웹 근거 검증을 하나의 Research로 작성합니다. |
 | `reviewer` | 구현 결과를 프로젝트 전체 관점에서 비판적으로 검토합니다. |
 | `tester` | 테스트 작성, 실행, 회귀 검증과 배포 전 확인을 담당합니다. |
 
@@ -93,7 +93,7 @@ flowchart LR
 
 | 단계 | Skill | 결과 |
 | --- | --- | --- |
-| 발견 | `curate`, `research`, `draft` | 프로젝트 등록, 근거 조사, 초기 제안 |
+| 발견 | `curate`, `research` | 프로젝트 등록, 제품 탐색, live 근거 조사와 초기 제안 |
 | 설계 | `plan`, `architecturePlan`, `domain`, `db`, `erd` | 실행 계획, 아키텍처, 계층형 업무 Domain 문서와 데이터 구조 |
 | 제작 | `asset`, `wireframe`, `design`, `code` | 디자인 자산, 인터랙션, UI와 실제 코드 |
 | 검증·관리 | `test`, `integration` | 테스트, 커밋과 병합 |
@@ -234,12 +234,13 @@ Codex의 `doc-curator` 프로필에는 로컬 문서 서버 연결이 미리 정
 url = "http://127.0.0.1:4000/mcp"
 ```
 
-MCP 서버는 프로젝트와 산출물을 다루는 41개 도구를 제공합니다.
+MCP 서버는 프로젝트와 산출물을 다루는 42개 도구를 제공합니다.
 
 | 분류 | 대표 도구 | 용도 |
 | --- | --- | --- |
 | Context | `get_context`, `get_project` | DB 구조와 프로젝트 전체 맥락을 조회합니다. |
-| Planning | `create_draft`, `create_plan`, `update_plan`, `create_task`, `update_task` | 제안과 실행 계획을 저장하고 진행 상태를 갱신합니다. |
+| Research | `get_research`, `create_research`, `update_research` | 제품 탐색과 live 근거를 프로젝트별 Research로 저장·수정합니다. |
+| Planning | `create_plan`, `update_plan`, `create_task`, `update_task` | 실행 계획을 저장하고 진행 상태를 갱신합니다. |
 | Architecture | `get_architecture`, `upsert_architecture`, `create_domain`, `update_domain`, `create_db`, `create_erd` | 하나의 Architecture에서 PLAN과 PRODUCTION 최신본, 계층형 업무 Domain Markdown과 데이터 구조를 기록합니다. |
 | Design | `create_asset`, `create_wireframe`, `create_design` | HTML 기반 시각 산출물과 버전을 저장합니다. |
 | Execution | `create_request`, `update_request`, `create_workLog`, `get_review` | 요청 수명주기와 작업 기록, 리뷰를 관리합니다. |
@@ -248,7 +249,7 @@ MCP 서버는 프로젝트와 산출물을 다루는 41개 도구를 제공합�
 ## 대시보드에서 관리하는 산출물
 
 - `Request` → `Plan` → `Task`로 이어지는 실행 흐름
-- 초기 아이디어와 제안을 담는 `Draft`
+- 문제·사용자·가치·가설·대안과 live 근거를 함께 담는 `Research`
 - 하나의 `Architecture` 안에서 관리하는 구현 전 `Plan`과 구현 후 `Current(PRODUCTION)`
 - 한 업무 Domain당 한 Markdown 페이지로 구성된 무제한 `Domain` 계층, DB 문서와 ERD
 - 버전과 계층 구조를 가진 `Wireframe`
