@@ -1870,7 +1870,7 @@ export function ArtifactWorkbench({
             {isArchitectureView ? (
               <span className="font-mono text-[10px] font-semibold tracking-[0.06em] text-muted uppercase">
                 {selectedArchitectureView === "plan"
-                  ? "Design plan"
+                  ? "Architecture plan"
                   : "Production snapshot"}
               </span>
             ) : isDomainView ? (

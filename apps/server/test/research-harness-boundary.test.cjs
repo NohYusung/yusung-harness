@@ -185,19 +185,19 @@ test("portable planner는 안정된 직접 요구사항이면 Research 문서 �
   );
 });
 
-test("README와 MCP runtime은 42-tool Research 계약만 노출한다", () => {
+test("README와 MCP runtime은 39-tool Research 계약만 노출한다", () => {
   const readme = read("README.md");
   const mcpService = read("apps/server/src/mcp/mcp.service.ts");
   const registeredTools = [
     ...mcpService.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g),
   ].map((match) => match[1]);
 
-  assert.match(readme, /42개 MCP 도구/);
+  assert.match(readme, /39개 MCP 도구/);
   for (const tool of ["get_research", "create_research", "update_research"]) {
     assert.match(readme, new RegExp(`\\b${tool}\\b`));
     assert.equal(registeredTools.includes(tool), true);
   }
-  assert.equal(registeredTools.length, 42);
+  assert.equal(registeredTools.length, 39);
   assert.equal(registeredTools.includes("get_draft"), false);
   assert.equal(registeredTools.includes("create_draft"), false);
 });

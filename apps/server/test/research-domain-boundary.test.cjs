@@ -11,7 +11,6 @@ const expectedToolNames = [
   "get_project",
   "get_plan",
   "get_asset",
-  "get_design",
   "get_architecture",
   "get_request",
   "get_workLog",
@@ -36,8 +35,6 @@ const expectedToolNames = [
   "update_erd",
   "create_task",
   "update_task",
-  "create_design",
-  "update_design",
   "create_wireframe",
   "update_wireframe",
   "create_asset",
@@ -95,14 +92,14 @@ test("App·MCP module과 HTTP route는 Research만 조립하고 Drafts를 제거
   assert.equal(existsSync(sourcePath("services/drafts")), false);
 });
 
-test("MCP source는 exact 42 tools와 Research strict schema·annotations·delegation을 제공한다", () => {
+test("MCP source는 exact 39 tools와 Research strict schema·annotations·delegation을 제공한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const registered = [
     ...mcpService.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g),
   ].map((match) => match[1]);
 
   assert.deepEqual(registered, expectedToolNames);
-  assert.equal(registered.length, 42);
+  assert.equal(registered.length, 39);
   assert.doesNotMatch(mcpService, /get_draft|create_draft|DraftsService|draftsService|\bdrafts\b/);
   assert.match(mcpService, /private readonly researchService:\s*ResearchService/);
 

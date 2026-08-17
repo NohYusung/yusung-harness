@@ -84,6 +84,6 @@ describe("Request dashboard data contract", () => {
     expect(
       fetchMock.mock.calls.map(([input]) => String(input)),
     ).toContain("http://127.0.0.1:4000/requests/7");
-    expect(fetchMock).toHaveBeenCalledTimes(14);
+    expect(fetchMock).toHaveBeenCalledTimes(13);
   });
 });
