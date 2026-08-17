@@ -9,6 +9,7 @@
     "build": "nest build",
     "pretypecheck": "prisma generate",
     "typecheck": "tsc --noEmit",
+    "pretest": "DATABASE_URL=file:./harness-board.db prisma generate",
     "test": "node --test test/*.test.cjs",
     "test:boundary": "node --test test/*-boundary.test.cjs",
     "prestart": "node scripts/prepare-sqlite.mjs && node scripts/preflight-architecture-consolidation.mjs && node scripts/preflight-research-migration.mjs && prisma migrate deploy && node scripts/backfill-erd-documents.mjs",

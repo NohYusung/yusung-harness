@@ -223,7 +223,13 @@ test("프로젝트와 산출물 HTTP controller는 읽기 전용 목록 API를 �
     );
     assert.match(controller, new RegExp(`export class ${controllerClass}`));
     assert.match(controller, /\/\*\*[\s\S]*?목록 조회[\s\S]*?\*\/[\s\n]*@Get\(\)/);
-    assert.doesNotMatch(controller, /@(Post|Put|Patch|Delete)\s*\(/);
+    if (resource === "requests") {
+      assert.match(controller, /@Post\(\)/);
+      assert.match(controller, /@Put\(["']:requestId["']\)/);
+      assert.doesNotMatch(controller, /@(Patch|Delete)\s*\(/);
+    } else {
+      assert.doesNotMatch(controller, /@(Post|Put|Patch|Delete)\s*\(/);
+    }
     assert.match(controller, /\/\/ 1\. Destructure body, params, query/);
     assert.match(controller, /\/\/ 2\. Get context/);
     assert.match(controller, /\/\/ 3\. Get result/);

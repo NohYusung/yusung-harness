@@ -69,6 +69,24 @@ class InstallerTestCase(unittest.TestCase):
         self._write("docs/obsolete.md", "obsolete\n")
         self._write(".codex/config.toml", "model = \"gpt-5\"\n")
         self._write(
+            ".codex/integration.toml",
+            "schema_version = 1\n"
+            "configured = true\n"
+            'branch_prefix = "codex/"\n'
+            'management_root = ".yusung-harness"\n'
+            'merge_strategy = "no-ff"\n'
+            'cleanup = "worktree-and-branch"\n'
+            'conflict_policy = "evidence-only"\n',
+        )
+        self._write(
+            ".codex/skills/code/scripts/worktree.py",
+            "print('worktree engine')\n",
+        )
+        self._write(
+            ".codex/skills/integration/scripts/merge.py",
+            "print('merge engine')\n",
+        )
+        self._write(
             ".codex/agents/doc-curator/doc-curator.toml",
             "[mcp_servers.yusung-harness-doc]\n"
             'url = "http://127.0.0.1:4000/mcp"\n',
@@ -173,6 +191,24 @@ class InstallerTestCase(unittest.TestCase):
             self.target.joinpath(".yusung-harness/install-manifest.json").is_file()
         )
         self.assertEqual(
+            self.target.joinpath(
+                ".codex/skills/code/scripts/worktree.py"
+            ).read_text(encoding="utf-8"),
+            "print('worktree engine')\n",
+        )
+        self.assertEqual(
+            self.target.joinpath(
+                ".codex/skills/integration/scripts/merge.py"
+            ).read_text(encoding="utf-8"),
+            "print('merge engine')\n",
+        )
+        installed_integration_config = self.target.joinpath(
+            ".codex/integration.toml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("schema_version = 1", installed_integration_config)
+        self.assertIn("configured = false", installed_integration_config)
+        self.assertNotIn("configured = true", installed_integration_config)
+        self.assertEqual(
             self.target.joinpath(".yusung-harness/.gitignore").read_text(
                 encoding="utf-8"
             ),
@@ -203,6 +239,102 @@ class InstallerTestCase(unittest.TestCase):
         self.assertEqual(web_env.read_text(encoding="utf-8"), "CUSTOM_WEB=true\n")
         self.assertEqual(database.read_text(encoding="utf-8"), "user database\n")
         self.assertEqual(generated.read_text(encoding="utf-8"), "user build\n")
+
+    def test_git_target_gets_idempotent_managed_info_exclude_guard(self) -> None:
+        self.target.mkdir()
+        subprocess.run(
+            ["git", "init", "--quiet", "--initial-branch=main", str(self.target)],
+            check=True,
+        )
+        exclude = self.target / ".git" / "info" / "exclude"
+        exclude.write_text("*.local\n", encoding="utf-8")
+
+        first = installer.install(self._options(), runner=FakeRunner())
+        second = installer.install(self._options(), runner=FakeRunner())
+
+        self.assertEqual(first, 0)
+        self.assertEqual(second, 0)
+        content = exclude.read_text(encoding="utf-8")
+        self.assertIn("*.local\n", content)
+        self.assertEqual(content.count("# BEGIN yusung-harness managed"), 1)
+        self.assertEqual(content.count("/.yusung-harness/"), 1)
+        self.assertEqual(content.count("# END yusung-harness managed"), 1)
+
+    def test_update_preserves_project_config_and_updates_integration_scripts(self) -> None:
+        self.target.mkdir()
+        subprocess.run(
+            ["git", "init", "--quiet", "--initial-branch=main", str(self.target)],
+            check=True,
+        )
+        self.assertEqual(installer.install(self._options(), runner=FakeRunner()), 0)
+        target_config = self.target / ".codex" / "integration.toml"
+        configured = target_config.read_text(encoding="utf-8").replace(
+            "configured = false",
+            "configured = true",
+        )
+        target_config.write_text(configured, encoding="utf-8")
+        source_merge = self.source / ".codex/skills/integration/scripts/merge.py"
+        source_merge.write_text("print('merge engine v2')\n", encoding="utf-8")
+
+        result = installer.install(
+            self._options(force=True, backup=True, sync=True),
+            runner=FakeRunner(),
+        )
+
+        self.assertEqual(result, 0)
+        self.assertIn("configured = true", target_config.read_text(encoding="utf-8"))
+        self.assertEqual(
+            self.target.joinpath(
+                ".codex/skills/integration/scripts/merge.py"
+            ).read_text(encoding="utf-8"),
+            "print('merge engine v2')\n",
+        )
+        backups = list(
+            self.target.joinpath(".yusung-harness/backups").glob(
+                "*/.codex/skills/integration/scripts/merge.py"
+            )
+        )
+        self.assertEqual(len(backups), 1)
+
+    def test_malformed_managed_info_exclude_block_is_a_prewrite_conflict(self) -> None:
+        self.target.mkdir()
+        subprocess.run(
+            ["git", "init", "--quiet", "--initial-branch=main", str(self.target)],
+            check=True,
+        )
+        exclude = self.target / ".git" / "info" / "exclude"
+        original = (
+            "# BEGIN yusung-harness managed\n"
+            "/wrong-management-root/\n"
+            "# END yusung-harness managed\n"
+        )
+        exclude.write_text(original, encoding="utf-8")
+        runner = FakeRunner()
+
+        result = installer.install(self._options(), runner=runner)
+
+        self.assertEqual(result, 1)
+        self.assertEqual(exclude.read_text(encoding="utf-8"), original)
+        self.assertFalse(self.target.joinpath("AGENTS.md").exists())
+        self.assertEqual(runner.dependency_calls, [])
+
+    def test_sync_backs_up_and_removes_unchanged_obsolete_integration_script(self) -> None:
+        self.assertEqual(installer.install(self._options(), runner=FakeRunner()), 0)
+        obsolete_source = self.source / ".codex/skills/integration/scripts/merge.py"
+        obsolete_source.unlink()
+
+        result = installer.install(self._options(sync=True), runner=FakeRunner())
+
+        self.assertEqual(result, 0)
+        installed = self.target / ".codex/skills/integration/scripts/merge.py"
+        self.assertFalse(installed.exists())
+        backups = list(
+            self.target.joinpath(".yusung-harness/backups").glob(
+                "*/.codex/skills/integration/scripts/merge.py"
+            )
+        )
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(encoding="utf-8"), "print('merge engine')\n")
 
     def test_conflict_aborts_before_any_other_write_or_dependency_install(self) -> None:
         self.target.mkdir()
@@ -452,6 +584,35 @@ class RepositoryPolicyInstallTest(unittest.TestCase):
                     source_content = repository_root.joinpath(relative).read_bytes()
                     installed_content = target.joinpath(relative).read_bytes()
                     self.assertEqual(installed_content, source_content)
+
+    def test_current_integration_engine_payload_installs_with_unconfigured_template(self) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        script_paths = (
+            Path(".codex/skills/code/scripts/worktree.py"),
+            Path(".codex/skills/integration/scripts/merge.py"),
+        )
+        for relative in script_paths:
+            self.assertTrue(repository_root.joinpath(relative).is_file())
+        source_config = repository_root.joinpath(".codex/integration.toml")
+        self.assertIn("configured = true", source_config.read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "installed"
+            options = installer.InstallOptions(target=target)
+            with mock.patch.object(installer, "SOURCE_ROOT", repository_root):
+                result = installer.install(options, runner=FakeRunner())
+
+            self.assertEqual(result, 0)
+            for relative in script_paths:
+                self.assertEqual(
+                    target.joinpath(relative).read_bytes(),
+                    repository_root.joinpath(relative).read_bytes(),
+                )
+            installed_config = target.joinpath(".codex/integration.toml").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("configured = false", installed_config)
+            self.assertNotIn("configured = true", installed_config)
 
 
 if __name__ == "__main__":

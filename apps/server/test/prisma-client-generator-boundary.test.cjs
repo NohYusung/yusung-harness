@@ -30,3 +30,17 @@ test("서버는 node_modules의 @prisma/client 공개 진입점을 사용한다"
     assert.doesNotMatch(source, /generated\/prisma/);
   }
 });
+
+test("fresh pnpm test는 non-secret SQLite pretest로 Prisma Client를 먼저 생성한다", () => {
+  const packageJson = JSON.parse(readServerFile("package.json"));
+  const { pretest, test: testCommand } = packageJson.scripts;
+
+  assert.equal(typeof pretest, "string", "server pretest가 필요하다");
+  assert.match(
+    pretest,
+    /(?:^|\s)DATABASE_URL=file:\.\/harness-board\.db(?:\s|$)/,
+  );
+  assert.match(pretest, /(?:^|\s)prisma generate$/);
+  assert.doesNotMatch(pretest, /migrate|deploy|&&|;|password|secret/i);
+  assert.equal(testCommand, "node --test test/*.test.cjs");
+});

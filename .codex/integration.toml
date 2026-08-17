@@ -1,0 +1,40 @@
+schema_version = 1
+configured = true
+branch_prefix = "codex/"
+management_root = ".yusung-harness"
+merge_strategy = "no-ff"
+cleanup = "worktree-and-branch"
+conflict_policy = "evidence-only"
+required_verification_categories = ["test", "typecheck", "lint", "build"]
+
+[verification.prepare.source]
+cwd = "apps"
+argv = ["pnpm", "install", "--frozen-lockfile"]
+
+[verification.prepare.candidate]
+cwd = "apps"
+argv = ["pnpm", "install", "--frozen-lockfile"]
+
+[verification.source.worktree-engine]
+cwd = "."
+argv = ["python3", ".codex/skills/code/scripts/test_worktree.py"]
+
+[verification.source.integration-engine]
+cwd = "."
+argv = ["python3", ".codex/skills/integration/scripts/test_merge.py"]
+
+[verification.candidate.test]
+cwd = "apps"
+argv = ["pnpm", "test"]
+
+[verification.candidate.typecheck]
+cwd = "apps"
+argv = ["/usr/bin/env", "DATABASE_URL=file:./harness-board.db", "pnpm", "typecheck"]
+
+[verification.candidate.lint]
+cwd = "apps"
+argv = ["pnpm", "lint"]
+
+[verification.candidate.build]
+cwd = "apps"
+argv = ["/usr/bin/env", "DATABASE_URL=file:./harness-board.db", "pnpm", "build"]

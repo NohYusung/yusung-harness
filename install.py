@@ -43,6 +43,25 @@ LOCK_PATH = MANAGEMENT_DIRECTORY / "install.lock"
 BACKUP_DIRECTORY = MANAGEMENT_DIRECTORY / "backups"
 MANAGEMENT_GITIGNORE_PATH = MANAGEMENT_DIRECTORY / ".gitignore"
 MANAGEMENT_GITIGNORE_CONTENT = "*\n!.gitignore\n"
+INTEGRATION_CONFIG_PATH = Path(".codex/integration.toml")
+INTEGRATION_CONFIG_TEMPLATE = """schema_version = 1
+configured = false
+branch_prefix = "codex/"
+management_root = ".yusung-harness"
+merge_strategy = "no-ff"
+cleanup = "worktree-and-branch"
+conflict_policy = "evidence-only"
+required_verification_categories = ["test", "typecheck", "lint", "build"]
+"""
+GIT_INFO_EXCLUDE_LABEL = Path(".git/info/exclude")
+MANAGEMENT_GIT_EXCLUDE_ENTRY = "/.yusung-harness/"
+MANAGEMENT_GIT_EXCLUDE_BEGIN = "# BEGIN yusung-harness managed"
+MANAGEMENT_GIT_EXCLUDE_END = "# END yusung-harness managed"
+MANAGEMENT_GIT_EXCLUDE_BLOCK = (
+    f"{MANAGEMENT_GIT_EXCLUDE_BEGIN}\n"
+    f"{MANAGEMENT_GIT_EXCLUDE_ENTRY}\n"
+    f"{MANAGEMENT_GIT_EXCLUDE_END}\n"
+)
 WORKSPACE_PATH = Path("apps")
 
 SERVER_ENV_PATH = Path("apps/server/.env")
@@ -53,6 +72,10 @@ GENERATED_ENVIRONMENTS: dict[Path, str] = {
         'HARNESS_API_URL="http://127.0.0.1:4000"\n'
         'HARNESS_MCP_URL="http://127.0.0.1:4000/mcp"\n'
     ),
+}
+GENERATED_PROJECT_FILES: dict[Path, str] = {
+    **GENERATED_ENVIRONMENTS,
+    INTEGRATION_CONFIG_PATH: INTEGRATION_CONFIG_TEMPLATE,
 }
 
 MANIFEST_SCHEMA_VERSION = 1
@@ -165,6 +188,7 @@ class Action:
     content: str | None = None
     backup: bool = False
     detail: str | None = None
+    destination: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -310,7 +334,7 @@ def is_managed_path(relative: Path) -> bool:
         or any("\x00" in part for part in relative.parts)
     ):
         return False
-    if relative in GENERATED_ENVIRONMENTS or is_excluded(relative):
+    if relative in GENERATED_PROJECT_FILES or is_excluded(relative):
         return False
     if relative in {Path("docs"), Path(".codex"), Path("apps")}:
         return False
@@ -358,6 +382,120 @@ def validate_target_scope(options: InstallOptions, stats: InstallStats) -> bool:
     elif options.target.exists() and not options.target.is_dir():
         record_conflict(stats, seen, options.target, "target is not a directory")
     return not seen
+
+
+def resolve_git_info_exclude(target: Path) -> Path | None:
+    """Resolve a real Git target's common info/exclude without invoking a shell."""
+
+    marker = target / ".git"
+    if not marker.exists() and not marker.is_symlink():
+        return None
+    if marker.is_symlink():
+        raise ValueError("target Git metadata symlinks are not supported")
+
+    if marker.is_dir():
+        common_directory = marker
+    elif marker.is_file():
+        try:
+            marker_text = marker.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError) as error:
+            raise ValueError(f"cannot read target Git metadata: {error}") from error
+        prefix = "gitdir:"
+        if not marker_text.lower().startswith(prefix):
+            raise ValueError("target .git file has an unsupported format")
+        git_directory_text = marker_text[len(prefix) :].strip()
+        if not git_directory_text:
+            raise ValueError("target .git file has an empty gitdir")
+        git_directory = Path(git_directory_text).expanduser()
+        if not git_directory.is_absolute():
+            git_directory = marker.parent / git_directory
+        if git_directory.is_symlink():
+            raise ValueError("target gitdir symlinks are not supported")
+        git_directory = git_directory.resolve(strict=False)
+        if not git_directory.is_dir():
+            raise ValueError("target gitdir is not a real directory")
+
+        common_marker = git_directory / "commondir"
+        if common_marker.exists():
+            if common_marker.is_symlink() or not common_marker.is_file():
+                raise ValueError("target Git commondir marker is invalid")
+            try:
+                common_text = common_marker.read_text(encoding="utf-8").strip()
+            except (OSError, UnicodeError) as error:
+                raise ValueError(f"cannot read target Git commondir: {error}") from error
+            if not common_text:
+                raise ValueError("target Git commondir is empty")
+            common_directory = Path(common_text).expanduser()
+            if not common_directory.is_absolute():
+                common_directory = git_directory / common_directory
+        else:
+            common_directory = git_directory
+    else:
+        raise ValueError("target .git is not a file or directory")
+
+    if common_directory.is_symlink():
+        raise ValueError("target Git common directory symlinks are not supported")
+    common_directory = common_directory.resolve(strict=False)
+    if not common_directory.is_dir():
+        raise ValueError("target Git common directory is not a real directory")
+    info_directory = common_directory / "info"
+    if info_directory.is_symlink() or (
+        info_directory.exists() and not info_directory.is_dir()
+    ):
+        raise ValueError("target Git info path is not a real directory")
+    exclude = info_directory / "exclude"
+    if exclude.is_symlink() or (exclude.exists() and not exclude.is_file()):
+        raise ValueError("target Git info/exclude is not a regular file")
+    return exclude
+
+
+def render_git_exclude_guard(content: str) -> str:
+    """Return an idempotent managed block or reject ambiguous block drift."""
+
+    lines = content.splitlines()
+    begin_indexes = [
+        index for index, line in enumerate(lines) if line == MANAGEMENT_GIT_EXCLUDE_BEGIN
+    ]
+    end_indexes = [
+        index for index, line in enumerate(lines) if line == MANAGEMENT_GIT_EXCLUDE_END
+    ]
+    if not begin_indexes and not end_indexes:
+        entry_indexes = [
+            index
+            for index, line in enumerate(lines)
+            if line == MANAGEMENT_GIT_EXCLUDE_ENTRY
+        ]
+        if len(entry_indexes) > 1:
+            raise ValueError("target Git info/exclude has duplicate management guards")
+        if entry_indexes:
+            entry_index = entry_indexes[0]
+            updated_lines = list(lines)
+            updated_lines[entry_index : entry_index + 1] = [
+                MANAGEMENT_GIT_EXCLUDE_BEGIN,
+                MANAGEMENT_GIT_EXCLUDE_ENTRY,
+                MANAGEMENT_GIT_EXCLUDE_END,
+            ]
+            return "\n".join(updated_lines) + "\n"
+        separator = "" if not content or content.endswith("\n") else "\n"
+        return f"{content}{separator}{MANAGEMENT_GIT_EXCLUDE_BLOCK}"
+
+    if len(begin_indexes) != 1 or len(end_indexes) != 1:
+        raise ValueError("target Git info/exclude managed block is malformed")
+    begin_index = begin_indexes[0]
+    end_index = end_indexes[0]
+    if end_index != begin_index + 2 or lines[begin_index : end_index + 1] != [
+        MANAGEMENT_GIT_EXCLUDE_BEGIN,
+        MANAGEMENT_GIT_EXCLUDE_ENTRY,
+        MANAGEMENT_GIT_EXCLUDE_END,
+    ]:
+        raise ValueError("target Git info/exclude managed block is malformed")
+    return content
+
+
+def action_destination(action: Action, options: InstallOptions) -> Path:
+    """Return the validated destination for a planned action."""
+
+    return action.destination or options.target / action.relative
 
 
 def git_tracked_app_files() -> tuple[Path, ...] | None:
@@ -487,7 +625,7 @@ def collect_payload(stats: InstallStats) -> Payload:
             for file_name in sorted(file_names):
                 current = current_directory / file_name
                 relative = current.relative_to(SOURCE_ROOT)
-                if is_excluded(relative):
+                if relative in GENERATED_PROJECT_FILES or is_excluded(relative):
                     continue
                 if current.is_symlink():
                     record_conflict(
@@ -814,7 +952,7 @@ def build_plan(
                 "changed managed file; use --force to overwrite",
             )
 
-    for relative, content in GENERATED_ENVIRONMENTS.items():
+    for relative, content in GENERATED_PROJECT_FILES.items():
         if not validate_path_chain(options.target, relative, "file", stats, seen):
             continue
         destination = options.target / relative
@@ -823,7 +961,7 @@ def build_plan(
                 Action(
                     "preserve",
                     relative,
-                    detail="preserved runtime config",
+                    detail="preserved project-specific config",
                 )
             )
         else:
@@ -869,6 +1007,74 @@ def build_plan(
                     )
                 )
 
+    try:
+        git_exclude = resolve_git_info_exclude(options.target)
+    except ValueError as error:
+        record_conflict(stats, seen, GIT_INFO_EXCLUDE_LABEL, str(error))
+        git_exclude = None
+    if git_exclude is not None:
+        if git_exclude.exists():
+            try:
+                current_content = git_exclude.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as error:
+                record_conflict(
+                    stats,
+                    seen,
+                    GIT_INFO_EXCLUDE_LABEL,
+                    f"cannot read target Git info/exclude: {error}",
+                )
+            else:
+                current_digest = file_digest(git_exclude)
+                try:
+                    desired_content = render_git_exclude_guard(current_content)
+                except ValueError as error:
+                    record_conflict(
+                        stats,
+                        seen,
+                        GIT_INFO_EXCLUDE_LABEL,
+                        str(error),
+                    )
+                else:
+                    if desired_content == current_content:
+                        actions.append(
+                            Action(
+                                "skip-git-exclude",
+                                GIT_INFO_EXCLUDE_LABEL,
+                                target_digest=current_digest,
+                                detail="installer metadata guard already present",
+                                destination=git_exclude,
+                            )
+                        )
+                    else:
+                        actions.append(
+                            Action(
+                                "update-git-exclude",
+                                GIT_INFO_EXCLUDE_LABEL,
+                                source_digest=hashlib.sha256(
+                                    desired_content.encode("utf-8")
+                                ).hexdigest(),
+                                target_digest=current_digest,
+                                content=desired_content,
+                                backup=True,
+                                detail="append installer metadata guard",
+                                destination=git_exclude,
+                            )
+                        )
+        else:
+            guard_content = MANAGEMENT_GIT_EXCLUDE_BLOCK
+            actions.append(
+                Action(
+                    "generate-git-exclude",
+                    GIT_INFO_EXCLUDE_LABEL,
+                    source_digest=hashlib.sha256(
+                        guard_content.encode("utf-8")
+                    ).hexdigest(),
+                    content=guard_content,
+                    detail="protect installer metadata from target Git",
+                    destination=git_exclude,
+                )
+            )
+
     manifest_files = dict(payload.digests)
     if not options.sync:
         for relative, digest in previous_files.items():
@@ -885,7 +1091,7 @@ def build_plan(
 
         for relative_text in sorted(stale):
             relative = Path(relative_text)
-            if relative in GENERATED_ENVIRONMENTS or is_excluded(relative):
+            if relative in GENERATED_PROJECT_FILES or is_excluded(relative):
                 continue
             if not validate_path_chain(options.target, relative, "file", stats, seen):
                 continue
@@ -911,6 +1117,9 @@ def build_plan(
                 )
             )
 
+    # Project-specific verification argv is target-owned after template creation.
+    manifest_files.pop(INTEGRATION_CONFIG_PATH.as_posix(), None)
+
     return InstallPlan(
         directories=tuple(missing_directories),
         actions=tuple(actions),
@@ -925,16 +1134,21 @@ def emit_plan(plan: InstallPlan, options: InstallOptions, stats: InstallStats) -
         log("mkdir", relative)
         stats.created_dirs += 1
     for action in plan.actions:
-        if action.kind in {"copy", "generate", "generate-management"}:
+        if action.kind in {
+            "copy",
+            "generate",
+            "generate-management",
+            "generate-git-exclude",
+        }:
             log("create" if action.kind != "copy" else "copy", action.relative, action.detail)
             stats.copied += 1
-        elif action.kind == "update":
+        elif action.kind in {"update", "update-git-exclude"}:
             if action.backup:
                 log("backup", action.relative, "before overwrite")
                 stats.backups += 1
             log("update", action.relative)
             stats.updated += 1
-        elif action.kind in {"skip", "preserve"}:
+        elif action.kind in {"skip", "preserve", "skip-git-exclude"}:
             log("skip", action.relative, action.detail)
             stats.skipped += 1
         elif action.kind == "remove":
@@ -964,7 +1178,7 @@ def revalidate_plan(
             raise RuntimeError(f"source changed during install: {relative}")
 
     for action in plan.actions:
-        destination = options.target / action.relative
+        destination = action_destination(action, options)
         if action.kind == "generate-management" and management_guard_applied:
             if (
                 action.source_digest is None
@@ -975,7 +1189,12 @@ def revalidate_plan(
                 raise RuntimeError(
                     f"installer metadata guard changed during install: {action.relative}"
                 )
-        elif action.kind in {"copy", "generate", "generate-management"}:
+        elif action.kind in {
+            "copy",
+            "generate",
+            "generate-management",
+            "generate-git-exclude",
+        }:
             if destination.exists() or destination.is_symlink():
                 raise RuntimeError(f"target changed during install: {action.relative}")
         elif action.target_digest is not None:
@@ -1085,7 +1304,7 @@ def apply_plan(
     for action in plan.actions:
         if action.backup:
             backup_file(
-                options.target / action.relative,
+                action_destination(action, options),
                 action.relative,
                 options,
                 run_id,
@@ -1102,14 +1321,23 @@ def apply_plan(
     )
 
     for action in plan.actions:
-        destination = options.target / action.relative
-        if action.kind in {"skip", "preserve", "generate-management"}:
+        destination = action_destination(action, options)
+        if action.kind in {
+            "skip",
+            "preserve",
+            "generate-management",
+            "skip-git-exclude",
+        }:
             continue
         if action.kind in {"copy", "update"}:
             if action.source is None:
                 raise RuntimeError(f"missing source for {action.relative}")
             atomic_copy(action.source, destination)
-        elif action.kind == "generate":
+        elif action.kind in {
+            "generate",
+            "generate-git-exclude",
+            "update-git-exclude",
+        }:
             if action.content is None:
                 raise RuntimeError(f"missing generated content for {action.relative}")
             atomic_write_text(destination, action.content, 0o600)

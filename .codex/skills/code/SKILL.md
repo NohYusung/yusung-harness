@@ -1,7 +1,6 @@
 ---
 name: code
-description: 코드 베이스를 탐색하고, 코딩 작업을 수행하는 skill
-argument-hint: "[--worktree [worktree-name]]"
+description: 코드베이스를 탐색·수정하고 테스트 가능한 구현을 만들며, --worktree 요청에서는 configured integration profile로 격리 source worktree를 생성·검증하는 스킬.
 ---
 
 ## 에이전트 호출 경계
@@ -65,17 +64,58 @@ python3 <CODE_SKILL_DIR>/scripts/complete_task.py \
 
 $ARGUMENTS
 
-## Worktree 생성 규칙 (`--worktree`)
+## 격리 Worktree workflow (`--worktree [name]`)
 
-1. 사용자가 `$ARGUMENTS`에 `--worktree`옵션을 포함한 경우
+- 사용자가 이름을 지정하면 그대로 사용한다.
+- `--worktree`만 지정하면 Task 제목과 기능 결과를 기준으로 소문자 영문 kebab-case 이름을 만든다.
+- target repository의 `.codex/integration.toml`이 존재하고 `configured = true`인지 먼저 확인한다. false이거나 profile이 빠졌으면 fail-closed하고 project별 verification 설정을 요청한다.
+- branch와 worktree path를 직접 만들지 않고 `scripts/worktree.py`만 사용한다.
 
-- 사용자가 명시적으로 워크트리 이름을 지정했다면, 해당 이름을 사용한다.
-- **_워크트리 이름을 지정하지 않은 경우 (`--worktree`만 넘긴 경우)_** : 에이전트가 수행할 작업 (Task 제목 및 기능 명세)을 분석하여 **영문 케밥 케이스(kebab-case)형식의 직관적인 이름(예: `feature-notice`, `fix-GA4`) 을 자동으로 판단하여 생성**한다.
+### 1. 기준 ref와 targeted profile 고정
 
-2. 생성되거나 지정한 `<worktree-name>`으로 아래 파이썬 스크립트를 실행한다.
+1. target repository 절대 경로와 base branch를 확인한다.
+2. `git -C <TARGET_REPO_ABSOLUTE_PATH> rev-parse <BASE_BRANCH>`로 full SHA를 구해 `expected-base-head`로 고정한다.
+3. `.codex/integration.toml`의 `verification.source.*`를 읽고 각 profile을 하나의 `--targeted-check-json`으로 전달한다.
+4. Plan/Task 작업이면 Project ID와 Task ID를 전달한다. 일반 코드 작업이면 두 ID를 생략한다.
 
 ```bash
-python3 <CODE_SKILL_DIR>/scripts/create_worktree.py \
-  --target-repo <target-repo-path> \
-  --worktree-name <worktree-name>
+python3 <CODE_SKILL_DIR>/scripts/worktree.py create \
+  --repo <TARGET_REPO_ABSOLUTE_PATH> \
+  --name <WORKTREE_NAME> \
+  --base <BASE_BRANCH> \
+  --expected-base-head <FULL_BASE_SHA> \
+  --agent coder \
+  --project-id <PROJECT_ID> \
+  --task-id <TASK_ID> \
+  --targeted-check-json '{"name":"worktree-engine","cwd":".","argv":["python3",".codex/skills/code/scripts/test_worktree.py"]}' \
+  --targeted-check-json '{"name":"integration-engine","cwd":".","argv":["python3",".codex/skills/integration/scripts/test_merge.py"]}'
 ```
+
+- 성공 결과의 worktree path, `codex/<WORKTREE_NAME>` branch와 manifest의 `baseSha`를 기록한다.
+- 모든 코드 탐색·수정·테스트·commit은 반환된 격리 worktree에서 수행한다. primary target worktree를 feature 구현에 사용하지 않는다.
+
+### 2. commit과 ready 전환
+
+1. 격리 worktree에서 구현과 targeted test를 완료한다.
+2. `integration --commit <SOURCE_BRANCH>`의 staged-only `commit.py` workflow로 commit한다.
+3. commit 이후 source branch의 full HEAD SHA를 고정한다.
+4. 다음 명령으로 configured source targeted profile을 argv 그대로 실행하고 evidence를 manifest에 연결한다.
+
+```bash
+python3 <CODE_SKILL_DIR>/scripts/worktree.py ready \
+  --repo <TARGET_REPO_ABSOLUTE_PATH> \
+  --branch <SOURCE_BRANCH> \
+  --expected-head <FULL_SOURCE_HEAD_SHA>
+```
+
+- `ready` 성공과 `READY` manifest를 확인한 뒤에만 root에게 `integration --merge` handoff를 보낸다.
+- handoff에는 repository, source/target branch, source/target full SHA, worktree manifest path, Project/Task ID와 targeted evidence ID를 포함한다.
+
+<HARD-GATE>
+
+- `worktree.py create` 전에 base SHA와 `configured = true`를 확인한다.
+- source profile을 임의 명령으로 바꾸거나 `--targeted-check-json`을 누락하지 않는다.
+- `worktree.py ready` 실패, dirty worktree, HEAD drift 또는 targeted check 실패를 READY로 보고하지 않는다.
+- worktree·branch·state manifest를 raw `git worktree add`, 파일 직접 편집 또는 별도 스크립트로 우회 생성·갱신하지 않는다.
+
+</HARD-GATE>
