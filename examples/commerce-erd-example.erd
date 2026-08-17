@@ -35,15 +35,12 @@
       "table-14447575adab621ec5c9"
     ],
     "relationshipIds": [
-      "relationship-b70e59fbeb9c6cbad733"
+      "relationship-1224d6ec2b9630ad2a97"
     ],
     "indexIds": [
       "index-b790a2c8fd1524b8a8f0"
     ],
-    "memoIds": [
-      "memo-45447b7afbd5e544f7d0",
-      "memo-b70e59fbeb9c6cbad733"
-    ]
+    "memoIds": []
   },
   "collections": {
     "tableEntities": {
@@ -62,8 +59,8 @@
           "column-c529d15be3ef9f8f0617"
         ],
         "ui": {
-          "x": 740,
-          "y": 120,
+          "x": 720,
+          "y": 100,
           "zIndex": 2,
           "widthName": 260,
           "widthComment": 180,
@@ -87,8 +84,8 @@
           "column-8ca2fcb212ac06f6e93d"
         ],
         "ui": {
-          "x": 120,
-          "y": 120,
+          "x": 100,
+          "y": 100,
           "zIndex": 3,
           "widthName": 260,
           "widthComment": 180,
@@ -203,8 +200,8 @@
       }
     },
     "relationshipEntities": {
-      "relationship-b70e59fbeb9c6cbad733": {
-        "id": "relationship-b70e59fbeb9c6cbad733",
+      "relationship-1224d6ec2b9630ad2a97": {
+        "id": "relationship-1224d6ec2b9630ad2a97",
         "identification": false,
         "relationshipType": 4,
         "startRelationshipType": 2,
@@ -213,8 +210,8 @@
           "columnIds": [
             "column-03d37d843443d35fe2d5"
           ],
-          "x": 560,
-          "y": 207,
+          "x": 540,
+          "y": 187,
           "direction": 2
         },
         "end": {
@@ -222,8 +219,8 @@
           "columnIds": [
             "column-f18799ca5c811fb8f4b1"
           ],
-          "x": 740,
-          "y": 237,
+          "x": 720,
+          "y": 217,
           "direction": 1
         },
         "meta": {
@@ -262,39 +259,6 @@
         }
       }
     },
-    "memoEntities": {
-      "memo-45447b7afbd5e544f7d0": {
-        "id": "memo-45447b7afbd5e544f7d0",
-        "value": "[yusung-harness:erd-meta/1.0]\n{\"engine\":\"PostgreSQL 16\",\"inventoryFingerprint\":\"c20f0319d07dc6557c3edab08dd7e98fde4160f9242e45e889d222962a69b965\",\"scope\":\"shop.public\",\"sourceRevision\":\"example-revision-7f3c2a1\"}",
-        "ui": {
-          "x": 1360,
-          "y": 120,
-          "zIndex": 4,
-          "width": 520,
-          "height": 160,
-          "color": "#fff7ed"
-        },
-        "meta": {
-          "updateAt": 0,
-          "createAt": 0
-        }
-      },
-      "memo-b70e59fbeb9c6cbad733": {
-        "id": "memo-b70e59fbeb9c6cbad733",
-        "value": "[yusung-harness:fk/1.0]\n{\"constraint\":\"fk_orders_user\",\"onDelete\":\"RESTRICT\",\"onUpdate\":\"CASCADE\",\"sourceCardinality\":\"0..N\",\"sourceColumns\":[\"user_id\"],\"sourceTable\":\"public.orders\",\"targetCardinality\":\"1\",\"targetColumns\":[\"id\"],\"targetTable\":\"public.users\"}",
-        "ui": {
-          "x": 1360,
-          "y": 308,
-          "zIndex": 5,
-          "width": 520,
-          "height": 150,
-          "color": "#f8fafc"
-        },
-        "meta": {
-          "updateAt": 0,
-          "createAt": 0
-        }
-      }
-    }
+    "memoEntities": {}
   }
 }

@@ -7,6 +7,9 @@ const { pathToFileURL } = require("node:url");
 const test = require("node:test");
 const Database = require("better-sqlite3");
 const { createDineugDocument } = require("./helpers/dineug-document.cjs");
+const internationalInventory = require(
+  "./fixtures/dineug-international-inventory.json",
+);
 
 const serverRoot = join(__dirname, "..");
 const migrationPath = join(
@@ -393,6 +396,100 @@ test("backfill은 valid document를 byte 그대로 skip하고 invalid document�
       ),
     );
     assert.equal(backfillErdDocuments(database).converted, 0);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("backfill은 legacy source 없는 memo 문서를 core relationship 계약으로 승격한다", async () => {
+  const { backfillErdDocuments } = await import(backfillModuleUrl);
+  const {
+    buildDineugErdDocument,
+    canonicalizeDineugErdDocument,
+    stableId,
+  } = await import(documentModuleUrl);
+  const inventory = JSON.parse(JSON.stringify(internationalInventory));
+  const memoFreeDocument = buildDineugErdDocument(inventory);
+  const legacyDocument = JSON.parse(JSON.stringify(memoFreeDocument));
+  const legacyRelationships = {};
+
+  /** 현재 core ID를 이전 constraint-derived ID로 되돌려 실제 저장 문서를 재현한다. */
+  inventory.relationships.forEach((relationship) => {
+    const coreKey = [
+      relationship.sourceTable,
+      relationship.sourceColumns.join(","),
+      relationship.targetTable,
+      relationship.targetColumns.join(","),
+    ].join("|");
+    const previousKey = [
+      relationship.sourceTable,
+      relationship.constraint,
+      relationship.sourceColumns.join(","),
+      relationship.targetTable,
+      relationship.targetColumns.join(","),
+    ].join("|");
+    const currentId = stableId("relationship", coreKey);
+    const previousId = stableId("relationship", previousKey);
+    legacyRelationships[previousId] = {
+      ...legacyDocument.collections.relationshipEntities[currentId],
+      id: previousId,
+    };
+  });
+  legacyDocument.doc.relationshipIds = Object.keys(legacyRelationships);
+  legacyDocument.collections.relationshipEntities = legacyRelationships;
+  legacyDocument.doc.memoIds = ["memo-45447b7afbd5e544f7d0"];
+  legacyDocument.collections.memoEntities = {
+    "memo-45447b7afbd5e544f7d0": {
+      id: "memo-45447b7afbd5e544f7d0",
+      value: "legacy metadata and FK payloads",
+    },
+  };
+  legacyDocument.settings.width = 3860;
+  legacyDocument.settings.scrollLeft = 275;
+  legacyDocument.settings.scrollTop = 430;
+  const movedTable = Object.values(legacyDocument.collections.tableEntities)[0];
+  movedTable.ui.x = 2100;
+  movedTable.ui.y = 2200;
+
+  const { database, directory } = createPreDineugDatabase();
+  try {
+    insertLegacy(database, {
+      id: 31,
+      title: "Memo-only source",
+    });
+    migrate(database);
+    database
+      .prepare(`UPDATE "ERD" SET "document" = ? WHERE "id" = 31`)
+      .run(JSON.stringify(legacyDocument));
+
+    assert.deepEqual(backfillErdDocuments(database), {
+      converted: 1,
+      skipped: 0,
+    });
+    const stored = JSON.parse(
+      database.prepare(`SELECT "document" FROM "ERD" WHERE "id" = 31`).get()
+        .document,
+    );
+    assert.deepEqual(stored.doc.memoIds, []);
+    assert.deepEqual(stored.collections.memoEntities, {});
+    assert.deepEqual(stored.doc.relationshipIds, memoFreeDocument.doc.relationshipIds);
+    assert.deepEqual(
+      stored.collections.relationshipEntities,
+      memoFreeDocument.collections.relationshipEntities,
+    );
+    assert.equal(stored.settings.width, 2620);
+    assert.equal(
+      stored.settings.height,
+      2200 + 88 + movedTable.columnIds.length * 30 + 100,
+    );
+    assert.equal(stored.settings.scrollLeft, 275);
+    assert.equal(stored.settings.scrollTop, 430);
+    assert.doesNotThrow(() => canonicalizeDineugErdDocument(stored));
+    assert.deepEqual(backfillErdDocuments(database), {
+      converted: 0,
+      skipped: 1,
+    });
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

@@ -39,6 +39,7 @@ const loadTypeScriptModule = (relativePath, moduleStubs = {}) => {
 let canonicalizeDineugErdDocument;
 let buildDineugErdDocument;
 let dineugErdDocumentSchema;
+let normalizeInventory;
 let validateDineugErdDocument;
 
 test.before(async () => {
@@ -53,6 +54,7 @@ test.before(async () => {
   canonicalizeDineugErdDocument =
     serviceDocument.canonicalizeDineugErdDocument;
   buildDineugErdDocument = sharedDocument.buildDineugErdDocument;
+  normalizeInventory = sharedDocument.normalizeInventory;
   dineugErdDocumentSchema = serviceDocument.dineugErdDocumentSchema;
   validateDineugErdDocument = sharedDocument.validateDineugErdDocument;
 });
@@ -82,12 +84,8 @@ test("Dineug v3 document를 key 순서와 무관한 canonical JSON으로 저장�
   assert.equal(canonicalizeDineugErdDocument(reordered), canonical);
   assert.deepEqual(parsedCanonical, document);
   assert.equal(parsedCanonical.settings.databaseName, "harness");
-  assert.match(
-    parsedCanonical.collections.memoEntities[
-      "memo-45447b7afbd5e544f7d0"
-    ].value,
-    /"scope":"main"/,
-  );
+  assert.deepEqual(parsedCanonical.doc.memoIds, []);
+  assert.deepEqual(parsedCanonical.collections.memoEntities, {});
   assert.equal(dineugErdDocumentSchema.safeParse(document).success, true);
 });
 
@@ -138,27 +136,19 @@ test("canonicalizer는 entity key/id 불일치와 중복 doc id를 거부한다"
   }
 });
 
-test("canonicalizer는 databaseName 또는 full inventory fingerprint 변조를 거부한다", () => {
-  const databaseNameTamper = cloneDocument(createDineugDocument());
-  databaseNameTamper.settings.databaseName = "main";
+test("canonicalizer는 비어 있지 않은 memo 계약을 거부한다", () => {
+  const document = cloneDocument(createDineugDocument());
+  document.doc.memoIds = ["memo-45447b7afbd5e544f7d0"];
+  document.collections.memoEntities["memo-45447b7afbd5e544f7d0"] = {
+    id: "memo-45447b7afbd5e544f7d0",
+    value: "legacy metadata",
+  };
 
-  const fingerprintTamper = cloneDocument(createDineugDocument());
-  fingerprintTamper.collections.memoEntities[
-    "memo-45447b7afbd5e544f7d0"
-  ].value = fingerprintTamper.collections.memoEntities[
-    "memo-45447b7afbd5e544f7d0"
-  ].value.replace(
-    "aa9617591e09d1950a341027458cd78dfdd2bdca7763b2846d2938bd012c50e4",
-    "f".repeat(64),
-  );
-
-  for (const invalid of [databaseNameTamper, fingerprintTamper]) {
-    assert.equal(dineugErdDocumentSchema.safeParse(invalid).success, false);
-    assert.throws(() => canonicalizeDineugErdDocument(invalid));
-  }
+  assert.equal(dineugErdDocumentSchema.safeParse(document).success, false);
+  assert.throws(() => canonicalizeDineugErdDocument(document));
 });
 
-test("비ASCII table·UK·FK는 runtime locale과 무관한 builder/server fingerprint를 유지한다", () => {
+test("비ASCII table·UK·FK는 runtime locale과 무관한 canonical document를 유지한다", () => {
   const baseline = buildDineugErdDocument(internationalInventory);
   const baselineCanonical = canonicalizeDineugErdDocument(baseline);
   const originalLocaleCompare = String.prototype.localeCompare;
@@ -182,27 +172,125 @@ test("비ASCII table·UK·FK는 runtime locale과 무관한 builder/server finge
   assert.equal(localePerturbedCanonical, baselineCanonical);
 });
 
-test("서로 다른 source table은 같은 FK constraint 이름을 재사용할 수 있다", () => {
+test("폐기되는 provenance와 FK 부가정보는 canonical document에 영향을 주지 않는다", () => {
   const document = buildDineugErdDocument(internationalInventory);
-  const foreignKeyMemos = Object.values(
-    document.collections.memoEntities,
-  ).filter(({ value }) =>
-    value.startsWith("[yusung-harness:fk/1.0]\n"),
+  const changedDiscardedFields = cloneDocument(internationalInventory);
+  changedDiscardedFields.scope = "다른 scope";
+  changedDiscardedFields.sourceRevision = "another-revision";
+  changedDiscardedFields.relationships = changedDiscardedFields.relationships.map(
+    (relationship, index) => ({
+      ...relationship,
+      constraint: `discarded-${index}`,
+      onDelete: "NO ACTION",
+      onUpdate: null,
+    }),
   );
+  const changedDocument = buildDineugErdDocument(changedDiscardedFields);
 
   assert.equal(document.doc.relationshipIds.length, 2);
-  assert.equal(foreignKeyMemos.length, 2);
-  const foreignKeys = foreignKeyMemos.map(({ value }) =>
-    JSON.parse(value.slice(value.indexOf("\n") + 1)),
-  );
-  assert.deepEqual(
-    new Set(foreignKeys.map(({ constraint }) => constraint)),
-    new Set(["사용자_외래키"]),
-  );
-  assert.deepEqual(
-    new Set(foreignKeys.map(({ sourceTable }) => sourceTable)),
-    new Set(["스키마.주문", "스키마.Z문의"]),
-  );
+  assert.deepEqual(document.doc.memoIds, []);
+  assert.deepEqual(document.collections.memoEntities, {});
+  assert.deepEqual(changedDocument, document);
   assert.doesNotThrow(() => validateDineugErdDocument(document));
   assert.doesNotThrow(() => canonicalizeDineugErdDocument(document));
+});
+
+test("같은 core endpoint 관계는 동일 cardinality만 한 선으로 축약한다", () => {
+  const duplicate = cloneDocument(internationalInventory);
+  duplicate.relationships.push({
+    ...duplicate.relationships[0],
+    constraint: "duplicate-constraint",
+    onDelete: "RESTRICT",
+  });
+  const document = buildDineugErdDocument(duplicate);
+
+  assert.equal(document.doc.relationshipIds.length, 2);
+
+  const conflicting = cloneDocument(duplicate);
+  conflicting.relationships.at(-1).sourceCardinality = "0..N";
+  assert.throws(() => buildDineugErdDocument(conflicting));
+});
+
+test("canonicalizer는 core endpoint와 일치하지 않는 relationship ID를 거부한다", () => {
+  const document = buildDineugErdDocument(internationalInventory);
+  const currentId = document.doc.relationshipIds[0];
+  const invalidId = `relationship-${"f".repeat(20)}`;
+  const relationship = document.collections.relationshipEntities[currentId];
+
+  delete document.collections.relationshipEntities[currentId];
+  document.collections.relationshipEntities[invalidId] = {
+    ...relationship,
+    id: invalidId,
+  };
+  document.doc.relationshipIds[0] = invalidId;
+
+  assert.throws(() => canonicalizeDineugErdDocument(document));
+});
+
+test("builder canvas는 마지막 table 경계에 padding 100만 더한다", () => {
+  const inventory = cloneDocument(internationalInventory);
+  const tableTemplate = inventory.tables[0];
+  inventory.tables = Array.from({ length: 10 }, (_, index) => ({
+    ...cloneDocument(tableTemplate),
+    qualifiedName: `schema.table_${index.toString().padStart(2, "0")}`,
+    columns: tableTemplate.columns.map((column) => ({
+      ...cloneDocument(column),
+      foreignKey: false,
+    })),
+  }));
+  inventory.relationships = [];
+  const document = buildDineugErdDocument(inventory);
+  const tableBottom = Math.max(
+    ...Object.values(document.collections.tableEntities).map(
+      (table) => table.ui.y + 88 + table.columnIds.length * 30,
+    ),
+  );
+  const tableRight = Math.max(
+    ...Object.values(document.collections.tableEntities).map(
+      (table) => table.ui.x + 420,
+    ),
+  );
+
+  assert.equal(document.settings.height, tableBottom + 100);
+  assert.equal(document.settings.width, Math.max(2000, tableRight + 100));
+});
+
+test("inventory collection budget은 memo 없는 실제 5개 entity collection만 계산한다", () => {
+  const inventory = {
+    contract: "ERDInventory/2.0",
+    name: "budget",
+    scope: "main",
+    engine: "SQLite",
+    sourceRevision: "budget-test",
+    tables: [
+      {
+        qualifiedName: "wide_table",
+        comment: "",
+        columns: Array.from({ length: 4_999 }, (_, index) => ({
+          name: `column_${index}`,
+          type: "INTEGER",
+          nullable: true,
+          foreignKey: false,
+          autoIncrement: false,
+          default: null,
+          comment: "",
+        })),
+        primaryKey: null,
+        uniqueConstraints: [],
+      },
+    ],
+    relationships: [],
+  };
+
+  assert.doesNotThrow(() => normalizeInventory(inventory));
+  inventory.tables[0].columns.push({
+    name: "column_4999",
+    type: "INTEGER",
+    nullable: true,
+    foreignKey: false,
+    autoIncrement: false,
+    default: null,
+    comment: "",
+  });
+  assert.throws(() => normalizeInventory(inventory));
 });

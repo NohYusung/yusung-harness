@@ -5,22 +5,16 @@ import { pathToFileURL } from "node:url";
 import {
   DINEUG_SCHEMA_URL,
   DINEUG_VERSION,
-  FOREIGN_KEY_MEMO_PREFIX,
-  INVENTORY_CONTRACT,
   MAXIMUM_CANVAS_SIZE,
   MAXIMUM_COLLECTION_ENTITIES,
   MAXIMUM_DOCUMENT_BYTES,
-  METADATA_MEMO_PREFIX,
   MINIMUM_CANVAS_SIZE,
   assertDocumentBudgets,
   buildDocument,
   canonicalJson,
   collectionEntityCount,
   compareStrings,
-  databaseCode,
   fingerprint,
-  inventoryFingerprint,
-  normalizeInventory,
   readJsonFile,
   relationshipKey,
   stableId,
@@ -39,7 +33,7 @@ const RELATIONSHIP_TYPES = new Set([2, 4, 8, 16]);
 const START_RELATIONSHIP_TYPES = new Set([1, 2]);
 const DIRECTIONS = new Set([1, 2, 4, 8]);
 const ENTITY_ID_PATTERN =
-  /^(table|column|relationship|index|index-column|memo)-[0-9a-f]{20}$/;
+  /^(table|column|relationship|index|index-column)-[0-9a-f]{20}$/;
 
 function fail(message) {
   throw new Error(message);
@@ -299,14 +293,24 @@ function validateDoc(doc) {
     "document.doc",
   );
 
+  const memoIds = requireStringArray(
+    doc.memoIds,
+    "document.doc.memoIds",
+  );
+  if (memoIds.length !== 0) {
+    fail("document.doc.memoIds must be empty");
+  }
+
   return {
-    tableIds: requireStringArray(doc.tableIds, "document.doc.tableIds"),
+    tableIds: requireStringArray(doc.tableIds, "document.doc.tableIds", {
+      allowEmpty: false,
+    }),
     relationshipIds: requireStringArray(
       doc.relationshipIds,
       "document.doc.relationshipIds",
     ),
     indexIds: requireStringArray(doc.indexIds, "document.doc.indexIds"),
-    memoIds: requireStringArray(doc.memoIds, "document.doc.memoIds"),
+    memoIds,
   };
 }
 
@@ -317,15 +321,28 @@ function validateUiNumbers(ui, fields, path) {
   }
 }
 
+function relationshipCoreKeyFromEntity(relationship, tableMap, columnMap) {
+  return relationshipKey({
+    sourceTable: tableMap.get(relationship.end.tableId).name,
+    sourceColumns: relationship.end.columnIds.map(
+      (columnId) => columnMap.get(columnId).name,
+    ),
+    targetTable: tableMap.get(relationship.start.tableId).name,
+    targetColumns: relationship.start.columnIds.map(
+      (columnId) => columnMap.get(columnId).name,
+    ),
+  });
+}
+
 function validateCollections(document, docIds) {
   const collections = document.collections;
   const tableMap = new Map();
   const columnMap = new Map();
   const relationshipMap = new Map();
   const relationshipForeignColumnIds = new Set();
+  const relationshipCoreKeys = new Set();
   const indexMap = new Map();
   const indexColumnMap = new Map();
-  const memoMap = new Map();
 
   for (const collectionName of COLLECTION_NAMES) {
     requireObject(
@@ -539,6 +556,18 @@ function validateCollections(document, docIds) {
     if (relationship.identification !== expectedIdentification) {
       fail(`${path}.identification does not match source PK columns`);
     }
+    const coreKey = relationshipCoreKeyFromEntity(
+      relationship,
+      tableMap,
+      columnMap,
+    );
+    if (relationshipCoreKeys.has(coreKey)) {
+      fail(`${path} duplicates core relationship ${coreKey}`);
+    }
+    if (relationship.id !== stableId("relationship", coreKey)) {
+      fail(`${path}.id does not match core relationship semantics`);
+    }
+    relationshipCoreKeys.add(coreKey);
     relationshipMap.set(relationship.id, relationship);
   }
   for (const [columnId, column] of columnMap) {
@@ -653,6 +682,16 @@ function validateCollections(document, docIds) {
       }
     }
   }
+  const singleColumnUniqueIds = new Set(
+    [...indexMap.values()]
+      .filter((index) => index.indexColumnIds.length === 1)
+      .map((index) => indexColumnMap.get(index.indexColumnIds[0]).columnId),
+  );
+  for (const [columnId, column] of columnMap) {
+    if (Boolean(column.options & 4) !== singleColumnUniqueIds.has(columnId)) {
+      fail(`column ${columnId} unique option bit must match a single-column UK index`);
+    }
+  }
   for (const [indexColumnId, indexColumn] of indexColumnMap) {
     const index = indexMap.get(indexColumn.indexId);
     if (!index || !index.indexColumnIds.includes(indexColumnId)) {
@@ -660,36 +699,14 @@ function validateCollections(document, docIds) {
     }
   }
 
-  for (const [key, memo] of Object.entries(collections.memoEntities)) {
-    const path = `memoEntities.${key}`;
-    requireObject(memo, path);
-    requireExactKeys(memo, ["id", "value", "ui", "meta"], path);
-    requireEntityId(memo.id, `${path}.id`, "memo");
-    if (key !== memo.id) fail(`${path} key must equal entity.id`);
-    requireString(memo.value, `${path}.value`, { maximumLength: 50_000 });
-    requireExactKeys(
-      requireObject(memo.ui, `${path}.ui`),
-      ["x", "y", "zIndex", "width", "height", "color"],
-      `${path}.ui`,
-    );
-    validateUiNumbers(
-      memo.ui,
-      ["x", "y", "zIndex", "width", "height"],
-      `${path}.ui`,
-    );
-    requireString(memo.ui.color, `${path}.ui.color`, { maximumLength: 64 });
-    if (memo.ui.width <= 0 || memo.ui.height <= 0) {
-      fail(`${path}.ui width and height must be positive`);
-    }
-    validateMeta(memo.meta, `${path}.meta`);
-    memoMap.set(memo.id, memo);
+  if (Object.keys(collections.memoEntities).length !== 0) {
+    fail("document.collections.memoEntities must be empty");
   }
 
   const docCollections = [
     ["tableIds", docIds.tableIds, tableMap],
     ["relationshipIds", docIds.relationshipIds, relationshipMap],
     ["indexIds", docIds.indexIds, indexMap],
-    ["memoIds", docIds.memoIds, memoMap],
   ];
   for (const [field, ids, map] of docCollections) {
     if (
@@ -706,275 +723,41 @@ function validateCollections(document, docIds) {
     relationshipMap,
     indexMap,
     indexColumnMap,
-    memoMap,
   };
 }
 
-function parseCanonicalMemo(memo, prefix, path) {
-  if (!memo.value.startsWith(prefix)) {
-    return null;
-  }
-  const json = memo.value.slice(prefix.length);
-  let payload;
-
-  try {
-    payload = JSON.parse(json);
-  } catch (error) {
-    fail(`${path}.value contains invalid memo JSON: ${error.message}`);
-  }
-  requireObject(payload, `${path}.payload`);
-  if (canonicalJson(payload) !== json) {
-    fail(`${path}.value payload must be key-sorted compact JSON`);
-  }
-
-  return payload;
-}
-
-function validateMemoContracts(semantics, docIds) {
-  const metadata = [];
-  const foreignKeys = [];
-
-  for (const memoId of docIds.memoIds) {
-    const memo = semantics.memoMap.get(memoId);
-    const path = `memoEntities.${memoId}`;
-    const metadataPayload = parseCanonicalMemo(
-      memo,
-      METADATA_MEMO_PREFIX,
-      path,
-    );
-
-    if (metadataPayload) {
-      requireExactKeys(
-        metadataPayload,
-        ["engine", "inventoryFingerprint", "scope", "sourceRevision"],
-        `${path}.payload`,
-      );
-      requireString(metadataPayload.engine, `${path}.payload.engine`);
-      requireString(metadataPayload.scope, `${path}.payload.scope`);
-      requireString(
-        metadataPayload.sourceRevision,
-        `${path}.payload.sourceRevision`,
-      );
-      if (!/^[0-9a-f]{64}$/.test(metadataPayload.inventoryFingerprint)) {
-        fail(`${path}.payload.inventoryFingerprint must be a SHA-256 hex digest`);
-      }
-      if (memoId !== stableId("memo", "metadata")) {
-        fail(`${path} must use the stable metadata memo ID`);
-      }
-      metadata.push(metadataPayload);
-      continue;
-    }
-
-    const foreignKeyPayload = parseCanonicalMemo(
-      memo,
-      FOREIGN_KEY_MEMO_PREFIX,
-      path,
-    );
-    if (!foreignKeyPayload) {
-      fail(`${path}.value must use a supported yusung-harness memo prefix`);
-    }
-    requireExactKeys(
-      foreignKeyPayload,
-      [
-        "constraint",
-        "onDelete",
-        "onUpdate",
-        "sourceCardinality",
-        "sourceColumns",
-        "sourceTable",
-        "targetCardinality",
-        "targetColumns",
-        "targetTable",
-      ],
-      `${path}.payload`,
-    );
-    for (const field of ["constraint", "sourceTable", "targetTable"]) {
-      requireString(foreignKeyPayload[field], `${path}.payload.${field}`);
-    }
-    for (const field of ["onDelete", "onUpdate"]) {
-      if (
-        foreignKeyPayload[field] !== null &&
-        (typeof foreignKeyPayload[field] !== "string" ||
-          foreignKeyPayload[field].length === 0)
-      ) {
-        fail(`${path}.payload.${field} must be null or a non-empty string`);
-      }
-    }
-    const sourceCardinalities = new Set(["1", "0..1", "1..N", "0..N"]);
-    const targetCardinalities = new Set(["1", "0..1"]);
-    if (!sourceCardinalities.has(foreignKeyPayload.sourceCardinality)) {
-      fail(`${path}.payload.sourceCardinality is not supported`);
-    }
-    if (!targetCardinalities.has(foreignKeyPayload.targetCardinality)) {
-      fail(`${path}.payload.targetCardinality is not supported`);
-    }
-    foreignKeyPayload.sourceColumns = requireStringArray(
-      foreignKeyPayload.sourceColumns,
-      `${path}.payload.sourceColumns`,
-      { allowEmpty: false },
-    );
-    foreignKeyPayload.targetColumns = requireStringArray(
-      foreignKeyPayload.targetColumns,
-      `${path}.payload.targetColumns`,
-      { allowEmpty: false },
-    );
-    if (
-      foreignKeyPayload.sourceColumns.length !==
-      foreignKeyPayload.targetColumns.length
-    ) {
-      fail(`${path}.payload has mismatched composite FK column counts`);
-    }
-
-    const key = relationshipKey(foreignKeyPayload);
-    if (memoId !== stableId("memo", key)) {
-      fail(`${path} must use the stable FK memo ID`);
-    }
-    const relationshipId = stableId("relationship", key);
-    const relationship = semantics.relationshipMap.get(relationshipId);
-
-    if (!relationship) {
-      fail(`${path} has no matching relationship entity ${relationshipId}`);
-    }
-    const startTable = semantics.tableMap.get(relationship.start.tableId);
-    const endTable = semantics.tableMap.get(relationship.end.tableId);
-    if (
-      startTable.name !== foreignKeyPayload.targetTable ||
-      endTable.name !== foreignKeyPayload.sourceTable
-    ) {
-      fail(`${path} FK memo endpoints do not match relationship ${relationshipId}`);
-    }
-    const startColumnNames = relationship.start.columnIds.map(
-      (columnId) => semantics.columnMap.get(columnId).name,
-    );
-    const endColumnNames = relationship.end.columnIds.map(
-      (columnId) => semantics.columnMap.get(columnId).name,
-    );
-    if (
-      canonicalJson(startColumnNames) !==
-        canonicalJson(foreignKeyPayload.targetColumns) ||
-      canonicalJson(endColumnNames) !==
-        canonicalJson(foreignKeyPayload.sourceColumns)
-    ) {
-      fail(`${path} FK memo columns do not match relationship ${relationshipId}`);
-    }
-    const relationshipType = {
-      "0..1": 2,
-      "0..N": 4,
-      "1": 8,
-      "1..N": 16,
-    }[foreignKeyPayload.sourceCardinality];
-    if (relationship.relationshipType !== relationshipType) {
-      fail(`${path} source cardinality does not match relationship type`);
-    }
-    const startRelationshipType =
-      foreignKeyPayload.targetCardinality === "0..1" ? 1 : 2;
-    if (relationship.startRelationshipType !== startRelationshipType) {
-      fail(`${path} target cardinality does not match start relationship type`);
-    }
-    foreignKeys.push(foreignKeyPayload);
-  }
-
-  if (metadata.length !== 1) {
-    fail("document must contain exactly one yusung-harness metadata memo");
-  }
-  if (docIds.memoIds[0] !== stableId("memo", "metadata")) {
-    fail("metadata memo must be the first document.doc.memoIds entry");
-  }
-  if (foreignKeys.length !== semantics.relationshipMap.size) {
-    fail("document must contain exactly one FK memo per relationship entity");
-  }
-
-  return { metadata: metadata[0], foreignKeys };
-}
-
-function inventoryFromDocument(document, docIds, semantics, memos) {
-  const tables = docIds.tableIds.map((tableId) => {
-    const table = semantics.tableMap.get(tableId);
-    const columns = table.seqColumnIds.map((columnId) => {
-      const column = semantics.columnMap.get(columnId);
-
-      return {
-        name: column.name,
-        type: column.dataType,
-        nullable: (column.options & 8) === 0,
-        foreignKey: (column.ui.keys & 2) !== 0,
-        autoIncrement: (column.options & 1) !== 0,
-        default: column.default === "" ? null : column.default,
-        comment: column.comment,
-      };
-    });
-    const primaryKeyColumns = table.seqColumnIds
-      .map((columnId) => semantics.columnMap.get(columnId))
-      .filter((column) => (column.options & 2) !== 0)
-      .map((column) => column.name);
-    const uniqueConstraints = docIds.indexIds
-      .map((indexId) => semantics.indexMap.get(indexId))
-      .filter((index) => index.tableId === table.id)
-      .map((index) => ({
-        name: index.name,
-        columns: index.seqIndexColumnIds.map((indexColumnId) => {
-          const indexColumn = semantics.indexColumnMap.get(indexColumnId);
-          return semantics.columnMap.get(indexColumn.columnId).name;
-        }),
-      }));
-    const singleColumnUniqueNames = new Set(
-      uniqueConstraints
-        .filter((constraint) => constraint.columns.length === 1)
-        .map((constraint) => constraint.columns[0]),
-    );
-
-    for (const columnId of table.seqColumnIds) {
-      const column = semantics.columnMap.get(columnId);
-      if (
-        Boolean(column.options & 4) !==
-        singleColumnUniqueNames.has(column.name)
-      ) {
-        fail(`table ${table.name} unique option bits must match named UKs`);
-      }
-    }
-
-    return {
-      qualifiedName: table.name,
-      comment: table.comment,
-      columns,
-      primaryKey:
-        primaryKeyColumns.length === 0
-          ? null
-          : { columns: primaryKeyColumns },
-      uniqueConstraints,
-    };
-  });
-
-  return normalizeInventory({
-    contract: INVENTORY_CONTRACT,
-    name: document.settings.databaseName,
-    scope: memos.metadata.scope,
-    engine: memos.metadata.engine,
-    sourceRevision: memos.metadata.sourceRevision,
-    tables,
-    relationships: memos.foreignKeys,
-  });
-}
-
-function validateCanonicalSemanticOrder(docIds, inventory) {
+function validateCanonicalSemanticOrder(docIds, semantics) {
   const expected = {
-    tableIds: inventory.tables.map((table) =>
-      stableId("table", table.qualifiedName),
-    ),
-    relationshipIds: inventory.relationships.map((relationship) =>
-      stableId("relationship", relationshipKey(relationship)),
-    ),
-    indexIds: inventory.tables.flatMap((table) =>
-      table.uniqueConstraints.map((constraint) =>
-        stableId("index", `${table.qualifiedName}.${constraint.name}`),
-      ),
-    ),
-    memoIds: [
-      stableId("memo", "metadata"),
-      ...inventory.relationships.map((relationship) =>
-        stableId("memo", relationshipKey(relationship)),
-      ),
-    ],
+    tableIds: [...semantics.tableMap.values()]
+      .sort((left, right) => compareStrings(left.name, right.name))
+      .map(({ id }) => id),
+    relationshipIds: [...semantics.relationshipMap.values()]
+      .sort((left, right) =>
+        compareStrings(
+          relationshipCoreKeyFromEntity(
+            left,
+            semantics.tableMap,
+            semantics.columnMap,
+          ),
+          relationshipCoreKeyFromEntity(
+            right,
+            semantics.tableMap,
+            semantics.columnMap,
+          ),
+        ),
+      )
+      .map(({ id }) => id),
+    indexIds: [...semantics.indexMap.values()]
+      .sort((left, right) => {
+        const leftTable = semantics.tableMap.get(left.tableId);
+        const rightTable = semantics.tableMap.get(right.tableId);
+        return (
+          compareStrings(leftTable.name, rightTable.name) ||
+          compareStrings(left.name, right.name)
+        );
+      })
+      .map(({ id }) => id),
+    memoIds: [],
   };
 
   for (const field of Object.keys(expected)) {
@@ -989,36 +772,14 @@ export function validateDocument(document, rawInventory = null) {
   validateSettings(document.settings);
   const docIds = validateDoc(document.doc);
   const semantics = validateCollections(document, docIds);
-  const memos = validateMemoContracts(semantics, docIds);
   const budgets = assertDocumentBudgets(document);
-  const documentInventory = inventoryFromDocument(
-    document,
-    docIds,
-    semantics,
-    memos,
-  );
-  const semanticFingerprint = inventoryFingerprint(documentInventory);
-  let inventory = null;
-
-  if (document.settings.database !== databaseCode(documentInventory.engine)) {
-    fail("document.settings.database does not match metadata engine");
-  }
-  if (memos.metadata.inventoryFingerprint !== semanticFingerprint) {
-    fail("metadata inventoryFingerprint does not match document semantics");
-  }
-  validateCanonicalSemanticOrder(docIds, documentInventory);
+  validateCanonicalSemanticOrder(docIds, semantics);
 
   if (rawInventory) {
-    inventory = normalizeInventory(rawInventory);
-    const expectedDocument = buildDocument(inventory);
+    const expectedDocument = buildDocument(rawInventory);
 
     if (canonicalJson(expectedDocument) !== canonicalJson(document)) {
       fail("Dineug document does not exactly match the deterministic inventory build");
-    }
-    if (
-      memos.metadata.inventoryFingerprint !== inventoryFingerprint(inventory)
-    ) {
-      fail("metadata inventoryFingerprint does not match inventory");
     }
   }
 
@@ -1027,10 +788,9 @@ export function validateDocument(document, rawInventory = null) {
     columns: semantics.columnMap.size,
     relationships: semantics.relationshipMap.size,
     indexes: semantics.indexMap.size,
-    memos: semantics.memoMap.size,
+    memos: 0,
     entities: budgets.entities,
     bytes: budgets.bytes,
-    inventoryFingerprint: semanticFingerprint,
     documentFingerprint: fingerprint(document),
   };
 }

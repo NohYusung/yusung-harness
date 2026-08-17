@@ -3,6 +3,7 @@ import {
   canonicalizeDineugErdDocument,
   extractInventoryFromExcalidrawScene,
   inventoryFromLegacyErdHtml,
+  migrateLegacyMemoDineugDocument,
 } from "./dineug-erd-document.mjs";
 
 /** JSON 문자열을 source label이 포함된 오류로 파싱한다. */
@@ -73,18 +74,29 @@ export const backfillErdDocuments = (database) => {
     for (const row of rows) {
       let canonicalDocument = null;
 
-      /** 이미 strict-valid canonical document이면 byte를 유지한다. */
+      /** 새 memo-free canonical document이면 byte를 유지한다. */
       if (typeof row.document === "string" && row.document.trim()) {
+        let parsedDocument;
         try {
+          parsedDocument = parseJson(row.document, `ERD ${row.id} document`);
           canonicalDocument = canonicalizeDineugErdDocument(
-            parseJson(row.document, `ERD ${row.id} document`),
+            parsedDocument,
           );
           if (canonicalDocument === row.document) {
             skipped += 1;
             continue;
           }
         } catch {
-          // 아래 legacy sources 중 하나로 invalid document를 복구한다.
+          /** 기존 memo-bearing v3는 legacy source 없이 core document로 직접 승격한다. */
+          if (parsedDocument !== undefined) {
+            try {
+              canonicalDocument = canonicalizeDineugErdDocument(
+                migrateLegacyMemoDineugDocument(parsedDocument),
+              );
+            } catch {
+              // 아래 legacy sources 중 하나로 invalid document를 복구한다.
+            }
+          }
         }
       }
 

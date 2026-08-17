@@ -19,13 +19,10 @@ describe("ERD Dineug v3 document contract", () => {
       parseErdDineugDocument(JSON.stringify(document)),
     ).resolves.toEqual({ data: document, error: null });
     expect(document.settings).toMatchObject({ databaseName: "harness" });
-    expect(
-      (
-        document.collections as {
-          memoEntities: Record<string, { value: string }>;
-        }
-      ).memoEntities["memo-45447b7afbd5e544f7d0"]?.value,
-    ).toContain('"scope":"main"');
+    expect(document).toMatchObject({
+      doc: { memoIds: [] },
+      collections: { memoEntities: {} },
+    });
   });
 
   it.each([null, "", "   \n\t"])(
@@ -98,32 +95,105 @@ describe("ERD Dineug v3 document contract", () => {
     expect(result.error).toEqual(expect.any(String));
   });
 
-  it("databaseName 또는 full inventory fingerprint 변조를 거부한다", async () => {
-    const databaseNameTamper = JSON.parse(
-      JSON.stringify(createErdDocument()),
-    );
-    databaseNameTamper.settings.databaseName = "main";
+  it("비어 있지 않은 memo collection을 거부한다", async () => {
+    const document = JSON.parse(JSON.stringify(createErdDocument()));
+    const memoId = "memo-45447b7afbd5e544f7d0";
+    document.doc.memoIds = [memoId];
+    document.collections.memoEntities = {
+      [memoId]: {
+        id: memoId,
+        value: "legacy memo",
+        ui: {
+          x: 700,
+          y: 100,
+          zIndex: 2,
+          width: 620,
+          height: 130,
+          color: "#ede9fe",
+        },
+        meta: { updateAt: 0, createAt: 0 },
+      },
+    };
 
-    const fingerprintTamper = JSON.parse(
-      JSON.stringify(createErdDocument()),
-    );
-    const metadata = fingerprintTamper.collections.memoEntities[
-      "memo-45447b7afbd5e544f7d0"
-    ];
-    metadata.value = metadata.value.replace(
-      "aa9617591e09d1950a341027458cd78dfdd2bdca7763b2846d2938bd012c50e4",
-      "f".repeat(64),
-    );
+    expect(dineugErdDocumentSchema.safeParse(document).success).toBe(false);
+    await expect(
+      parseErdDineugDocument(JSON.stringify(document)),
+    ).resolves.toMatchObject({ data: null });
+  });
 
-    for (const invalid of [databaseNameTamper, fingerprintTamper]) {
-      const result = await parseErdDineugDocument(JSON.stringify(invalid));
+  it("core endpoint와 일치하지 않는 relationship ID를 거부한다", async () => {
+    const document = buildDineugErdDocument(internationalInventory) as {
+      doc: { relationshipIds: string[] };
+      collections: {
+        relationshipEntities: Record<string, { id: string }>;
+      };
+    };
+    const originalId = document.doc.relationshipIds[0]!;
+    const invalidId = `relationship-${"f".repeat(20)}`;
+    const relationship = document.collections.relationshipEntities[originalId]!;
+    delete document.collections.relationshipEntities[originalId];
+    relationship.id = invalidId;
+    document.collections.relationshipEntities[invalidId] = relationship;
+    document.doc.relationshipIds[0] = invalidId;
 
-      expect(result.data).toBeNull();
-      expect(result.error).toEqual(expect.any(String));
+    await expect(
+      parseErdDineugDocument(JSON.stringify(document)),
+    ).resolves.toMatchObject({
+      data: null,
+      error: expect.stringContaining("core endpoints"),
+    });
+  });
+
+  it("stable table ID와 canonical table/index 순서를 검증한다", async () => {
+    const tableNameTamper = JSON.parse(JSON.stringify(createErdDocument()));
+    tableNameTamper.collections.tableEntities[
+      tableNameTamper.doc.tableIds[0]
+    ].name = "renamed_users";
+
+    const orderTamper = buildDineugErdDocument(internationalInventory) as {
+      doc: { indexIds: string[]; tableIds: string[] };
+    };
+    orderTamper.doc.tableIds.reverse();
+    orderTamper.doc.indexIds.reverse();
+
+    for (const invalid of [tableNameTamper, orderTamper]) {
+      await expect(
+        parseErdDineugDocument(JSON.stringify(invalid)),
+      ).resolves.toMatchObject({ data: null });
     }
   });
 
-  it("비ASCII table·UK·FK는 locale과 무관한 builder/server/web fingerprint를 유지한다", async () => {
+  it("composite relationship 길이와 single-column UK option bit를 대칭 검증한다", async () => {
+    const relationshipTamper = JSON.parse(
+      JSON.stringify(buildDineugErdDocument(internationalInventory)),
+    );
+    const relationship = Object.values(
+      relationshipTamper.collections.relationshipEntities,
+    )[0] as { start: { columnIds: string[]; tableId: string } };
+    const targetTable =
+      relationshipTamper.collections.tableEntities[relationship.start.tableId];
+    const extraColumnId = targetTable.columnIds.find(
+      (id: string) => !relationship.start.columnIds.includes(id),
+    );
+    expect(extraColumnId).toEqual(expect.any(String));
+    relationship.start.columnIds.push(extraColumnId);
+
+    const uniqueBitTamper = JSON.parse(JSON.stringify(createErdDocument()));
+    const column = uniqueBitTamper.collections.tableColumnEntities[
+      uniqueBitTamper.collections.tableEntities[
+        uniqueBitTamper.doc.tableIds[0]
+      ].columnIds[0]
+    ];
+    column.options |= 4;
+
+    for (const invalid of [relationshipTamper, uniqueBitTamper]) {
+      await expect(
+        parseErdDineugDocument(JSON.stringify(invalid)),
+      ).resolves.toMatchObject({ data: null });
+    }
+  });
+
+  it("비ASCII table·UK·FK는 locale과 무관한 canonical document를 유지한다", async () => {
     const baseline = buildDineugErdDocument(internationalInventory);
     const baselineCanonical = canonicalizeDineugErdDocument(baseline);
     const originalLocaleCompare = String.prototype.localeCompare;

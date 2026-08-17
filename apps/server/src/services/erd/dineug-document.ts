@@ -16,7 +16,7 @@ const maximumCollectionEntities = 5_000;
 const identifierSchema = z.string().trim().min(1).max(512);
 const idSchema = z
   .string()
-  .regex(/^(?:table|column|relationship|index|index-column|memo)-[a-f0-9]{20}$/u);
+  .regex(/^(?:table|column|relationship|index|index-column)-[a-f0-9]{20}$/u);
 const displayStringSchema = z.string().max(50_000);
 const coordinateSchema = z
   .number()
@@ -52,18 +52,6 @@ const columnUiSchema = z
     widthComment: coordinateSchema,
     widthDataType: coordinateSchema,
     widthDefault: coordinateSchema,
-  })
-  .strict();
-
-/** 화면을 압박하지 않는 provenance memo의 위치와 크기. */
-const memoUiSchema = z
-  .object({
-    x: coordinateSchema,
-    y: coordinateSchema,
-    zIndex: coordinateSchema,
-    width: coordinateSchema,
-    height: coordinateSchema,
-    color: z.string().trim().min(1).max(64),
   })
   .strict();
 
@@ -153,16 +141,6 @@ const indexColumnEntitySchema = z
   })
   .strict();
 
-/** harness provenance와 FK 의미를 담는 Dineug memo entity. */
-const memoEntitySchema = z
-  .object({
-    id: idSchema,
-    value: z.string().trim().min(1).max(50_000),
-    ui: memoUiSchema,
-    meta: entityMetaSchema,
-  })
-  .strict();
-
 /** 공식 ERDEditorSchemaV3 settings shape를 고정한다. */
 const settingsSchema = z
   .object({
@@ -241,7 +219,7 @@ const structuredDineugDocumentSchema = z
         tableIds: z.array(idSchema).min(1).max(maximumCollectionEntities),
         relationshipIds: z.array(idSchema).max(maximumCollectionEntities),
         indexIds: z.array(idSchema).max(maximumCollectionEntities),
-        memoIds: z.array(idSchema).min(1).max(maximumCollectionEntities),
+        memoIds: z.tuple([]),
       })
       .strict(),
     collections: z
@@ -251,7 +229,7 @@ const structuredDineugDocumentSchema = z
         relationshipEntities: z.record(idSchema, relationshipEntitySchema),
         indexEntities: z.record(idSchema, indexEntitySchema),
         indexColumnEntities: z.record(idSchema, indexColumnEntitySchema),
-        memoEntities: z.record(idSchema, memoEntitySchema),
+        memoEntities: z.object({}).strict(),
       })
       .strict(),
   })
