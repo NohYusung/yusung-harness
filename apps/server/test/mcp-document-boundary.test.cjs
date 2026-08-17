@@ -23,7 +23,7 @@ const domains = [
   ["domains", "DomainsService", "update"],
   ["db", "DbService", "create"],
   ["erd", "ErdService", "create"],
-  ["architectures", "ArchitecturesService", "create"],
+  ["architectures", "ArchitecturesService", "upsert"],
   ["wireframes", "WireframesService", "create"],
   ["reviews", "ReviewsService", "create"],
   ["designs", "DesignsService", "create"],
@@ -33,8 +33,6 @@ const domains = [
   ["requests", "RequestsService", "create"],
   ["requests", "RequestsService", "update"],
   ["worklogs", "WorklogsService", "create"],
-  ["architecture-plans", "ArchitecturePlansService", "create"],
-  ["architecture-plans", "ArchitecturePlansService", "update"],
 ];
 
 const collectControllerFiles = (directory, relativeDirectory = "") => {
@@ -89,7 +87,6 @@ test("Nest HTTP controller는 MCP transport와 읽기 전용 목록 API만 노�
     collectControllerFiles(sourcePath(".")).sort(),
     [
       join("mcp", "mcp.controller.ts"),
-      join("services", "architecture-plans", "architecture-plans.controller.ts"),
       join("services", "architectures", "architectures.controller.ts"),
       join("services", "assets", "assets.controller.ts"),
       join("services", "designs", "designs.controller.ts"),
@@ -187,9 +184,13 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
     mcpService,
     /ProjectEventsService|project-events|OnModuleDestroy|randomUUID|bootId|revision|waiters|executeMutation|waitForProject|wait_for_project_changes/,
   );
+  assert.doesNotMatch(
+    mcpService,
+    /ArchitecturePlansService|architecturePlansService|architecturePlans|get_architecturePlan|create_architecturePlan|update_architecturePlan/,
+  );
 });
 
-test("MCP의 26개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
+test("MCP의 25개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const mutationTools = [
     "create_project",
@@ -215,8 +216,7 @@ test("MCP의 26개 mutation tool은 공통 execute 경계로 결과를 직렬화
     "delete_file",
     "create_workLog",
     "create_request",
-    "create_architecturePlan",
-    "update_architecturePlan",
+    "upsert_architecture",
     "update_request",
   ];
 
@@ -236,7 +236,7 @@ test("MCP의 26개 mutation tool은 공통 execute 경계로 결과를 직렬화
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 43);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 41);
   assert.doesNotMatch(mcpService, /\bAGENT\b/);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
 });
@@ -247,20 +247,21 @@ test("MCP workflow 생성 도구는 domain service에 저장을 위임한다", (
   for (const [toolName, service] of [
     ["create_workLog", "worklogsService"],
     ["create_request", "requestsService"],
-    ["create_architecturePlan", "architecturePlansService"],
+    ["upsert_architecture", "architecturesService"],
   ]) {
     const tool = registeredToolBlock(mcpService, toolName);
 
-    assert.match(tool, new RegExp(`this\\.${service}\\.create\\s*\\(input\\)`));
+    const method = toolName === "upsert_architecture" ? "upsert" : "create";
+    assert.match(tool, new RegExp(`this\\.${service}\\.${method}\\s*\\(input\\)`));
   }
 
   assert.doesNotMatch(
     mcpService,
-    /private\s+async\s+(?:createWorkLog|createRequest|createArchitecturePlan)\s*\(/,
+    /private\s+async\s+(?:createWorkLog|createRequest|upsertArchitecture)\s*\(/,
   );
   assert.doesNotMatch(
     mcpService,
-    /prismaService\.(?:workLog|request|architecturePlan)\.create\s*\(/,
+    /prismaService\.(?:workLog|request|architecture)\.(?:create|upsert)\s*\(/,
   );
 });
 
@@ -314,7 +315,7 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
     ["DomainsService", "domainsService", ["list", "create", "update"]],
     ["DbService", "dbService", ["list", "create", "update"]],
     ["ErdService", "erdService", ["list", "create", "update"]],
-    ["ArchitecturesService", "architecturesService", ["list"]],
+    ["ArchitecturesService", "architecturesService", ["list", "upsert"]],
     ["DesignsService", "designsService", ["list", "create", "update"]],
     ["WireframesService", "wireframesService", ["list", "create", "update"]],
     ["AssetsService", "assetsService", ["list", "create", "update"]],
@@ -322,11 +323,6 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
     ["ReviewsService", "reviewsService", ["list"]],
     ["RequestsService", "requestsService", ["list", "create", "update"]],
     ["WorklogsService", "worklogsService", ["list", "create"]],
-    [
-      "ArchitecturePlansService",
-      "architecturePlansService",
-      ["list", "create", "update"],
-    ],
   ];
 
   for (const [serviceName, field, methods] of exposedServices) {
@@ -470,12 +466,16 @@ test("McpModule은 각 도메인 모듈을 조립하고 McpService만 제공한�
     "ReviewsModule",
     "RequestsModule",
     "WorklogsModule",
-    "ArchitecturePlansModule",
   ];
 
   for (const moduleName of moduleNames) {
     assert.match(moduleSource, new RegExp(`\\b${moduleName}\\b`));
   }
+
+  assert.doesNotMatch(
+    moduleSource,
+    /ArchitecturePlansModule|architecture-plans/,
+  );
 
   assert.doesNotMatch(moduleSource, /McpToolsService|McpDocumentsService/);
   assert.match(moduleSource, /providers:\s*\[\s*McpService\s*\]/s);

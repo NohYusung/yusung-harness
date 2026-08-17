@@ -5,7 +5,7 @@ description: Git push, IaC 인프라 계획·적용, CI/CD workflow 구성·원�
 
 # 배포 오케스트레이션
 
-- 저장소 설정, ArchitecturePlan, IaC와 workflow를 읽어 공급자와 명령을 발견한다. 특정 클라우드, Git host 또는 CI/CD 명령을 추측하거나 하드코딩하지 않는다.
+- 저장소 설정, Architecture PLAN, IaC와 workflow를 읽어 공급자와 명령을 발견한다. 특정 클라우드, Git host 또는 CI/CD 명령을 추측하거나 하드코딩하지 않는다.
 - 요청을 `STATUS`, `PUSH`, `INFRA_CHANGE`, `PIPELINE_CHANGE`, `PIPELINE_RUN`, `RELEASE`, `ROLLBACK`으로 분류한다.
 - 복합 요청은 의존 순서대로 분해하고 각 operation을 독립적으로 승인·실행·검증한다.
 - `STATUS`를 제외한 외부 변경은 정확한 대상과 revision을 사용자에게 제시하고 해당 operation의 명시 승인을 받은 뒤 `root`가 실행한다.
@@ -52,12 +52,13 @@ deploy: 원격 SHA·artifact·health 증거 통합
 - secret은 이름과 존재 여부만 확인하고 값은 읽거나 출력하지 않는다.
 - 대상, revision, 입력, plan 또는 downstream 영향이 확정되지 않으면 mutation을 실행하지 않고 `blocked + not_run`으로 반환한다.
 
-## ArchitecturePlan 정합성
+## ArchitecturePlan 설계 개념과 저장 정합성
 
-- 현재 ArchitecturePlan에서 환경, provider target, region, runtime, 네트워크·데이터 경계, 배포·승격, migration, 관측성과 rollback 전략을 확인한다.
-- 요청이나 발견된 IaC·workflow 변경이 ArchitecturePlan의 인프라, 런타임 또는 배포 전략과 다르면 실행을 차단한다.
-- 불일치를 `architect`에게 전달하여 결정을 받고 `architecturePlan` 스킬로 문서와 구조도를 갱신하도록 handoff한다.
-- 갱신된 ArchitecturePlan과 구현 revision이 확보되기 전에는 apply, pipeline run, release와 rollback을 재개하지 않는다.
+- ArchitecturePlan은 설계 개념과 스킬 이름으로 유지하며 저장 정본은 `Architecture(type: PLAN)`이다.
+- `get_architecture({ projectId })` 결과에서 `type: "PLAN"`을 선택하여 환경, provider target, region, runtime, 네트워크·데이터 경계, 배포·승격, migration, 관측성과 rollback 전략을 확인한다.
+- 요청이나 발견된 IaC·workflow 변경이 Architecture PLAN의 인프라, 런타임 또는 배포 전략과 다르면 실행을 차단한다.
+- 불일치를 `architect`에게 전달하여 결정을 받고 `architecturePlan` 스킬이 `upsert_architecture({ type: "PLAN" })`로 문서와 구조도를 갱신하도록 handoff한다.
+- 갱신된 Architecture PLAN과 구현 revision이 확보되기 전에는 apply, pipeline run, release와 rollback을 재개하지 않는다.
 
 ## 작업 모드 선택
 
@@ -175,7 +176,7 @@ digraph deploy_operation_selection {
 - 명시적으로 승인되지 않은 resource delete·replace와 production migration을 수행하지 않는다.
 - 실패, skip, flaky, inconclusive 또는 다른 revision의 검증을 무시하고 pipeline·release·promotion을 진행하지 않는다.
 - 승인 범위를 넓혀 해석하거나 mutation 실패 후 수정된 명령을 자동 재시도하지 않는다.
-- 대상 불명, 승인 없음, ArchitecturePlan 불일치, revision 불일치 또는 공급자 상태 drift가 있으면 mutation을 수행하지 않는다.
+- 대상 불명, 승인 없음, Architecture PLAN 불일치, revision 불일치 또는 공급자 상태 drift가 있으면 mutation을 수행하지 않는다.
 - 권한·sandbox·approval 오류를 우회하거나 더 강한 credential로 재시도하지 않는다.
 
 </HARD-GATE>

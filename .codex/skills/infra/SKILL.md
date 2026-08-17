@@ -25,7 +25,7 @@ description: MCP, CLI, API 또는 검증 가능한 기타 제어 경로로 대�
 - IaC address, state, managed tag·annotation 또는 저장소 선언으로 관리 중임이 확인된 리소스는 조회와 drift 보고만 수행한다.
 - IaC-managed 리소스의 변경 요청은 직접 실행하지 말고 `deploy.INFRA_CHANGE`로 handoff한다.
 - provider·region·topology, IAM trust, network exposure 또는 데이터 경계를 변경하는 요청은 일반 운영 설정 변경과 구분하고 먼저 `architect`와 `architecturePlan`으로 handoff한다.
-- 갱신된 ArchitecturePlan과 exact-match하고 IaC가 관리하지 않는 리소스에 대해서만 승인 흐름을 다시 시작한다.
+- 갱신된 Architecture PLAN과 exact-match하고 IaC가 관리하지 않는 리소스에 대해서만 승인 흐름을 다시 시작한다.
 - 애플리케이션 DB row·DDL, secret 값, 배포 artifact와 트래픽 promotion을 인프라 CRUD로 취급하지 않는다.
 
 ## 전체 흐름
@@ -61,7 +61,7 @@ description: MCP, CLI, API 또는 검증 가능한 기타 제어 경로로 대�
 
 ## Controller 선택
 
-- 외부 호출 전 저장소 설정, ArchitecturePlan, IaC와 provider 설정을 read-only로 검사하여 사용 가능한 controller 후보를 찾는다.
+- 외부 호출 전 저장소 설정, `get_architecture({ projectId })` 결과의 `type: "PLAN"`, IaC와 provider 설정을 read-only로 검사하여 사용 가능한 controller 후보를 찾는다.
 - 설치되지 않았거나 구성되지 않았거나 요청 action과 사후 검증을 지원하지 않는 후보는 제외한다.
 - 다음 우선순위로 후보를 결정론적으로 선택한다.
   1. 사용자가 명시한 controller
@@ -124,7 +124,7 @@ digraph infra_controller_selection {
 
 - restart, start, stop, scale, attach, detach와 운영 범위 안의 설정 변경 등 상태를 바꾸는 동작은 `UPDATE`로 정규화한다.
 - IAM trust, 권한 범위, public ingress/egress, network policy와 데이터 경계를 확대·변경하는 정책 작업은 일반 `UPDATE`로 바로 실행하지 말고 `architect`와 `architecturePlan`으로 handoff한다.
-- 사용자가 소유한 resource-level deletion protection은 provider·organization policy가 변경을 허용하고 ArchitecturePlan과 exact-match할 때만 별도 `UPDATE` 논리 작업으로 제안한다. 해제 이유, 보호 복원 절차와 후속 삭제 영향을 승인서에 포함하고 별도 승인을 받는다.
+- 사용자가 소유한 resource-level deletion protection은 provider·organization policy가 변경을 허용하고 Architecture PLAN과 exact-match할 때만 별도 `UPDATE` 논리 작업으로 제안한다. 해제 이유, 보호 복원 절차와 후속 삭제 영향을 승인서에 포함하고 별도 승인을 받는다.
 - organization policy, provider safeguard, required approval, immutable 또는 IaC-managed protection은 승인 여부와 관계없이 해제하지 않는다.
 - wildcard, recursive, bulk, force 또는 불확정 target mutation을 수행하지 않는다.
 
@@ -168,7 +168,7 @@ writeAuthorization: granted | unknown
 proposalDigest: canonical approval scope digest
 ```
 
-- 최초 요청, 이전 operation 승인, 코드·ArchitecturePlan·deploy 승인과 포괄적인 "전부 승인"을 현재 mutation 승인으로 간주하지 않는다.
+- 최초 요청, 이전 operation 승인, 코드·Architecture PLAN·deploy 승인과 포괄적인 "전부 승인"을 현재 mutation 승인으로 간주하지 않는다.
 - 사용자가 envelope의 exact scope를 명시적으로 승인한 경우에만 실행한다.
 - 승인은 해당 `operationId`와 `proposalDigest`에 연결된 일회성 증거로 사용하고 다른 target, 다음 operation, retry와 rollback에 재사용하지 않는다.
 - 승인 후 controller, provider context, primary resource, before fingerprint, desired state, diff, subaction별 expected state·atomic precondition 또는 impact가 바뀌면 승인을 `invalidated`로 처리하고 새 envelope를 제시한다.
@@ -200,7 +200,7 @@ proposalDigest: canonical approval scope digest
 - IaC state를 직접 편집·삭제·이동하거나 state lock을 강제로 해제하지 않는다.
 - organization policy, provider safeguard, required approval, immutable protection과 IaC-managed protection을 해제하거나 우회하지 않는다.
 - user-managed resource-level protection 변경은 위 승인 계약을 충족한 별도 `UPDATE`에서만 수행하고 정책 거부를 우회 수단으로 해석하지 않는다.
-- ArchitecturePlan의 provider, region, topology, 보안 또는 데이터 경계와 충돌하는 mutation을 실행하지 않는다.
+- Architecture PLAN의 provider, region, topology, 보안 또는 데이터 경계와 충돌하는 mutation을 실행하지 않는다.
 - 현재 principal이나 유일한 접근 경로를 제거하여 사후 검증이 불가능해지는 작업을 실행하지 않는다.
 - read-only로 분류한 action에서 예상하지 않은 mutation side effect가 발견되면 후속 작업을 즉시 중단한다.
 - 승인되지 않은 fallback, retry, rollback, compensation과 범위 확대를 수행하지 않는다.

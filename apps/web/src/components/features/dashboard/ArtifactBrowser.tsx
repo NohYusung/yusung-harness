@@ -43,7 +43,6 @@ export type WorkspaceRelation =
   | "designs"
   | "requests"
   | "workLogs"
-  | "architecturePlans"
   | "databases"
   | "erds";
 
@@ -154,11 +153,6 @@ const relationConfig: Record<
     label: "WorkLog",
     tone: "bg-teal-soft text-teal",
   },
-  architecturePlans: {
-    code: "AP",
-    label: "Architecture Plan",
-    tone: "bg-violet-soft text-violet",
-  },
   databases: {
     code: "DB",
     label: "DB",
@@ -216,11 +210,6 @@ function getEntries(
     return context.workLogs.map((artifact) => ({ artifact, relation }));
   }
 
-  /** Architecture Plan workspace는 구현 전 구조 HTML 문서를 제공한다. */
-  if (relation === "architecturePlans") {
-    return context.architecturePlans.map((artifact) => ({ artifact, relation }));
-  }
-
   /** DB workspace는 현행 schema Markdown 문서를 제공한다. */
   if (relation === "databases") {
     return context.databases.map((artifact) => ({ artifact, relation }));
@@ -238,16 +227,11 @@ function getEntries(
 /** HTML workspace 여부를 좁혀 text content detail과 preview detail을 분기한다. */
 function isHtmlWorkspaceRelation(
   relation: WorkspaceRelation,
-): relation is
-  | "wireframes"
-  | "assets"
-  | "designs"
-  | "architecturePlans" {
+): relation is "wireframes" | "assets" | "designs" {
   return (
     relation === "wireframes" ||
     relation === "assets" ||
-    relation === "designs" ||
-    relation === "architecturePlans"
+    relation === "designs"
   );
 }
 
@@ -307,7 +291,6 @@ function getHtmlArtifactKind(
   if (relation === "wireframes") return "Wireframe";
   if (relation === "designs") return "Design";
   if (relation === "assets") return "Asset";
-  if (relation === "architecturePlans") return "Architecture Plan";
 
   throw new Error(`${relation} does not contain an HTML artifact.`);
 }
@@ -331,17 +314,6 @@ function getHtmlArtifactSelection(
     }
     if (key.kind === "Design") {
       return context.designs.find((design) => design.id === key.id);
-    }
-    if (key.kind === "Architecture Plan") {
-      const architecturePlan = context.architecturePlans.find(
-        (candidate) => candidate.id === key.id,
-      );
-      return architecturePlan
-        ? {
-            ...architecturePlan,
-            html: architecturePlan.html || architecturePlan.content,
-          }
-        : undefined;
     }
     return undefined;
   })();

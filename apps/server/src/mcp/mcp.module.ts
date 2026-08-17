@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
-import { ArchitecturePlansModule } from "../services/architecture-plans/architecture-plans.module";
 import { ArchitecturesModule } from "../services/architectures/architectures.module";
 import { AssetsModule } from "../services/assets/assets.module";
 import { DbModule } from "../services/db/db.module";
@@ -29,7 +28,6 @@ import { McpService } from "./mcp.service";
     DraftsModule,
     DomainsModule,
     ArchitecturesModule,
-    ArchitecturePlansModule,
     WireframesModule,
     DesignsModule,
     DbModule,

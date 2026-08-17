@@ -54,8 +54,8 @@ description: 요구사항과 검증된 코드 근거를 구현 Plan과 기능 �
 
 - 기존 Plan 수정 시 `planId`, 기존 Task 목록과 변경 의도
 - Draft에서 승계한 목표, 범위, 결정과 가정
-- 아키텍처 영향이 있으면 `get_architecturePlan({ projectId })`로 확인한 현행 ArchitecturePlan
-- ArchitecturePlan이 없거나 새 결정·충돌 해소가 필요하면 architect가 승인한 아키텍처 결정
+- 아키텍처 영향이 있으면 `get_architecture({ projectId })` 결과에서 `type: "PLAN"`을 선택해 확인한 현행 Architecture PLAN
+- Architecture PLAN이 없거나 새 결정·충돌 해소가 필요하면 architect가 승인한 아키텍처 결정
 - researcher가 공식 자료로 검증한 시의성 있는 외부 제약
 
 ## 근거 분류
@@ -158,7 +158,7 @@ digraph plan_selection {
   4. 요구사항, 제약, `confirmed`, `assumptions`, `decisions_needed`, `blockers`
   5. AS-IS 코드 경로·심볼·현재 동작과 ASCII 구조도
   6. TO-BE 동작·데이터 흐름과 ASCII 구조도
-  7. ArchitecturePlan 제약과 데이터 구조·migration 영향 또는 영향 없음의 근거
+  7. Architecture PLAN 제약과 데이터 구조·migration 영향 또는 영향 없음의 근거
   8. Task 순서, 선행조건, 의존성, 병렬 가능 여부
   9. 테스트 작성 범위와 기존 검증 명령 실행 범위
   10. 위험, 복구·롤백 고려사항과 전체 완료 기준
@@ -210,7 +210,7 @@ digraph plan_selection {
 | 도구 | 입력과 용도 |
 | --- | --- |
 | `get_project` | `{ projectId?: positive integer }`; 생략 시 프로젝트 목록, 지정 시 구현에 포함된 프로젝트 산출물 문맥 조회 |
-| `get_architecturePlan` | `{ projectId: positive integer }`; 아키텍처 영향이 있을 때 ArchitecturePlan 별도 조회 |
+| `get_architecture` | `{ projectId: positive integer }`; 아키텍처 영향이 있을 때 typed Architecture 목록을 조회하고 `type: "PLAN"`을 선택 |
 | `get_plan` | `{ projectId: positive integer }`; Plan은 최근 수정순, 각 Plan의 중첩 Task는 `createdAt` 오름차순으로 조회 |
 | `get_task` | `{ projectId: positive integer, planId?: positive integer }`; 프로젝트 전체 또는 선택한 Plan의 Task를 최근 수정순으로 조회 |
 | `create_plan` | `{ projectId, title, content }`; 초기 `PENDING` Plan 생성 |
@@ -264,7 +264,7 @@ digraph plan_selection {
   - `Task-N`이 유일하고 모든 의존 참조가 존재하며 순환 의존성이 없다.
   - AS-IS 코드 경로·심볼·현재 동작이 source revision과 worktreeState의 근거에 일치한다.
   - 필요한 데이터 변경, migration, 호환성, 보안, 배포, 관측성과 복구 작업이 빠지지 않았다.
-  - ArchitecturePlan 또는 승인된 architect 결정과 충돌하지 않는다.
+  - Architecture PLAN 또는 승인된 architect 결정과 충돌하지 않는다.
   - 저장소에서 확인한 검증 명령만 사용하며 각 완료 기준에 검증 방법이 연결되어 있다.
   - `decisions_needed`와 해결되지 않은 `blockers`가 없다.
   - doc-curator가 추가 판단 없이 Plan과 Task를 저장할 수 있다.

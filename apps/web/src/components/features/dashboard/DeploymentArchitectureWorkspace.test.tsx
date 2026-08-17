@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ArchitectureWorkspace } from "./ArchitectureWorkspace";
-import { createArtifact } from "@/test/fixtures/dashboard";
+import { createArchitecture } from "@/test/fixtures/dashboard";
 
 const deploymentContent = JSON.stringify({
   kind: "deployment-architecture",
@@ -31,13 +31,13 @@ describe("ArchitectureWorkspace deployment graph", () => {
     render(
       <ArchitectureWorkspace
         architectures={[
-          createArtifact({
+          createArchitecture({
             id: 2,
             title: "Legacy deployment note",
             content: "Web -> API",
             updatedAt: "2026-07-21T10:00:00.000Z",
           }),
-          createArtifact({
+          createArchitecture({
             id: 1,
             title: "Production deployment",
             content: deploymentContent,
@@ -62,7 +62,7 @@ describe("ArchitectureWorkspace deployment graph", () => {
     render(
       <ArchitectureWorkspace
         architectures={[
-          createArtifact({
+          createArchitecture({
             title: "Legacy deployment",
             content: "Harness Agent -> MCP -> SQLite",
           }),

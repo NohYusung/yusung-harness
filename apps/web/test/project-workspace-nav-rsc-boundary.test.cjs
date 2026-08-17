@@ -20,7 +20,7 @@ test("ProjectWorkspaceNav server wrapper는 context를 primitive nav items로 �
   assert.doesNotMatch(wrapper, /\buseEffect\b|\buseRef\b|scrollIntoView/);
   assert.match(wrapper, /import\s+type\s*\{\s*ProjectContext\s*\}/);
   assert.doesNotMatch(wrapper, /getLatestDomainErd|domain-erd/);
-  assert.match(wrapper, /getLatestDeploymentArchitecture/);
+  assert.doesNotMatch(wrapper, /getLatestDeploymentArchitecture/);
   assert.match(
     wrapper,
     /label:\s*["']Plan["'][\s\S]*?label:\s*["']Draft["'][\s\S]*?label:\s*["']Domain["'][\s\S]*?label:\s*["']Architecture["'][\s\S]*?label:\s*["']Wireframe["'][\s\S]*?label:\s*["']Asset["'][\s\S]*?label:\s*["']Design["']/,
@@ -29,6 +29,11 @@ test("ProjectWorkspaceNav server wrapper는 context를 primitive nav items로 �
   assert.match(wrapper, /context\.domains\.length/);
   assert.match(wrapper, /context\.assets\.length/);
   assert.match(wrapper, /context\.designs\.length/);
+  assert.match(
+    wrapper,
+    /context\.architectures\.length\s*>\s*0\s*\?\s*1\s*:\s*0/,
+  );
+  assert.doesNotMatch(wrapper, /context\.architecturePlans|architecturePlans/);
   assert.match(wrapper, /<ProjectWorkspaceNavScroller\b/);
   assert.match(wrapper, /activeRelation=\{activeRelation\}/);
   assert.match(wrapper, /items=\{items\}/);

@@ -19,8 +19,8 @@ export interface CreateProjectInput {
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list() {
-    return this.prisma.project.findMany({
+  async list() {
+    const projects = await this.prisma.project.findMany({
       select: {
         id: true,
         title: true,
@@ -42,7 +42,6 @@ export class ProjectsService {
             reviews: true,
             requests: true,
             workLogs: true,
-            architecturePlans: true,
             databases: true,
             erds: true,
           },
@@ -50,6 +49,15 @@ export class ProjectsService {
       },
       orderBy: [{ title: "asc" }, { id: "asc" }],
     });
+
+    /** PLAN·PRODUCTION 물리 행을 Architecture workspace 하나의 논리 count로 정규화한다. */
+    return projects.map((project) => ({
+      ...project,
+      _count: {
+        ...project._count,
+        architectures: project._count.architectures > 0 ? 1 : 0,
+      },
+    }));
   }
 
   /** 하나 이상의 repository 경로를 포함한 프로젝트를 생성한다. */

@@ -32,7 +32,6 @@ import {
 } from "@/lib/domain-tree";
 import type {
   Architecture,
-  ArchitecturePlan,
   ArtifactDocument,
   Design,
   Domain,
@@ -72,6 +71,7 @@ interface WireframeHierarchy {
 
 interface ArtifactWorkbenchProps {
   activeRelation: WorkspaceRelation;
+  architectureView: ArchitectureView | null;
   context: ProjectContext;
   projects: ProjectSummary[];
   selectedArtifactId: number | null;
@@ -79,6 +79,8 @@ interface ArtifactWorkbenchProps {
 }
 
 type MobilePane = "tree" | "records" | "detail";
+/** Architecture workspace 중앙 탭과 URL이 공유하는 view. */
+export type ArchitectureView = "plan" | "current";
 type RecordStatus = "Completed" | "In progress" | "Pending";
 type StatusFilter = "All" | RecordStatus;
 type RequestEditorMode =
@@ -106,7 +108,6 @@ const relationOrder: readonly WorkbenchRelation[] = [
   "reviews",
   "requests",
   "workLogs",
-  "architecturePlans",
   "databases",
   "erds",
 ];
@@ -178,12 +179,6 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
     plural: "WorkLogs",
     dotClassName: "bg-clay",
   },
-  architecturePlans: {
-    code: "AP",
-    label: "Architecture Plan",
-    plural: "Architecture Plan",
-    dotClassName: "bg-plum",
-  },
   databases: {
     code: "DB",
     label: "DB",
@@ -218,13 +213,65 @@ function getEntryKey(entry: WorkbenchEntry): string {
   return `${entry.relation}-${entry.record.id}`;
 }
 
+/** typed Architecture record를 대응하는 중앙 탭 view로 변환한다. */
+function getArchitectureView(architecture: Architecture): ArchitectureView {
+  if (architecture.type === "PLAN") {
+    return "plan";
+  }
+
+  if (architecture.type === "PRODUCTION") {
+    return "current";
+  }
+
+  return "current";
+}
+
+/** Architecture view에 대응하는 프로젝트의 단일 typed record를 찾는다. */
+function getArchitectureForView(
+  architectures: readonly Architecture[],
+  view: ArchitectureView,
+): Architecture | null {
+  return (
+    architectures.find(
+      (architecture) => getArchitectureView(architecture) === view,
+    ) ?? null
+  );
+}
+
+/** URL·legacy ID·보유 record 순으로 최초 Architecture view를 결정한다. */
+function getInitialArchitectureView(
+  architectures: readonly Architecture[],
+  requestedView: ArchitectureView | null,
+  selectedArtifactId: number | null,
+): ArchitectureView {
+  if (requestedView) {
+    return requestedView;
+  }
+
+  const selectedArchitecture =
+    selectedArtifactId === null
+      ? null
+      : (architectures.find(
+          (architecture) => architecture.id === selectedArtifactId,
+        ) ?? null);
+  if (selectedArchitecture) {
+    return getArchitectureView(selectedArchitecture);
+  }
+
+  return architectures.some(
+    (architecture) => architecture.type === "PRODUCTION",
+  )
+    ? "current"
+    : "plan";
+}
+
 /** 빈 목록에서 다른 artifact를 detail fallback으로 쓰지 않는 독립 workspace를 판별한다. */
 function keepsEmptySelection(relation: WorkbenchRelation): boolean {
   return (
     relation === "domains" ||
+    relation === "architectures" ||
     relation === "requests" ||
     relation === "workLogs" ||
-    relation === "architecturePlans" ||
     relation === "databases" ||
     relation === "erds"
   );
@@ -248,7 +295,6 @@ function getEntries(
     reviews: context.reviews,
     requests: [...requests],
     workLogs: context.workLogs,
-    architecturePlans: context.architecturePlans,
     databases: context.databases,
     erds: context.erds,
   };
@@ -457,9 +503,12 @@ function getRelations(
 }
 
 function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
-  /** Architecture Plan은 별도 html 구조도를 가진 hybrid preview로 분류한다. */
-  if (entry.relation === "architecturePlans") {
-    const architecturePlan = entry.record as ArchitecturePlan;
+  /** PLAN Architecture는 별도 html 구조도를 가진 hybrid preview로 분류한다. */
+  if (
+    entry.relation === "architectures" &&
+    (entry.record as Architecture).type === "PLAN"
+  ) {
+    const architecturePlan = entry.record as Architecture;
     return { kind: "Architecture Plan", record: architecturePlan };
   }
 
@@ -571,7 +620,7 @@ function ArchitecturePlanPreview({
 }: {
   onNavigateWireframe: (target: HtmlPreviewWireframeNavigation) => void;
   onScrollStateChange: (scrollTop: number) => void;
-  record: ArchitecturePlan;
+  record: Architecture;
 }) {
   const [activeView, setActiveView] =
     useState<ArchitecturePlanView>("content");
@@ -670,7 +719,7 @@ function ArchitecturePlanPreview({
           <div className="grid h-full min-h-48 place-items-center rounded-card border border-line bg-surface-muted px-6 text-center">
             <div>
               <p className="m-0 text-sm font-semibold text-ink">
-                저장된 구조도가 없습니다
+                Preview unavailable
               </p>
               <p className="mt-2 mb-0 text-xs leading-5 text-muted">
                 Architecture Plan의 html 칼럼에 구조도가 저장되면 여기에
@@ -707,6 +756,13 @@ function getRelationHref(entry: WorkbenchEntry, projectId: number): string {
     return `/projects/${projectId}?type=plans&id=${task.planId}&taskId=${task.id}`;
   }
 
+  /** Architecture record deep link는 물리 ID 대신 PLAN/PRODUCTION view를 정본으로 사용한다. */
+  if (entry.relation === "architectures") {
+    const architecture = entry.record as Architecture;
+    const view = architecture.type === "PLAN" ? "plan" : "current";
+    return `/projects/${projectId}?type=architectures&view=${view}`;
+  }
+
   const relation = entry.relation === "reviews" ? "plans" : entry.relation;
   return `/projects/${projectId}?type=${relation}&id=${entry.record.id}`;
 }
@@ -732,6 +788,7 @@ function useSearchShortcut(searchRef: RefObject<HTMLInputElement | null>) {
 }
 export function ArtifactWorkbench({
   activeRelation,
+  architectureView,
   context,
   projects,
   selectedArtifactId,
@@ -767,6 +824,14 @@ export function ArtifactWorkbench({
     () => new Map(context.plans.map((plan) => [plan.id, plan])),
     [context.plans],
   );
+  /** URL view가 없으면 legacy ID 또는 Current 우선 규칙으로 최초 탭을 고른다. */
+  const initialArchitectureView = getInitialArchitectureView(
+    context.architectures,
+    architectureView,
+    selectedArtifactId,
+  );
+  const [selectedArchitectureView, setSelectedArchitectureView] =
+    useState<ArchitectureView>(initialArchitectureView);
   const initialEntry = useMemo(() => {
     /** Domain은 명시적인 page ID가 없으면 첫 root를 자동 선택하지 않는다. */
     if (activeRelation === "domains") {
@@ -781,6 +846,24 @@ export function ArtifactWorkbench({
             entry.record.id === selectedArtifactId,
         ) ?? null
       );
+    }
+
+    /** Architecture는 현재 view의 type과 명시 ID가 모두 일치할 때만 선택한다. */
+    if (activeRelation === "architectures") {
+      const architecture =
+        selectedArtifactId === null
+          ? getArchitectureForView(
+              context.architectures,
+              initialArchitectureView,
+            )
+          : (context.architectures.find(
+              (candidate) => candidate.id === selectedArtifactId,
+            ) ?? null);
+
+      return architecture &&
+        getArchitectureView(architecture) === initialArchitectureView
+        ? ({ record: architecture, relation: "architectures" } as const)
+        : null;
     }
 
     if (selectedTaskId) {
@@ -806,7 +889,14 @@ export function ArtifactWorkbench({
     return keepsEmptySelection(activeRelation)
       ? (activeEntry ?? null)
       : (activeEntry ?? allEntries[0]);
-  }, [activeRelation, allEntries, selectedArtifactId, selectedTaskId]);
+  }, [
+    activeRelation,
+    allEntries,
+    context.architectures,
+    initialArchitectureView,
+    selectedArtifactId,
+    selectedTaskId,
+  ]);
   const selectedDomainAncestorIds = useMemo(
     () =>
       activeRelation === "domains" &&
@@ -818,6 +908,7 @@ export function ArtifactWorkbench({
   );
   const externalSelectionKey = [
     activeRelation,
+    initialArchitectureView,
     selectedArtifactId ?? "none",
     selectedTaskId ?? "none",
     initialEntry ? getEntryKey(initialEntry) : "missing",
@@ -889,6 +980,7 @@ export function ArtifactWorkbench({
 
     setLastExternalSelectionKey(externalSelectionKey);
     setTypeFilter(activeRelation);
+    setSelectedArchitectureView(initialArchitectureView);
     setSelectedKey(initialEntry ? getEntryKey(initialEntry) : null);
     setDomainNotFoundId(
       activeRelation === "domains" &&
@@ -926,21 +1018,21 @@ export function ArtifactWorkbench({
     selectedEntry?.relation === "architectures"
       ? (selectedEntry.record as Architecture)
       : null;
+  /** PLAN은 문서/HTML, PRODUCTION은 deployment graph renderer로 분리한다. */
+  const selectedArchitecturePlan =
+    selectedArchitecture?.type === "PLAN" ? selectedArchitecture : null;
+  const selectedProductionArchitecture =
+    selectedArchitecture?.type === "PRODUCTION" ? selectedArchitecture : null;
   const selectedErd =
     selectedEntry?.relation === "erds"
       ? (selectedEntry.record as Erd)
       : null;
   const hasVisualPreview =
     selectedHtmlArtifact !== null ||
-    selectedArchitecture !== null ||
+    selectedProductionArchitecture !== null ||
     selectedErd !== null;
   const isVisualMetadataCollapsed =
     selectedHtmlArtifact !== null && isHtmlMetadataCollapsed;
-  /** Architecture Plan에서만 content/html 탭 preview에 원본 레코드를 제공한다. */
-  const selectedArchitecturePlan =
-    selectedEntry?.relation === "architecturePlans"
-      ? (selectedEntry.record as ArchitecturePlan)
-      : null;
   /** Wireframe 전용 metadata만 노출하도록 relation을 확인한 뒤 record를 좁힌다. */
   const selectedWireframe =
     selectedEntry?.relation === "wireframes"
@@ -1006,6 +1098,12 @@ export function ArtifactWorkbench({
       : versionFilter;
   const isRequestView = typeFilter === "requests";
   const isDomainView = typeFilter === "domains";
+  const isArchitectureView = typeFilter === "architectures";
+  /** 명시한 Architecture ID가 현재 type과 맞지 않으면 다른 record로 대체하지 않는다. */
+  const isArchitectureNotFound =
+    activeRelation === "architectures" &&
+    selectedArtifactId !== null &&
+    initialEntry === null;
   /** 수정 중인 record는 성공 응답으로 교체된 로컬 Request 목록에서 읽는다. */
   const editorRequest =
     requestEditorMode?.type === "update"
@@ -1112,6 +1210,15 @@ export function ArtifactWorkbench({
   const filteredEntries = allEntries
     .filter((entry) => entry.relation === typeFilter)
     .flatMap((entry) => {
+      /** Architecture 중앙 목록에는 선택한 Plan 또는 Current record만 노출한다. */
+      if (entry.relation === "architectures") {
+        const architecture = entry.record as Architecture;
+        return getArchitectureView(architecture) === selectedArchitectureView &&
+          matchesVisibleFilters(entry)
+          ? [entry]
+          : [];
+      }
+
       if (entry.relation !== "plans") {
         return matchesVisibleFilters(entry) ? [entry] : [];
       }
@@ -1192,6 +1299,54 @@ export function ArtifactWorkbench({
     }
 
     router.replace(getRelationHref(entry, context.id), { scroll: false });
+  }
+
+  /** 중앙 Architecture 탭을 바꾸고 해당 type의 단일 record와 canonical URL을 동기화한다. */
+  function selectArchitectureView(view: ArchitectureView) {
+    const architecture = getArchitectureForView(context.architectures, view);
+
+    setSelectedArchitectureView(view);
+    setSelectedKey(
+      architecture
+        ? getEntryKey({ record: architecture, relation: "architectures" })
+        : null,
+    );
+    setIsHtmlMetadataCollapsed(false);
+    setRequestEditorMode(null);
+    setIsDetailPaneOpen(true);
+    router.replace(
+      `/projects/${context.id}?type=architectures&view=${view}`,
+      { scroll: false },
+    );
+  }
+
+  /** Architecture 탭은 수평 방향키와 Home/End로 선택과 focus를 함께 이동한다. */
+  function handleArchitectureViewKeyDown(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    view: ArchitectureView,
+  ) {
+    let nextView: ArchitectureView | null = null;
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      nextView = view === "plan" ? "current" : "plan";
+    } else if (event.key === "Home") {
+      nextView = "plan";
+    } else if (event.key === "End") {
+      nextView = "current";
+    }
+
+    if (!nextView) {
+      return;
+    }
+
+    event.preventDefault();
+    const tabs = Array.from(
+      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+        '[role="tab"]',
+      ) ?? [],
+    );
+    tabs[nextView === "plan" ? 0 : 1]?.focus();
+    selectArchitectureView(nextView);
   }
 
   /** Domain treeitem의 좌우 방향키로 현재 branch를 펼치거나 접는다. */
@@ -1591,6 +1746,13 @@ export function ArtifactWorkbench({
                   const relationEntries = allEntries.filter(
                     (entry) => entry.relation === relation,
                   );
+                  /** Architecture는 PLAN/PRODUCTION row 수와 무관하게 단일 workspace로 집계한다. */
+                  const relationCount =
+                    relation === "architectures"
+                      ? relationEntries.length > 0
+                        ? 1
+                        : 0
+                      : relationEntries.length;
                   return (
                     <div key={relation}>
                       <button
@@ -1604,6 +1766,36 @@ export function ArtifactWorkbench({
                           /** Relation 전환마다 explicit version을 비워 각 workspace의 최신 version을 다시 선택한다. */
                           setVersionFilter(null);
                           setMobilePane("records");
+
+                          /** Architecture 진입은 Current 우선 규칙과 canonical view URL을 적용한다. */
+                          if (relation === "architectures") {
+                            const nextView = getInitialArchitectureView(
+                              context.architectures,
+                              null,
+                              null,
+                            );
+                            const architecture = getArchitectureForView(
+                              context.architectures,
+                              nextView,
+                            );
+
+                            setSelectedArchitectureView(nextView);
+                            setSelectedKey(
+                              architecture
+                                ? getEntryKey({
+                                    record: architecture,
+                                    relation: "architectures",
+                                  })
+                                : null,
+                            );
+                            setStatusFilter("All");
+                            setRequestEditorMode(null);
+                            router.replace(
+                              `/projects/${context.id}?type=architectures&view=${nextView}`,
+                              { scroll: false },
+                            );
+                            return;
+                          }
 
                           /** 독립 workspace 진입 시 이전 도메인의 선택·편집 상태를 노출하지 않는다. */
                           if (keepsEmptySelection(relation)) {
@@ -1633,7 +1825,7 @@ export function ArtifactWorkbench({
                         </span>
                         <span className="flex-1">{config.plural}</span>
                         <span className="font-mono text-[10px] text-sidebar-subtle">
-                          {relationEntries.length}
+                          {relationCount}
                         </span>
                       </button>
                     </div>
@@ -1681,12 +1873,54 @@ export function ArtifactWorkbench({
               ) : null}
             </div>
           </div>
+          {isArchitectureView ? (
+            <div
+              aria-label="Architecture views"
+              className="flex min-h-11 items-end gap-1 border-b border-line bg-surface px-4"
+              role="tablist"
+            >
+              <button
+                aria-controls="architecture-records"
+                aria-selected={selectedArchitectureView === "plan"}
+                className="min-h-11 border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold text-muted hover:text-ink aria-selected:border-accent aria-selected:text-primary focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                onClick={() => selectArchitectureView("plan")}
+                onKeyDown={(event) =>
+                  handleArchitectureViewKeyDown(event, "plan")
+                }
+                role="tab"
+                tabIndex={selectedArchitectureView === "plan" ? 0 : -1}
+                type="button"
+              >
+                Plan
+              </button>
+              <button
+                aria-controls="architecture-records"
+                aria-selected={selectedArchitectureView === "current"}
+                className="min-h-11 border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-semibold text-muted hover:text-ink aria-selected:border-accent aria-selected:text-primary focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+                onClick={() => selectArchitectureView("current")}
+                onKeyDown={(event) =>
+                  handleArchitectureViewKeyDown(event, "current")
+                }
+                role="tab"
+                tabIndex={selectedArchitectureView === "current" ? 0 : -1}
+                type="button"
+              >
+                Current
+              </button>
+            </div>
+          ) : null}
           <div className="flex items-center gap-2 border-b border-line bg-surface-muted px-4 py-2.5">
             <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">
               {context.title} /{" "}
               <strong>{relationConfig[typeFilter].plural}</strong>
             </span>
-            {isDomainView ? (
+            {isArchitectureView ? (
+              <span className="font-mono text-[10px] font-semibold tracking-[0.06em] text-muted uppercase">
+                {selectedArchitectureView === "plan"
+                  ? "Design plan"
+                  : "Production snapshot"}
+              </span>
+            ) : isDomainView ? (
               <span className="font-mono text-[10px] font-semibold tracking-[0.06em] text-muted uppercase">
                 Read-only hierarchy
               </span>
@@ -1727,7 +1961,10 @@ export function ArtifactWorkbench({
               </label>
             )}
           </div>
-          <div className="m-3 min-h-0 flex-1 overflow-auto rounded-card border border-line bg-surface shadow-card">
+          <div
+            className="m-3 min-h-0 flex-1 overflow-auto rounded-card border border-line bg-surface shadow-card"
+            id={isArchitectureView ? "architecture-records" : undefined}
+          >
             <div
               aria-hidden="true"
               className={`sticky top-0 z-10 grid h-9 items-center gap-3 border-b border-line bg-surface-muted px-4 font-mono text-[10px] font-semibold tracking-[0.06em] text-muted uppercase ${isWireframeView ? "min-w-[650px] grid-cols-[88px_52px_72px_minmax(180px,1fr)_180px]" : "min-w-[740px] grid-cols-[88px_52px_minmax(180px,1fr)_96px_52px_180px]"}`}
@@ -2002,7 +2239,11 @@ export function ArtifactWorkbench({
           {visibleEntries.length === 0 ? (
             <div className="px-6 py-14 text-center text-muted">
               <strong className="mb-1.5 block text-ink">
-                {isDomainView && context.domains.length === 0
+                {isArchitectureView
+                  ? selectedArchitectureView === "plan"
+                    ? "No Architecture Plan records"
+                    : "No Current Architecture records"
+                  : isDomainView && context.domains.length === 0
                   ? "No Domain pages"
                   : isDomainView
                     ? "No matching Domains"
@@ -2010,7 +2251,11 @@ export function ArtifactWorkbench({
                   ? "No Request records"
                   : "No matching records"}
               </strong>
-              {isDomainView && context.domains.length === 0
+              {isArchitectureView
+                ? selectedArchitectureView === "plan"
+                  ? "Save the implementation plan through the Architecture workflow."
+                  : "Save a production deployment snapshot through the Architecture workflow."
+                : isDomainView && context.domains.length === 0
                 ? "Create business Domain pages through the Domain MCP workflow."
                 : isDomainView
                   ? "Try another title, Markdown term, or Domain ID."
@@ -2070,6 +2315,12 @@ export function ArtifactWorkbench({
                         ? domainNotFoundId === null
                           ? "Select a Domain"
                           : "Domain not found"
+                        : isArchitectureView
+                          ? isArchitectureNotFound
+                            ? "Architecture not found"
+                            : selectedArchitectureView === "plan"
+                              ? "Architecture Plan"
+                              : "Current Architecture"
                         : "Select a record")}
               </h2>
             </div>
@@ -2240,14 +2491,14 @@ export function ArtifactWorkbench({
                     ) : null}
                   </div>
                 ) : null}
-                {selectedArchitecture ? (
+                {selectedProductionArchitecture ? (
                   <div
                     className="flex h-full min-h-0 min-w-0 overflow-hidden pt-[18px]"
                     data-preview-expanded="false"
                     data-record-preview
                   >
                     <ArchitectureWorkspace
-                      architectures={[selectedArchitecture]}
+                      architectures={[selectedProductionArchitecture]}
                     />
                   </div>
                 ) : selectedErd ? (
@@ -2317,6 +2568,28 @@ export function ArtifactWorkbench({
                   {domainNotFoundId === null
                     ? "Choose a page in the hierarchy to read its business rules and responsibilities."
                     : `Domain #${domainNotFoundId} does not exist in this project.`}
+                </p>
+              </section>
+            ) : isArchitectureView ? (
+              <section
+                aria-label={
+                  isArchitectureNotFound
+                    ? "Architecture not found"
+                    : "Architecture selection state"
+                }
+                className="rounded-card border border-line bg-surface px-6 py-10 text-center shadow-card"
+              >
+                <h3 className="m-0 text-base font-semibold text-ink">
+                  {isArchitectureNotFound
+                    ? "Architecture not found"
+                    : selectedArchitectureView === "plan"
+                      ? "No Architecture Plan selected"
+                      : "No Current Architecture selected"}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  {isArchitectureNotFound
+                    ? `Architecture #${selectedArtifactId} does not exist in the selected ${selectedArchitectureView} view.`
+                    : "Choose the available record in this Architecture view."}
                 </p>
               </section>
             ) : isRequestView ? (

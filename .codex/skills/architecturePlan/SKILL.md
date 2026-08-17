@@ -13,14 +13,18 @@ description: 아키텍쳐 plan 문서를 작성하는 스킬
 | planner     | architecturePlan 문서 작성                                                                |
 | researcher  | architecturePlan 문서 작성 시에 공식 아이콘,에셋 등 svg 리소스가 필요하다면 다운로드 역할 |
 
-## ArchitecturePlan 생성 및 수정 규칙
+## Architecture PLAN 생성 및 수정 규칙
 
-- ArchitecturePlan은 인프라, 아키텍쳐, 기술스택, 배포전략, 로그관리 등등에 대한 레포 scope의 계획 문서이다.
-- projectId당 하나의 ArchitecturePlan만 존재한다.
-- 매 Plan 생성 시마다 해당 Plan의 KPI와 ArchitecturePlan의 내용이 일치하는지 확인하고, 어긋난 부분이 있으면 업데이트한다.
-- ArchitecturePlan의 `content`는 Markdown 설명이고 `html`은 완전한 HTML 인프라 구조도이다.
+- architecturePlan은 인프라, 아키텍쳐, 기술스택, 배포전략, 로그관리 등에 대한 레포 scope의 설계 문서를 작성하는 개념과 스킬 이름이다.
+- 저장 정본은 별도 모델이 아니라 `Architecture(type: PLAN)`이다. projectId당 PLAN은 최대 한 건만 존재한다.
+- 작업 시작 시 `get_architecture({ projectId })`를 호출하고 결과에서 `type: "PLAN"`을 선택한다.
+- 저장은 `upsert_architecture({ projectId, type: "PLAN", title, content, html })`만 사용한다.
+- 기존 PLAN이 있으면 새 history를 만들지 않고 최신본을 덮어쓴다. `id`, `type`, `createdAt`은 유지된다.
+- 매 Plan 생성 시마다 해당 Plan의 KPI와 Architecture PLAN의 내용이 일치하는지 확인하고, 어긋난 부분이 있으면 업데이트한다.
+- Architecture PLAN의 `content`는 Markdown 설명이고 `html`은 완전한 HTML 인프라 구조도이다.
 - 런타임·인프라 구성이 바뀌면 `content`와 `html`을 반드시 같은 변경 단위에서 함께 갱신한다.
-- 이 제목 중심 계약을 적용한 ArchitecturePlan의 `schemaVersion`은 `2.0.0`이다.
+- 이 제목 중심 문서 계약을 적용한 Architecture PLAN의 `schemaVersion`은 `2.0.0`이다.
+- 저장 후 `get_architecture({ projectId })`를 다시 호출하여 PLAN이 한 건이고 제목·content·html이 입력과 일치하는지 검증한다.
 
 ## KPI 단일 정본 계약
 
@@ -109,5 +113,5 @@ description: 아키텍쳐 plan 문서를 작성하는 스킬
 ### 구조도 예시
 
 - [인프라 구조도 예시](./references/인프라.pdf)
-- [ArchitecturePlan Markdown 예시](./references/architecturePlan-example.md)
-- [ArchitecturePlan HTML 구조도 예시](./references/architecturePlan-example.html)
+- [Architecture PLAN Markdown 예시](./references/architecturePlan-example.md)
+- [Architecture PLAN HTML 구조도 예시](./references/architecturePlan-example.html)

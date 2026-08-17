@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deriveDashboardSummary } from "@/lib/dashboard";
 import {
+  createArchitecture,
   createArtifact,
   createAsset,
   createDesign,
@@ -40,7 +41,20 @@ describe("deriveDashboardSummary", () => {
       tasks: [completedTask, pendingTask],
       drafts: [createArtifact({ id: 3, title: "Draft" })],
       domains: [createDomain({ id: 9, title: "Domain" })],
-      architectures: [createArtifact({ id: 4, title: "Architecture" })],
+      architectures: [
+        createArchitecture({
+          id: 12,
+          title: "Architecture Plan",
+          type: "PLAN" as const,
+          html: "<!doctype html><html><head></head><body>Plan</body></html>",
+        }),
+        createArchitecture({
+          id: 4,
+          title: "Architecture",
+          html: "",
+          type: "PRODUCTION" as const,
+        }),
+      ],
       wireframes: [createWireframe({ id: 5, title: "Wireframe" })],
       assets: [createAsset({ id: 6, title: "Asset" })],
       designs: [
@@ -62,6 +76,7 @@ describe("deriveDashboardSummary", () => {
       ],
     });
 
+    /** PLAN과 PRODUCTION 두 record는 Architecture workspace 한 건으로 합산한다. */
     expect(deriveDashboardSummary(context)).toEqual({
       totalArtifacts: 11,
       completedTasks: 1,

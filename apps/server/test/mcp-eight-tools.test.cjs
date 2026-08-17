@@ -77,6 +77,14 @@ const architecturePlanHtml = [
   '<html lang="ko"><head><meta charset="utf-8"><title>배포 인프라 구조도</title></head>',
   '<body><main><h1>배포 인프라 구조도</h1><svg role="img" aria-label="GitHub Pages 리소스 아이콘" viewBox="0 0 24 24"><title>GitHub Pages</title><path d="M4 4h16v16H4z"></path></svg><p>Repository → Actions → Pages</p></main></body></html>',
 ].join("");
+const productionArchitectureDiagram = {
+  kind: "deployment-architecture",
+  schemaVersion: 1,
+  name: "Harness production",
+  environments: [],
+  nodes: [{ id: "api", name: "API", kind: "service" }],
+  connections: [],
+};
 const erdDocument = createDineugDocument();
 
 const expectedToolNames = [
@@ -86,7 +94,6 @@ const expectedToolNames = [
   "get_asset",
   "get_design",
   "get_architecture",
-  "get_architecturePlan",
   "get_request",
   "get_workLog",
   "get_domain",
@@ -120,8 +127,7 @@ const expectedToolNames = [
   "delete_file",
   "create_workLog",
   "create_request",
-  "create_architecturePlan",
-  "update_architecturePlan",
+  "upsert_architecture",
   "update_request",
 ];
 
@@ -134,6 +140,9 @@ const removedToolNames = [
   "save_document",
   "save_design",
   "update_task_status",
+  "get_architecturePlan",
+  "create_architecturePlan",
+  "update_architecturePlan",
 ];
 
 const loadMcpService = () => {
@@ -205,12 +214,20 @@ const createHarness = () => {
       "databases",
       "erds",
       "reviews",
-      "architecturePlans",
       "requests",
       "worklogs",
       "files",
     ].map((domain) => [domain, [{ domain, projectId: 17 }]]),
   );
+  domainResults.architectures = [
+    { id: 1, projectId: 17, type: "PLAN", title: "Architecture plan" },
+    {
+      id: 2,
+      projectId: 17,
+      type: "PRODUCTION",
+      title: "Current architecture",
+    },
+  ];
   const listService = (service, domain) => async (...args) => {
     calls.push([service, "list", ...args]);
     return domainResults[domain];
@@ -355,6 +372,10 @@ const createHarness = () => {
     },
     architecturesService: {
       list: listService("architecturesService", "architectures"),
+      upsert: async (input) => {
+        calls.push(["architecturesService", "upsert", input]);
+        return result("architecturesService", "upsert", input);
+      },
     },
     reviewsService: {
       list: listService("reviewsService", "reviews"),
@@ -375,17 +396,6 @@ const createHarness = () => {
       update: async (input) => {
         calls.push(["requestsService", "update", input]);
         return result("requestsService", "update", input);
-      },
-    },
-    architecturePlansService: {
-      list: listService("architecturePlansService", "architecturePlans"),
-      create: async (input) => {
-        calls.push(["architecturePlansService", "create", input]);
-        return result("architecturePlansService", "create", input);
-      },
-      update: async (input) => {
-        calls.push(["architecturePlansService", "update", input]);
-        return result("architecturePlansService", "update", input);
       },
     },
   };
@@ -454,7 +464,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 43개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 41개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -462,7 +472,7 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 43개 도구와 �
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 43);
+  assert.equal(tools.size, 41);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
@@ -476,7 +486,6 @@ test("산출물 조회 도구는 읽기 전용 schema를 지키고 domain servic
     ["get_asset", "assetsService", "assets"],
     ["get_design", "designsService", "designs"],
     ["get_architecture", "architecturesService", "architectures"],
-    ["get_architecturePlan", "architecturePlansService", "architecturePlans"],
     ["get_request", "requestsService", "requests"],
     ["get_workLog", "worklogsService", "worklogs"],
     ["get_domain", "domainsService", "domains"],
@@ -501,9 +510,10 @@ test("산출물 조회 도구는 읽기 전용 schema를 지키고 domain servic
         idempotentHint: true,
         openWorldHint: false,
       });
-      assert.deepEqual(await harness.invoke(toolName, { projectId: 17 }), [
-        { domain, projectId: 17 },
-      ]);
+      assert.deepEqual(
+        await harness.invoke(toolName, { projectId: 17 }),
+        harness.domainResults[domain],
+      );
       assert.deepEqual(harness.calls.at(-1), [
         serviceName,
         "list",
@@ -511,6 +521,21 @@ test("산출물 조회 도구는 읽기 전용 schema를 지키고 domain servic
       ]);
     });
   }
+});
+
+test("get_architecture는 PLAN과 PRODUCTION을 합친 typed 0..2 목록을 반환한다", async () => {
+  const harness = createHarness();
+  const response = await harness.invoke("get_architecture", { projectId: 17 });
+
+  assert.deepEqual(response, harness.domainResults.architectures);
+  assert.deepEqual(
+    response.map(({ type }) => type),
+    ["PLAN", "PRODUCTION"],
+  );
+  assert.ok(response.length <= 2);
+  assert.deepEqual(harness.calls, [
+    ["architecturesService", "list", { projectId: 17 }],
+  ]);
 });
 
 test("get_task는 선택한 plan으로 작업 목록을 필터링해 TasksService.list에 위임한다", async () => {
@@ -837,18 +862,6 @@ test("update_task는 상태 schema와 멱등 annotations를 지키고 TasksServi
 
 const workflowUpdateToolCases = [
   {
-    name: "update_architecturePlan",
-    service: "architecturePlansService",
-    idField: "architecturePlanId",
-    input: {
-      projectId: 17,
-      architecturePlanId: 31,
-      title: "Updated MCP architecture plan",
-      content: architecturePlanContent,
-      html: architecturePlanHtml,
-    },
-  },
-  {
     name: "update_request",
     service: "requestsService",
     idField: "requestId",
@@ -862,16 +875,19 @@ const workflowUpdateToolCases = [
   },
 ];
 
-test("workflow 수정 도구는 schema와 annotations를 지키고 domain service 결과를 직렬화한다", async (t) => {
+test("request 수정 도구는 schema와 annotations를 지키고 domain service 결과를 직렬화한다", async (t) => {
   for (const toolCase of workflowUpdateToolCases) {
     await t.test(toolCase.name, async () => {
       const harness = createHarness();
       const response = await harness.invoke(toolCase.name, toolCase.input);
       const tool = harness.tools.get(toolCase.name);
-      const expectedFields =
-        toolCase.name === "update_request"
-          ? ["projectId", "requestId", "title", "content", "status"]
-          : ["projectId", "architecturePlanId", "title", "content", "html"];
+      const expectedFields = [
+        "projectId",
+        "requestId",
+        "title",
+        "content",
+        "status",
+      ];
 
       assert.deepEqual(harness.calls, [
         [toolCase.service, "update", toolCase.input],
@@ -929,51 +945,22 @@ test("workflow 수정 도구는 schema와 annotations를 지키고 domain servic
         "Updated workflow artifact",
       );
 
-      if (toolCase.name === "update_request") {
-        for (const status of ["PENDING", "IN_PROGRESS", "COMPLETED"]) {
-          assert.equal(
-            tool.definition.inputSchema.safeParse({
-              ...toolCase.input,
-              status,
-            }).success,
-            true,
-          );
-        }
+      for (const status of ["PENDING", "IN_PROGRESS", "COMPLETED"]) {
         assert.equal(
           tool.definition.inputSchema.safeParse({
             ...toolCase.input,
-            status: "CANCELLED",
+            status,
           }).success,
-          false,
-        );
-      } else {
-        const { content: _content, ...missingContentInput } = toolCase.input;
-        const { html: _html, ...missingHtmlInput } = toolCase.input;
-
-        assert.equal(
-          tool.definition.inputSchema.safeParse(missingContentInput).success,
-          false,
-        );
-        assert.equal(
-          tool.definition.inputSchema.safeParse(missingHtmlInput).success,
-          false,
-        );
-        assert.equal(
-          tool.definition.inputSchema.safeParse({
-            ...toolCase.input,
-            html: "",
-          }).success,
-          false,
-        );
-        assert.doesNotMatch(
-          tool.definition.inputSchema.shape.content.description ?? "",
-          /Complete HTML document/,
-        );
-        assert.match(
-          tool.definition.inputSchema.shape.html.description,
-          /Complete HTML document/,
+          true,
         );
       }
+      assert.equal(
+        tool.definition.inputSchema.safeParse({
+          ...toolCase.input,
+          status: "CANCELLED",
+        }).success,
+        false,
+      );
     });
   }
 });
@@ -997,16 +984,6 @@ const workflowCreateToolCases = [
       content: "Filter project artifacts by type.",
     },
   },
-  {
-    name: "create_architecturePlan",
-    service: "architecturePlansService",
-    input: {
-      projectId: 17,
-      title: "MCP architecture plan",
-      content: architecturePlanContent,
-      html: architecturePlanHtml,
-    },
-  },
 ];
 
 test("workflow 생성 도구는 domain service create 결과를 직렬화한다", async (t) => {
@@ -1023,12 +1000,11 @@ test("workflow 생성 도구는 domain service create 결과를 직렬화한다"
         method: "create",
         input: toolCase.input,
       });
-      assert.deepEqual(
-        Object.keys(tool.definition.inputSchema.shape),
-        toolCase.name === "create_architecturePlan"
-          ? ["projectId", "title", "content", "html"]
-          : ["projectId", "title", "content"],
-      );
+      assert.deepEqual(Object.keys(tool.definition.inputSchema.shape), [
+        "projectId",
+        "title",
+        "content",
+      ]);
       assert.deepEqual(tool.definition.annotations, {
         readOnlyHint: false,
         destructiveHint: false,
@@ -1071,32 +1047,119 @@ test("workflow 생성 도구의 입력 schema는 ID와 비어 있지 않은 문�
       schema.parse({ ...toolCase.input, title: "  Trimmed title  " }).title,
       "Trimmed title",
     );
-
-    if (toolCase.name === "create_architecturePlan") {
-      const { content: _content, ...missingContentInput } = toolCase.input;
-      const { html: _html, ...missingHtmlInput } = toolCase.input;
-
-      assert.equal(schema.safeParse(missingContentInput).success, false);
-      assert.equal(schema.safeParse(missingHtmlInput).success, false);
-      assert.equal(
-        schema.safeParse({ ...toolCase.input, html: "" }).success,
-        false,
-      );
-      assert.equal(
-        schema.safeParse({
-          ...toolCase.input,
-          content: architecturePlanContent,
-          html: architecturePlanHtml,
-        }).success,
-        true,
-      );
-      assert.doesNotMatch(
-        schema.shape.content.description ?? "",
-        /Complete HTML document/,
-      );
-      assert.match(schema.shape.html.description, /Complete HTML document/);
-    }
   }
+});
+
+const architecturePlanUpsertInput = {
+  projectId: 17,
+  type: "PLAN",
+  title: "MCP architecture plan",
+  content: architecturePlanContent,
+  html: architecturePlanHtml,
+};
+const productionArchitectureUpsertInput = {
+  projectId: 17,
+  type: "PRODUCTION",
+  title: "Current production architecture",
+  diagram: productionArchitectureDiagram,
+};
+
+test("upsert_architecture는 PLAN과 PRODUCTION을 ArchitecturesService.upsert에 그대로 위임한다", async () => {
+  const harness = createHarness();
+  const plan = await harness.invoke(
+    "upsert_architecture",
+    architecturePlanUpsertInput,
+  );
+  const production = await harness.invoke(
+    "upsert_architecture",
+    productionArchitectureUpsertInput,
+  );
+  const tool = harness.tools.get("upsert_architecture");
+
+  assert.deepEqual(harness.calls, [
+    ["architecturesService", "upsert", architecturePlanUpsertInput],
+    ["architecturesService", "upsert", productionArchitectureUpsertInput],
+  ]);
+  assert.deepEqual(plan, {
+    service: "architecturesService",
+    method: "upsert",
+    input: architecturePlanUpsertInput,
+  });
+  assert.deepEqual(production, {
+    service: "architecturesService",
+    method: "upsert",
+    input: productionArchitectureUpsertInput,
+  });
+  assert.deepEqual(tool.definition.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: true,
+    openWorldHint: false,
+  });
+});
+
+test("upsert_architecture 입력은 type별 payload를 strict discriminated union으로 검증한다", () => {
+  const schema = createHarness().tools.get("upsert_architecture").definition
+    .inputSchema;
+
+  assert.equal(schema.safeParse(architecturePlanUpsertInput).success, true);
+  assert.equal(schema.safeParse(productionArchitectureUpsertInput).success, true);
+
+  for (const input of [
+    { ...architecturePlanUpsertInput, type: undefined },
+    { ...architecturePlanUpsertInput, type: "DRAFT" },
+    { ...architecturePlanUpsertInput, diagram: productionArchitectureDiagram },
+    { ...productionArchitectureUpsertInput, content: architecturePlanContent },
+    { ...productionArchitectureUpsertInput, html: architecturePlanHtml },
+    { ...architecturePlanUpsertInput, unexpected: true },
+    { ...productionArchitectureUpsertInput, unexpected: true },
+    { ...architecturePlanUpsertInput, projectId: 0 },
+    { ...architecturePlanUpsertInput, title: "   " },
+    { ...architecturePlanUpsertInput, content: "" },
+    { ...architecturePlanUpsertInput, html: "" },
+    { ...architecturePlanUpsertInput, html: "<div>fragment</div>" },
+    { ...productionArchitectureUpsertInput, diagram: { kind: "domain-erd" } },
+  ]) {
+    assert.equal(schema.safeParse(input).success, false);
+  }
+
+  const { content: _content, ...planWithoutContent } = architecturePlanUpsertInput;
+  const { html: _html, ...planWithoutHtml } = architecturePlanUpsertInput;
+  const { diagram: _diagram, ...productionWithoutDiagram } =
+    productionArchitectureUpsertInput;
+
+  assert.equal(schema.safeParse(planWithoutContent).success, false);
+  assert.equal(schema.safeParse(planWithoutHtml).success, false);
+  assert.equal(schema.safeParse(productionWithoutDiagram).success, false);
+});
+
+test("실제 MCP upsert_architecture는 type별 입력을 검증하고 service에 위임한다", async (t) => {
+  const harness = await createSdkHarness();
+  t.after(() => harness.close());
+
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "upsert_architecture",
+      arguments: architecturePlanUpsertInput,
+    }),
+  );
+  parseSdkToolResult(
+    await harness.client.callTool({
+      name: "upsert_architecture",
+      arguments: productionArchitectureUpsertInput,
+    }),
+  );
+  const invalid = await harness.client.callTool({
+    name: "upsert_architecture",
+    arguments: { ...architecturePlanUpsertInput, diagram: productionArchitectureDiagram },
+  });
+
+  assert.deepEqual(harness.calls, [
+    ["architecturesService", "upsert", architecturePlanUpsertInput],
+    ["architecturesService", "upsert", productionArchitectureUpsertInput],
+  ]);
+  assert.equal(invalid.isError, true);
+  assert.match(invalid.content[0].text, /invalid/i);
 });
 
 test("get_context는 전체 SQLite schema context를 읽기 전용으로 반환한다", async () => {
@@ -2256,7 +2319,7 @@ test("실제 MCP workflow update는 성공과 service 오류 응답을 직렬화
   }
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 43개 공개 계약을 따른다", async (t) => {
+test("실제 MCP tools/list와 제거된 도구 호출도 41개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 

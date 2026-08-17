@@ -9,7 +9,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
 import { PrismaService } from "../prisma/prisma.service";
-import { ArchitecturePlansService } from "../services/architecture-plans/architecture-plans.service";
+import { deploymentArchitectureSchema } from "../services/architectures/deployment-architecture";
 import { ArchitecturesService } from "../services/architectures/architectures.service";
 import { AssetsService } from "../services/assets/assets.service";
 import { DbService } from "../services/db/db.service";
@@ -38,11 +38,6 @@ const domainParentIdSchema = domainIdSchema
 const dbIdSchema = z.number().int().positive().describe("DB document ID");
 const erdIdSchema = z.number().int().positive().describe("ERD document ID");
 const fileIdSchema = z.number().int().positive().describe("File ID");
-const architecturePlanIdSchema = z
-  .number()
-  .int()
-  .positive()
-  .describe("Architecture Plan ID");
 const requestIdSchema = z.number().int().positive().describe("Request ID");
 const wireframeIdSchema = z.number().int().positive().describe("Wireframe ID");
 const wireframeVersionSchema = z
@@ -67,6 +62,46 @@ const htmlSchema = z
   .string()
   .min(1)
   .describe("Complete HTML document including doctype, html, head, and body");
+
+/** PLAN Architecture가 저장하는 완전한 HTML 문서 계약. */
+const architecturePlanHtmlSchema = htmlSchema
+  .regex(
+    /^\s*<!doctype html>/i,
+    "Architecture PLAN HTML must include a doctype",
+  )
+  .regex(
+    /<html(?:\s[^>]*)?>[\s\S]*<\/html>\s*$/i,
+    "Architecture PLAN HTML must include an html root",
+  )
+  .regex(
+    /<head(?:\s[^>]*)?>[\s\S]*<\/head>/i,
+    "Architecture PLAN HTML must include a head",
+  )
+  .regex(
+    /<body(?:\s[^>]*)?>[\s\S]*<\/body>/i,
+    "Architecture PLAN HTML must include a body",
+  );
+
+/** PLAN 문서와 PRODUCTION graph를 구분하는 Architecture upsert 입력 계약. */
+const architectureUpsertSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      projectId: projectIdSchema,
+      type: z.literal("PLAN"),
+      title: z.string().trim().min(1),
+      content: z.string().min(1),
+      html: architecturePlanHtmlSchema,
+    })
+    .strict(),
+  z
+    .object({
+      projectId: projectIdSchema,
+      type: z.literal("PRODUCTION"),
+      title: z.string().trim().min(1),
+      diagram: deploymentArchitectureSchema,
+    })
+    .strict(),
+]);
 
 type SqliteInteger = bigint | number;
 type SqliteSchemaObjectType = "index" | "table" | "trigger" | "view";
@@ -136,7 +171,6 @@ export class McpService {
     private readonly draftsService: DraftsService,
     private readonly domainsService: DomainsService,
     private readonly architecturesService: ArchitecturesService,
-    private readonly architecturePlansService: ArchitecturePlansService,
     private readonly wireframesService: WireframesService,
     private readonly assetsService: AssetsService,
     private readonly designsService: DesignsService,
@@ -148,7 +182,7 @@ export class McpService {
     private readonly filesService: FilesService,
   ) {}
 
-  /** 43개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 41개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -176,7 +210,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 43개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 41개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -273,12 +307,13 @@ export class McpService {
         this.execute(() => this.designsService.list({ projectId })),
     );
 
-    /** 선택한 프로젝트의 architecture 목록을 조회한다. */
+    /** 선택한 프로젝트의 PLAN과 PRODUCTION architecture를 함께 조회한다. */
     server.registerTool(
       "get_architecture",
       {
         title: "Get Architecture",
-        description: "Returns Architectures owned by the selected Project.",
+        description:
+          "Returns the PLAN and PRODUCTION Architectures owned by the selected Project.",
         inputSchema: z.object({ projectId: projectIdSchema }),
         annotations: {
           readOnlyHint: true,
@@ -289,27 +324,6 @@ export class McpService {
       },
       ({ projectId }) =>
         this.execute(() => this.architecturesService.list({ projectId })),
-    );
-
-    /** 선택한 프로젝트의 architecture plan 목록을 조회한다. */
-    server.registerTool(
-      "get_architecturePlan",
-      {
-        title: "Get Architecture Plan",
-        description:
-          "Returns Architecture Plans owned by the selected Project.",
-        inputSchema: z.object({ projectId: projectIdSchema }),
-        annotations: {
-          readOnlyHint: true,
-          destructiveHint: false,
-          idempotentHint: true,
-          openWorldHint: false,
-        },
-      },
-      ({ projectId }) =>
-        this.execute(() =>
-          this.architecturePlansService.list({ projectId }),
-        ),
     );
 
     /** 선택한 프로젝트의 request 목록을 조회한다. */
@@ -1022,53 +1036,22 @@ export class McpService {
       (input) => this.execute(() => this.requestsService.create(input)),
     );
 
-    /** 프로젝트에 Markdown 설명과 HTML 구조도를 포함한 아키텍처 설계 계획을 생성한다. */
+    /** 프로젝트의 PLAN 또는 PRODUCTION Architecture를 type 기준으로 upsert한다. */
     server.registerTool(
-      "create_architecturePlan",
+      "upsert_architecture",
       {
-        title: "Create Architecture Plan",
+        title: "Upsert Architecture",
         description:
-          "Creates an Architecture Plan with non-empty Markdown content and a complete HTML architecture diagram for a Project.",
-        inputSchema: z.object({
-          projectId: projectIdSchema,
-          title: z.string().trim().min(1),
-          content: z.string().min(1),
-          html: htmlSchema,
-        }),
-        annotations: {
-          readOnlyHint: false,
-          destructiveHint: false,
-          idempotentHint: false,
-          openWorldHint: false,
-        },
-      },
-      (input) =>
-        this.execute(() => this.architecturePlansService.create(input)),
-    );
-
-    /** 같은 프로젝트가 소유한 Markdown 설명과 HTML 구조도를 교체한다. */
-    server.registerTool(
-      "update_architecturePlan",
-      {
-        title: "Update Architecture Plan",
-        description:
-          "Replaces the title, non-empty Markdown content, and complete HTML architecture diagram of an Architecture Plan in the same Project.",
-        inputSchema: z.object({
-          projectId: projectIdSchema,
-          architecturePlanId: architecturePlanIdSchema,
-          title: z.string().trim().min(1),
-          content: z.string().min(1),
-          html: htmlSchema,
-        }),
+          "Creates or replaces one typed Architecture for a Project: PLAN uses Markdown and complete HTML, while PRODUCTION uses a validated deployment diagram.",
+        inputSchema: architectureUpsertSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: true,
-          idempotentHint: false,
+          idempotentHint: true,
           openWorldHint: false,
         },
       },
-      (input) =>
-        this.execute(() => this.architecturePlansService.update(input)),
+      (input) => this.execute(() => this.architecturesService.upsert(input)),
     );
 
     /** 같은 프로젝트가 소유한 작업 요청의 내용과 진행 상태를 교체한다. */

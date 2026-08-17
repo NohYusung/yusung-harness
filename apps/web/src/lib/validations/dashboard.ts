@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type {
   Architecture,
-  ArchitecturePlan,
   ArtifactDocument,
   ArtifactRecord,
   Asset,
@@ -31,6 +30,7 @@ const projectRepositorySchema = z.object({
 const taskStatusSchema = z.enum(["PENDING", "COMPLETED"]);
 const planStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]);
 const requestStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]);
+const architectureTypeSchema = z.enum(["PLAN", "PRODUCTION"]);
 const dateTimeSchema = z.iso.datetime();
 
 const projectBaseSchema = z.object({
@@ -45,17 +45,16 @@ const artifactCountsSchema = z.object({
   tasks: z.number().int().nonnegative(),
   drafts: z.number().int().nonnegative(),
   domains: z.number().int().nonnegative(),
-  architectures: z.number().int().nonnegative(),
+  architectures: z.number().int().nonnegative().max(1),
   wireframes: z.number().int().nonnegative(),
   assets: z.number().int().nonnegative(),
   designs: z.number().int().nonnegative(),
   reviews: z.number().int().nonnegative(),
   requests: z.number().int().nonnegative(),
   workLogs: z.number().int().nonnegative(),
-  architecturePlans: z.number().int().nonnegative(),
   databases: z.number().int().nonnegative(),
   erds: z.number().int().nonnegative(),
-});
+}).strict();
 
 const artifactRecordSchema = z.object({
   id: z.number().int().positive(),
@@ -112,11 +111,14 @@ const reviewSchema: z.ZodType<Review> = artifactDocumentSchema;
 const workLogSchema: z.ZodType<WorkLog> = artifactDocumentSchema;
 const databaseSchema: z.ZodType<Database> = artifactDocumentSchema;
 
-/** Architecture Plan은 HTML 원본 content와 호환용 html 필드를 함께 받는다. */
-const architecturePlanSchema: z.ZodType<ArchitecturePlan> =
-  artifactDocumentSchema.extend({
-    html: z.string(),
-  });
+/** 통합 Architecture record는 PLAN과 PRODUCTION type 및 HTML payload를 엄격히 검증한다. */
+const architectureSchema: z.ZodType<Architecture> =
+  artifactDocumentSchema
+    .extend({
+      type: architectureTypeSchema,
+      html: z.string(),
+    })
+    .strict();
 
 /** Dineug ERD는 record 단위 오류 격리를 위해 nullable JSON 문자열로 수신한다. */
 const erdSchema: z.ZodType<Erd> = artifactRecordSchema.extend({
@@ -186,9 +188,11 @@ export const domainListResponseSchema: z.ZodType<ListResponse<Domain>> = z.objec
 /** Architecture 목록 API의 `{ data }` 응답을 검증한다. */
 export const architectureListResponseSchema: z.ZodType<
   ListResponse<Architecture>
-> = z.object({
-  data: z.array(artifactDocumentSchema),
-});
+> = z
+  .object({
+    data: z.array(architectureSchema),
+  })
+  .strict();
 
 /** Wireframe 목록 API의 `{ data }` 응답을 검증한다. */
 export const wireframeListResponseSchema: z.ZodType<ListResponse<Wireframe>> =
@@ -223,13 +227,6 @@ export const workLogListResponseSchema: z.ZodType<ListResponse<WorkLog>> =
     data: z.array(workLogSchema),
   });
 
-/** Architecture Plan 목록 API의 `{ data }` 응답을 검증한다. */
-export const architecturePlanListResponseSchema: z.ZodType<
-  ListResponse<ArchitecturePlan>
-> = z.object({
-  data: z.array(architecturePlanSchema),
-});
-
 /** DB schema 목록 API의 `{ data }` 응답을 검증한다. */
 export const databaseListResponseSchema: z.ZodType<ListResponse<Database>> =
   z.object({
@@ -244,14 +241,16 @@ export const erdListResponseSchema: z.ZodType<ListResponse<Erd>> = z.object({
 export const projectSummarySchema: z.ZodType<ProjectSummary> =
   projectBaseSchema.extend({
     _count: artifactCountsSchema,
-  });
+  }).strict();
 
 /** Project 목록 API의 `{ data }` 응답을 검증한다. */
 export const projectListResponseSchema: z.ZodType<
   ListResponse<ProjectSummary>
-> = z.object({
-  data: z.array(projectSummarySchema),
-});
+> = z
+  .object({
+    data: z.array(projectSummarySchema),
+  })
+  .strict();
 
 export const projectContextSchema: z.ZodType<ProjectContext> =
   projectBaseSchema.extend({
@@ -259,14 +258,13 @@ export const projectContextSchema: z.ZodType<ProjectContext> =
     tasks: z.array(taskSchema),
     drafts: z.array(artifactDocumentSchema),
     domains: z.array(domainSchema),
-    architectures: z.array(artifactDocumentSchema),
+    architectures: z.array(architectureSchema),
     wireframes: z.array(wireframeSchema),
     assets: z.array(assetSchema),
     designs: z.array(designSchema),
     reviews: z.array(reviewSchema),
     requests: z.array(requestSchema),
     workLogs: z.array(workLogSchema),
-    architecturePlans: z.array(architecturePlanSchema),
     databases: z.array(databaseSchema),
     erds: z.array(erdSchema),
-  });
+  }).strict();

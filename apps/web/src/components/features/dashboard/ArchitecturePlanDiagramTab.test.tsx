@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  createArchitecturePlan,
+  createArtifact,
   createProjectContext,
   createProjectSummary,
 } from "@/test/fixtures/dashboard";
@@ -17,7 +17,8 @@ vi.mock("next/navigation", () => ({
 
 describe("Architecture Plan diagram tab", () => {
   it("Content 탭은 GFM Markdown을 의미 요소로 렌더하고 구조도 탭은 별도 html iframe을 유지한다", () => {
-    const architecturePlan = createArchitecturePlan({
+    const architecturePlan = {
+      ...createArtifact({
       content: `# 배포 아키텍처
 
 | 계층 | 책임 |
@@ -34,17 +35,19 @@ Repository -> Actions -> Pages
 
 <button id="unsafe-markup" onclick="window.__unsafeMarkdownExecuted = true">Unsafe button</button>
 <script>window.__unsafeMarkdownExecuted = true</script>`,
-      html: "<!doctype html><html><head><title>Plan diagram</title></head><body><main>Architecture diagram html marker</main></body></html>",
       id: 301,
       title: "Tabbed architecture plan",
-    });
+      }),
+      html: "<!doctype html><html><head><title>Plan diagram</title></head><body><main>Architecture diagram html marker</main></body></html>",
+      type: "PLAN" as const,
+    };
     const context = createProjectContext({
-      architecturePlans: [architecturePlan],
+      architectures: [architecturePlan],
     });
 
     const { container } = render(
       <Dashboard
-        activeRelation="architecturePlans"
+        activeRelation="architectures"
         context={context}
         projects={[createProjectSummary(context)]}
         selectedArtifactId={architecturePlan.id}
@@ -116,19 +119,22 @@ Repository -> Actions -> Pages
   });
 
   it("content가 비어 있으면 fallback을 표시하고 구조도 탭은 저장된 html을 계속 렌더한다", () => {
-    const architecturePlan = createArchitecturePlan({
+    const architecturePlan = {
+      ...createArtifact({
       content: "  \n  ",
-      html: "<!doctype html><html><head><title>Fallback diagram</title></head><body><main>Fallback architecture diagram marker</main></body></html>",
       id: 302,
       title: "Architecture plan without content",
-    });
+      }),
+      html: "<!doctype html><html><head><title>Fallback diagram</title></head><body><main>Fallback architecture diagram marker</main></body></html>",
+      type: "PLAN" as const,
+    };
     const context = createProjectContext({
-      architecturePlans: [architecturePlan],
+      architectures: [architecturePlan],
     });
 
     render(
       <Dashboard
-        activeRelation="architecturePlans"
+        activeRelation="architectures"
         context={context}
         projects={[createProjectSummary(context)]}
         selectedArtifactId={architecturePlan.id}
@@ -160,19 +166,22 @@ Repository -> Actions -> Pages
   });
 
   it("html 칼럼이 비어도 구조도 탭을 유지하고 content로 대체하지 않는다", () => {
-    const architecturePlan = createArchitecturePlan({
+    const architecturePlan = {
+      ...createArtifact({
       content: "# Content-only architecture plan marker",
-      html: "",
       id: 303,
       title: "Architecture plan without diagram",
-    });
+      }),
+      html: "",
+      type: "PLAN" as const,
+    };
     const context = createProjectContext({
-      architecturePlans: [architecturePlan],
+      architectures: [architecturePlan],
     });
 
     render(
       <Dashboard
-        activeRelation="architecturePlans"
+        activeRelation="architectures"
         context={context}
         projects={[createProjectSummary(context)]}
         selectedArtifactId={architecturePlan.id}
@@ -204,7 +213,7 @@ Repository -> Actions -> Pages
       within(detailPane).getByRole("tabpanel").querySelector("iframe"),
     ).toBeNull();
     expect(
-      within(detailPane).getByText("저장된 구조도가 없습니다"),
+      within(detailPane).getByText("Preview unavailable"),
     ).toBeInTheDocument();
   });
 });

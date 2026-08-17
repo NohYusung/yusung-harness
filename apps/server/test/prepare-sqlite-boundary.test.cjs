@@ -9,15 +9,32 @@ const packageJson = JSON.parse(
 );
 const scriptPath = join(serverRoot, "scripts", "prepare-sqlite.mjs");
 
-test("predev와 prestart는 migrate deploy 전에 SQLite 파일을 준비한다", () => {
-  for (const scriptName of ["predev", "prestart"]) {
+test("DB migration scripts는 prepare와 Architecture preflight 후 migrate를 실행한다", () => {
+  for (const [scriptName, migrateCommand] of [
+    ["predev", "prisma migrate deploy"],
+    ["prestart", "prisma migrate deploy"],
+    ["prisma:migrate", "prisma migrate dev"],
+  ]) {
     const command = packageJson.scripts[scriptName];
+    const prepare = command.indexOf("node scripts/prepare-sqlite.mjs");
+    const preflight = command.indexOf(
+      "node scripts/preflight-architecture-consolidation.mjs",
+    );
+    const migrate = command.indexOf(migrateCommand);
 
     assert.match(command, /node scripts\/prepare-sqlite\.mjs/);
-    assert.ok(
-      command.indexOf("node scripts/prepare-sqlite.mjs") <
-        command.indexOf("prisma migrate deploy"),
-      `${scriptName}는 migrate deploy 전에 SQLite를 준비해야 한다`,
+    assert.match(
+      command,
+      /node scripts\/preflight-architecture-consolidation\.mjs/,
+    );
+    assert.ok(prepare < preflight, `${scriptName}는 prepare 후 preflight해야 한다`);
+    assert.ok(preflight < migrate, `${scriptName}는 preflight 후 migrate해야 한다`);
+    assert.match(
+      command,
+      new RegExp(
+        `node scripts/prepare-sqlite\\.mjs && node scripts/preflight-architecture-consolidation\\.mjs && ${migrateCommand.replaceAll(" ", "\\s+")}`,
+      ),
+      `${scriptName}는 preflight 실패 시 migrate deploy를 중단해야 한다`,
     );
   }
 });

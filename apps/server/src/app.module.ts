@@ -1,5 +1,4 @@
 import { Module } from "@nestjs/common";
-import { ArchitecturePlansModule } from "./services/architecture-plans/architecture-plans.module";
 import { ArchitecturesModule } from "./services/architectures/architectures.module";
 import { AssetsModule } from "./services/assets/assets.module";
 import { DbModule } from "./services/db/db.module";
@@ -31,7 +30,6 @@ import { WorklogsModule } from "./services/worklogs/worklogs.module";
     ReviewsModule,
     DomainsModule,
     ArchitecturesModule,
-    ArchitecturePlansModule,
     RequestsModule,
     WorklogsModule,
   ],

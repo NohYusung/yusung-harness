@@ -132,10 +132,14 @@ function EmptyArchitecture({ architectures }: ArchitectureWorkspaceProps) {
 export function ArchitectureWorkspace({
   architectures,
 }: ArchitectureWorkspaceProps) {
-  const latest = getLatestDeploymentArchitecture(architectures);
+  /** PLAN 문서가 deployment parser나 legacy Current fallback에 섞이지 않게 차단한다. */
+  const productionArchitectures = architectures.filter(
+    (architecture) => architecture.type === "PRODUCTION",
+  );
+  const latest = getLatestDeploymentArchitecture(productionArchitectures);
 
   if (!latest) {
-    return <EmptyArchitecture architectures={architectures} />;
+    return <EmptyArchitecture architectures={productionArchitectures} />;
   }
 
   const { snapshot } = latest;

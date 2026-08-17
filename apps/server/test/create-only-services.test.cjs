@@ -70,13 +70,6 @@ const loadService = (resource, exportName) => {
     if (request === "../plans/plans.service") {
       return { PlansService: class PlansService {} };
     }
-    if (request === "./deployment-architecture") {
-      return {
-        deploymentArchitectureSchema: { parse: (input) => input },
-        serializeDeploymentArchitecture: (input) => JSON.stringify(input),
-      };
-    }
-
     return defaultRequire(request);
   };
   loadedModule._compile(output, filename);
@@ -89,12 +82,6 @@ const createContracts = [
     model: "plan",
     fields: ["projectId", "title", "content"],
     forbiddenFields: ["tasks", "id"],
-  },
-  {
-    resource: "architectures",
-    model: "architecture",
-    fields: ["projectId", "title", "diagram"],
-    forbiddenFields: ["id"],
   },
   {
     resource: "assets",
@@ -135,7 +122,7 @@ const createContracts = [
   },
 ];
 
-test("7개 AGENT 대상 service는 create 입력과 허용된 Prisma 쓰기 경계를 제공한다", () => {
+test("6개 직접 생성 service는 create 입력과 허용된 Prisma 쓰기 경계를 제공한다", () => {
   for (const contract of createContracts) {
     const source = serviceSource(contract.resource);
     const createSource = serviceMethodSource(source, "create");
@@ -170,30 +157,6 @@ test("7개 AGENT 대상 service는 create 입력과 허용된 Prisma 쓰기 경�
 });
 
 const directCreateCases = [
-  {
-    resource: "architectures",
-    exportName: "ArchitecturesService",
-    model: "architecture",
-    input: {
-      projectId: 7,
-      title: "Production architecture",
-      diagram: {
-        kind: "deployment-architecture",
-        schemaVersion: 1,
-        name: "Production",
-        environments: [],
-        nodes: [{ id: "api", name: "API", kind: "service" }],
-        connections: [],
-      },
-    },
-    expectedData(input) {
-      return {
-        projectId: input.projectId,
-        title: input.title,
-        content: JSON.stringify(input.diagram),
-      };
-    },
-  },
   {
     resource: "drafts",
     exportName: "DraftsService",

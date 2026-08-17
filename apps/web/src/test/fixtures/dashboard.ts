@@ -1,5 +1,5 @@
 import type {
-  ArchitecturePlan,
+  Architecture,
   ArtifactDocument,
   ArtifactRecord,
   Asset,
@@ -111,6 +111,18 @@ export function createReview(overrides: Partial<Review> = {}): Review {
   };
 }
 
+/** PLAN과 PRODUCTION 통합 계약을 사용하는 Architecture fixture를 생성한다. */
+export function createArchitecture(
+  overrides: Partial<Architecture> = {},
+): Architecture {
+  return {
+    ...createArtifact({ title: "Architecture" }),
+    type: "PRODUCTION",
+    html: "",
+    ...overrides,
+  };
+}
+
 export function createPlan(overrides: Partial<Plan> = {}): Plan {
   return {
     ...createArtifact({ title: "Plan" }),
@@ -130,20 +142,6 @@ export function createRequest(overrides: Partial<Request> = {}): Request {
 
 export function createWorkLog(overrides: Partial<WorkLog> = {}): WorkLog {
   return createArtifact({ title: "WorkLog", ...overrides });
-}
-
-export function createArchitecturePlan(
-  overrides: Partial<ArchitecturePlan> = {},
-): ArchitecturePlan {
-  return {
-    ...createArtifact({
-      content:
-        "<!doctype html><html><head><title>Architecture plan</title></head><body><main>Architecture plan</main></body></html>",
-      title: "Architecture Plan",
-    }),
-    html: "",
-    ...overrides,
-  };
 }
 
 export function createDatabase(
@@ -278,7 +276,6 @@ export function createProjectContext(
     requests: [],
     reviews: [],
     workLogs: [],
-    architecturePlans: [],
     databases: [],
     erds: [],
     ...overrides,
@@ -288,6 +285,9 @@ export function createProjectContext(
 export function createProjectSummary(
   context: ProjectContext,
 ): ProjectSummary {
+  /** PLAN과 PRODUCTION의 물리 record 수를 논리 Architecture workspace count로 축약한다. */
+  const architectureWorkspaceCount = Math.min(context.architectures.length, 1);
+
   return {
     id: context.id,
     title: context.title,
@@ -298,14 +298,13 @@ export function createProjectSummary(
       tasks: context.tasks.length,
       drafts: context.drafts.length,
       domains: context.domains.length,
-      architectures: context.architectures.length,
+      architectures: architectureWorkspaceCount,
       wireframes: context.wireframes.length,
       assets: context.assets.length,
       designs: context.designs.length,
       requests: context.requests.length,
       reviews: context.reviews.length,
       workLogs: context.workLogs.length,
-      architecturePlans: context.architecturePlans.length,
       databases: context.databases.length,
       erds: context.erds.length,
     },

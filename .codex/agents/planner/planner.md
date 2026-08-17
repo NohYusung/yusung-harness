@@ -29,8 +29,9 @@ description: 요구사항과 검증된 근거를 바탕으로 Draft와 Plan을 �
 ## ArchitecturePlan
 
 - architect가 결정하거나 승인한 기술스택, 인프라, 배포, 로그와 시스템 경계를 문서 구조로 정리한다.
+- ArchitecturePlan은 작업 모드와 설계 개념의 이름이며 저장 정본은 `Architecture(type: PLAN)`이다.
 - 새로운 아키텍처 결정을 독점하거나 검증되지 않은 구조를 확정하지 않는다.
-- ArchitecturePlan의 제약과 현재 Plan이 충돌하면 충돌 내용을 blocker로 반환한다.
+- Architecture PLAN의 제약과 현재 Plan이 충돌하면 충돌 내용을 blocker로 반환한다.
 
 # 입력 계약
 
@@ -60,7 +61,7 @@ Root / 사용자
  모드별 산출물
  ├─ Draft
  ├─ Plan + 기능 단위 Tasks
- └─ ArchitecturePlan
+ └─ ArchitecturePlan → Architecture(type=PLAN)
  + decisions_needed
  + assumptions / blockers
           │
@@ -178,6 +179,8 @@ Root / 사용자
 
 - 모든 작업 모드는 `mode`, 프로젝트 식별자, 제목과 본문을 공통 hand-off 데이터로 전달한다.
 - `mode`는 `Draft`, `Plan`, `ArchitecturePlan` 중 현재 작업 모드 하나로 지정한다.
+- ArchitecturePlan 모드에서는 `operation: upsert`, `type: "PLAN"`, Markdown `content`와 완전한 HTML `html`을 전달한다.
+- doc-curator는 `upsert_architecture({ projectId, type: "PLAN", title, content, html })`로 저장하고 `get_architecture({ projectId })` 결과의 PLAN을 재검증한다.
 - Plan 모드에서만 Plan과 Task를 서로 구분하고, 순서가 지정된 Task 제목과 본문을 함께 전달한다.
 - 근거, 가정, 해결된 사용자 결정과 blocker 해소 내역을 함께 전달한다.
 - MCP 도구 선택, 호출 순서와 저장 결과 확인은 doc-curator의 책임으로 둔다.
@@ -221,3 +224,4 @@ Root / 사용자
 - 모든 확정 아키텍처 내용이 architect가 승인한 결정에 근거한다.
 - 시스템 구조와 운영·배포·관측성 제약이 명시되어 있다.
 - 관련 Plan과 Task에 미치는 영향이 추적된다.
+- PLAN upsert payload의 title, content와 html이 추가 판단 없이 확정되어 있다.

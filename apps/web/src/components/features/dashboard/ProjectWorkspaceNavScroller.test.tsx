@@ -30,7 +30,7 @@ describe("ProjectWorkspaceNavScroller", () => {
       { count: 0, label: "Plan", relation: "plans" },
       { count: 0, label: "Draft", relation: "drafts" },
       { count: 0, label: "Domain", relation: "domains" },
-      { count: 0, label: "Architecture", relation: "architectures" },
+      { count: 1, label: "Architecture", relation: "architectures" },
       { count: 1, label: "Wireframe", relation: "wireframes" },
       { count: 1, label: "Asset", relation: "assets" },
       { count: 1, label: "Design", relation: "designs" },
@@ -46,6 +46,9 @@ describe("ProjectWorkspaceNavScroller", () => {
     const navigation = screen.getByRole("navigation", {
       name: "Project artifacts",
     });
+    expect(
+      screen.getByRole("link", { name: "Architecture 1" }),
+    ).toBeInTheDocument();
 
     expect(navigation.querySelector(".overflow-x-auto")).toBeInTheDocument();
     expect(wireframeLink).toHaveAttribute("aria-current", "page");

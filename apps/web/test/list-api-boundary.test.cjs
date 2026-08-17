@@ -81,6 +81,8 @@ test("getProjectDashboard는 선택한 plan 범위의 Task와 REST helper를 한
   );
   assert.doesNotMatch(page, /getProjectContext|getPlans|getTasks|getDrafts|getDomains|getArchitectures|getWireframes|getAssets|getDesigns|getReviews|Promise\.all\s*\(\s*\[\s*getProjects/);
   assert.match(page, /dynamic\s*=\s*["']force-dynamic["']/);
+  assert.doesNotMatch(api, /getArchitecturePlans|architecture-plans|architecturePlanListResponseSchema/);
+  assert.doesNotMatch(api, /architecturePlans/);
 });
 
 test("Web 설정은 읽기 REST와 MCP transport URL을 각각 제공한다", () => {

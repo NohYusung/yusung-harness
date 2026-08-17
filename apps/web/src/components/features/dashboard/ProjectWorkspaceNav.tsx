@@ -1,4 +1,3 @@
-import { getLatestDeploymentArchitecture } from "@/lib/deployment-architecture";
 import type { ProjectContext } from "@/types/dashboard";
 import type { WorkspaceRelation } from "./ArtifactBrowser";
 import {
@@ -17,10 +16,8 @@ export function ProjectWorkspaceNav({
   activeRelation,
   context,
 }: ProjectWorkspaceNavProps) {
-  /** Architecture 메뉴는 최신 deployment snapshot의 node 수를 표시한다. */
-  const architectureCount =
-    getLatestDeploymentArchitecture(context.architectures)?.snapshot.nodes
-      .length ?? 0;
+  /** PLAN/PRODUCTION 물리 row를 Architecture workspace 하나로 집계한다. */
+  const architectureCount = context.architectures.length > 0 ? 1 : 0;
   /** 고정된 메뉴 순서와 primitive count만 RSC 경계를 통과한다. */
   const items = [
     { count: context.plans.length, label: "Plan", relation: "plans" },

@@ -33,11 +33,12 @@ test("Domain 조회·Markdown 계층 저장과 Architecture diagram 저장은 �
   assert.match(domainService, /transaction\.domain\.create\s*\(/);
   assert.match(domainService, /transaction\.domain\.update\s*\(/);
   assert.doesNotMatch(domainService, /deploymentArchitectureSchema|this\.prisma\.architecture\b/);
-  assert.match(architectureService, /deploymentArchitectureSchema/);
+  assert.match(architectureService, /serializeDeploymentArchitecture/);
   assert.match(architectureService, /this\.prisma\.architecture\b/);
-  assert.match(architectureService, /async\s+create\s*\(/);
+  assert.match(architectureService, /async\s+upsert\s*\(/);
   assert.doesNotMatch(architectureService, /async\s+save\s*\(/);
-  assert.doesNotMatch(architectureService, /this\.prisma\.architecture\.update\s*\(/);
+  assert.match(architectureService, /this\.prisma\.architecture\.upsert\s*\(/);
+  assert.doesNotMatch(architectureService, /this\.prisma\.architecture\.create\s*\(/);
   assert.doesNotMatch(architectureService, /domainErdSchema|this\.prisma\.domain\b/);
   for (const resource of ["domains", "architectures"]) {
     assert.equal(
@@ -91,7 +92,7 @@ test("deployment architecture schema는 배포 graph shape·상한·교차 참�
   assert.match(schema, /self|itself|자기|자신/i);
 });
 
-test("MCP는 Domain 저장 도구를 노출하되 Architecture 저장 도구는 노출하지 않는다", () => {
+test("MCP는 Domain 저장 도구와 통합 Architecture upsert 도구를 노출한다", () => {
   const service = source("mcp/mcp.service.ts");
   const moduleSource = source("mcp/mcp.module.ts");
 
@@ -105,7 +106,9 @@ test("MCP는 Domain 저장 도구를 노출하되 Architecture 저장 도구는 
   assert.match(service, /registerTool\(\s*["']update_domain["']/);
   assert.match(service, /this\.domainsService\.create\s*\(/);
   assert.match(service, /this\.domainsService\.update\s*\(/);
-  assert.doesNotMatch(service, /registerTool\(\s*["']create_architecture["']/);
+  assert.match(service, /registerTool\(\s*["']upsert_architecture["']/);
+  assert.match(service, /this\.architecturesService\.upsert\s*\(/);
+  assert.doesNotMatch(service, /registerTool\(\s*["']create_architecturePlan["']/);
 });
 
 test("Prisma Project는 Domain과 Architecture를 별도 relation으로 제공한다", () => {

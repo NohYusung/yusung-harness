@@ -10,6 +10,7 @@ const {
   StreamableHTTPClientTransport,
 } = require("@modelcontextprotocol/sdk/client/streamableHttp.js");
 const ts = require("typescript");
+const { z } = require("zod/v4");
 
 const serverRoot = join(__dirname, "..");
 const controllerPath = join(serverRoot, "src", "mcp", "mcp.controller.ts");
@@ -34,7 +35,6 @@ const expectedToolNames = [
   "get_asset",
   "get_design",
   "get_architecture",
-  "get_architecturePlan",
   "get_request",
   "get_workLog",
   "get_domain",
@@ -68,8 +68,7 @@ const expectedToolNames = [
   "delete_file",
   "create_workLog",
   "create_request",
-  "create_architecturePlan",
-  "update_architecturePlan",
+  "upsert_architecture",
   "update_request",
 ];
 
@@ -108,6 +107,11 @@ const dineugErdDocumentSchema = loadTypescriptExport(
 );
 const loadMcpService = () =>
   loadTypescriptExport(servicePath, "McpService", {
+    "../services/architectures/deployment-architecture": {
+      deploymentArchitectureSchema: z
+        .object({ kind: z.literal("deployment-architecture") })
+        .passthrough(),
+    },
     "../services/erd/dineug-document": { dineugErdDocumentSchema },
   });
 const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
@@ -208,12 +212,11 @@ test("remote hostname과 origin의 POST 요청도 MCP transport까지 전달한�
   assert.deepEqual(calls.at(-1), ["server.close"]);
 });
 
-test("실제 Streamable HTTP client는 GET 405 후 POST로 43개 tool을 조회한다", async () => {
+test("실제 Streamable HTTP client는 GET 405 후 POST로 41개 tool을 조회한다", async () => {
   const McpController = loadMcpController();
   const McpService = loadMcpService();
   const emptyService = {};
   const mcpService = new McpService(
-    emptyService,
     emptyService,
     emptyService,
     emptyService,

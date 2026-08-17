@@ -25,24 +25,24 @@ export function deriveDashboardSummary(
     reviews,
     requests,
     workLogs,
-    architecturePlans,
     databases,
     erds,
   } = context;
 
+  /** PLAN과 PRODUCTION record를 합쳐 하나의 논리 Architecture workspace로 센다. */
+  const architectureWorkspaceCount = Math.min(architectures.length, 1);
   const totalArtifacts =
     plans.length +
     tasks.length +
     drafts.length +
     domains.length +
-    architectures.length +
+    architectureWorkspaceCount +
     wireframes.length +
     assets.length +
     designs.length +
     reviews.length +
     requests.length +
     workLogs.length +
-    architecturePlans.length +
     databases.length +
     erds.length;
   const completedTasks = tasks.filter(
@@ -66,7 +66,6 @@ export function deriveDashboardSummary(
     ...reviews.map(({ updatedAt }) => updatedAt),
     ...requests.map(({ updatedAt }) => updatedAt),
     ...workLogs.map(({ updatedAt }) => updatedAt),
-    ...architecturePlans.map(({ updatedAt }) => updatedAt),
     ...databases.map(({ updatedAt }) => updatedAt),
     ...erds.map(({ updatedAt }) => updatedAt),
   ];

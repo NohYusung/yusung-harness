@@ -2,6 +2,8 @@ export type RepoType = "LOCAL" | "REMOTE";
 export type TaskStatus = "PENDING" | "COMPLETED";
 export type PlanStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
 export type RequestStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
+/** Architecture workspace 안에서 구현 계획과 현행 구조를 구분하는 저장 type. */
+export type ArchitectureType = "PLAN" | "PRODUCTION";
 
 /** 새 Request 문서 생성에 필요한 입력. */
 export interface CreateRequestInput {
@@ -31,7 +33,6 @@ export interface ArtifactCounts {
   reviews: number;
   requests: number;
   workLogs: number;
-  architecturePlans: number;
   databases: number;
   erds: number;
 }
@@ -102,17 +103,15 @@ export type Draft = ArtifactDocument;
 export interface Domain extends ArtifactDocument {
   parentId: number | null;
 }
-/** 프로젝트 배포 구조 snapshot 또는 legacy text record. */
-export type Architecture = ArtifactDocument;
+/** 프로젝트의 구현 계획 또는 현행 배포 구조를 표현하는 통합 Architecture record. */
+export interface Architecture extends ArtifactDocument {
+  type: ArchitectureType;
+  html: string;
+}
 export type Review = ArtifactDocument;
 
 /** 프로젝트에서 수행한 단일 작업 내역 문서. */
 export type WorkLog = ArtifactDocument;
-
-/** 구현 전 구조를 HTML로 저장한 프로젝트 아키텍처 계획. */
-export interface ArchitecturePlan extends ArtifactDocument {
-  html: string;
-}
 
 /** 프로젝트의 현행 DB 스키마 Markdown 문서. */
 export type Database = ArtifactDocument;
@@ -143,7 +142,6 @@ export interface ProjectContext {
   reviews: Review[];
   requests: Request[];
   workLogs: WorkLog[];
-  architecturePlans: ArchitecturePlan[];
   databases: Database[];
   erds: Erd[];
 }

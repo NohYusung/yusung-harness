@@ -52,8 +52,8 @@ function getProjectInventory(
     },
     {
       code: "AR",
-      count: context.architectures.length,
-      label: `Architecture ${context.architectures.length}`,
+      count: context.architectures.length > 0 ? 1 : 0,
+      label: `Architecture ${context.architectures.length > 0 ? 1 : 0}`,
     },
     {
       code: "WF",

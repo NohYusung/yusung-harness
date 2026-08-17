@@ -49,8 +49,7 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | ----------- | ------------------------------------------------------------- |
 > | get_context | SQLite schema context 반환(DDL, tables, indexes, fk, pk 포함) |
 > | get_project | 특정 프로젝트에 대한 모든 맥락 반환 |
-> | get_architecture | 특정 프로젝트의 architecture 목록 반환 |
-> | get_architecturePlan | 특정 프로젝트의 architecturePlan 목록 반환 |
+> | get_architecture | 특정 프로젝트의 `PLAN | PRODUCTION` Architecture 목록 반환 |
 > | get_request | 특정 프로젝트의 request 목록 반환 |
 > | get_workLog | 특정 프로젝트의 workLog 목록 반환 |
 > | get_domain | 특정 프로젝트의 domain 목록 반환 |
@@ -75,7 +74,7 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | create_wireframe | 와이어 프레임 문서 생성 |[와이어 프레임 문서 생성 정책](./references/yusung-harness-doc-Wireframe.md)|
 > | create_asset | 디자인 에셋 문서 생성 |[디자인 에셋 문서 생성 정책](./references/yusung-harness-doc-Asset.md)|
 > | create_domain | 도메인 문서 생성 |[도메인 문서 생성 정책](./references/yusung-harness-doc-Domain.md)|
-> | create_architecturePlan | 아키텍처 계획 문서 생성 |[아키텍쳐 계획 문서 생성 정책](./references/yusung-harness-doc-ArchitecturePlan.md) |
+> | upsert_architecture | 프로젝트와 type별 Architecture 최신본 저장 |[Architecture 문서 저장 정책](./references/yusung-harness-doc-Architecture.md) |
 > | create_workLog | 작업 로그 문서 생성 |[작업로그 문서 생성 정책](./references/yusung-harness-doc-WorkLog.md)|
 > | create_request | 요구사항 문서 생성 |[요구사항 문서 생성 정책](./references/yusung-harness-doc-Request.md)|
 > | create_db | 타겟 프로젝트의 db 테이블별 정리 문서 생성 |[db 문서 생성 정책](./references/yusung-harness-doc-DB.md)|
@@ -92,7 +91,6 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | update_wireframe | 와이어프레임 문서 업데이트 |[와이어 프레임 문서 업데이트 정책](./references/yusung-harness-doc-Wireframe.md)|
 > | update_db| 타겟 프로젝트 db 스키마(테이블별) 정리 문서 업데이트 |[db 문서 업데이트 정책](./references/yusung-harness-doc-DB.md)|
 > | update_erd | 타겟 프로젝트 db 스키마 관계 erd 업데이트 |[erd 문서 업데이트 정책](./references/yusung-harness-doc-ERD.md)|
-> | update_architecturePlan | 아키텍쳐 설계 계획 문서 업데이트 |[아키텍쳐 계획 문서 업데이트 정책](./references/yusung-harness-doc-ArchitecturePlan.md) |
 > | update_request | 요구사항 문서 업데이트 |[요구사항 문서 업데이트 정책](./references/yusung-harness-doc-Request.md)|
 > | update_plan | 계획 문서 업데이트 |[계획 문서 업데이트 정책](./references/yusung-harness-doc-Plan.md)|
 > | update_task | 태스크 문서 업데이트 |[태스크 문서 업데이트 정책](./references/yusung-harness-doc-Task.md)|

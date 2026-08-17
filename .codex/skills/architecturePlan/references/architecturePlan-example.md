@@ -1,7 +1,7 @@
-# ArchitecturePlan - Pickme Platform v1
+# Architecture PLAN - Pickme Platform v1
 
-> 이 문서는 `create_architecturePlan`의 `content` 필드에 저장되는 고정 형식 예시다.
-> 모든 ArchitecturePlan은 아래 0~15번 섹션을 같은 순서로 작성하며, 해당 사항이 없으면 `해당 없음`과 근거를 남긴다.
+> 이 문서는 `upsert_architecture({ type: "PLAN" })`의 `content` 필드에 저장되는 고정 형식 예시다.
+> 모든 Architecture PLAN은 아래 0~15번 섹션을 같은 순서로 작성하며, 해당 사항이 없으면 `해당 없음`과 근거를 남긴다.
 
 ## 목차
 
@@ -41,7 +41,8 @@
 
 | 항목 | 값 |
 | --- | --- |
-| documentType | `ArchitecturePlan` |
+| documentType | `Architecture` |
+| architectureType | `PLAN` |
 | schemaVersion | `2.0.0` |
 | projectId | `101` |
 | projectName | `pickme-platform` |
@@ -113,7 +114,7 @@
 | 사용자 화면 | 사용자 흐름, UI와 디자인 시스템 | 제품 경험 설계에 해당 | Wireframe·Design 문서 |
 | 애플리케이션 코드 | 구현 방법과 테스트 케이스 | 구현·검증 단계의 책임 | Code·Test 산출물 |
 | 운영 Runbook | 단계별 명령어와 담당자 연락망 | 실행 절차 상세에 해당 | 운영 Runbook |
-| 멀티 리전 | 트래픽 분산, 데이터 복제와 Active-Active | 현재 단일 리전 제약을 벗어남 | 리전 확장 결정 시 ArchitecturePlan 재검토 |
+| 멀티 리전 | 트래픽 분산, 데이터 복제와 Active-Active | 현재 단일 리전 제약을 벗어남 | 리전 확장 결정 시 Architecture PLAN 재검토 |
 
 - 포함 범위는 이번 문서에서 **설계할 대상과 경계**만 정의한다.
 - 목표와 KPI는 포함 범위에 반복하지 않고 1절의 성공·측정 기준으로만 관리한다.

@@ -60,7 +60,7 @@ function createProjectRecordContext() {
         title: "Verify project record navigation",
       }),
     ],
-    architecturePlans: [
+    architectures: [
       {
         ...createArtifact({
           content: architecturePlanContent,
@@ -68,6 +68,7 @@ function createProjectRecordContext() {
           title: "Project navigation architecture",
         }),
         html: architecturePlanHtml,
+        type: "PLAN" as const,
       },
     ],
     databases: [
@@ -106,10 +107,10 @@ const navigationCases = [
   },
   {
     count: 1,
-    detailType: "Architecture Plan",
+    detailType: "Architecture",
     id: 201,
-    label: "Architecture Plan",
-    relation: "architecturePlans",
+    label: "Architecture",
+    relation: "architectures",
     title: "Project navigation architecture",
   },
   {
@@ -162,8 +163,13 @@ describe("Project record navigation", () => {
       fireEvent.click(menu);
 
       expect(menu).toHaveAttribute("aria-pressed", "true");
+      /** Architecture는 물리 record ID 대신 내부 view를 canonical URL로 사용한다. */
+      const expectedWorkspaceUrl =
+        relation === "architectures"
+          ? "/projects/1?type=architectures&view=plan"
+          : `/projects/1?type=${relation}`;
       expect(routerReplace).toHaveBeenLastCalledWith(
-        `/projects/1?type=${relation}`,
+        expectedWorkspaceUrl,
         { scroll: false },
       );
 
@@ -178,8 +184,12 @@ describe("Project record navigation", () => {
       });
       fireEvent.click(record);
 
+      const expectedRecordUrl =
+        relation === "architectures"
+          ? "/projects/1?type=architectures&view=plan"
+          : `/projects/1?type=${relation}&id=${id}`;
       expect(routerReplace).toHaveBeenLastCalledWith(
-        `/projects/1?type=${relation}&id=${id}`,
+        expectedRecordUrl,
         { scroll: false },
       );
       const detail = screen.getByRole("complementary", { name: title });
@@ -224,7 +234,7 @@ describe("Project record navigation", () => {
     }
 
     fireEvent.click(
-      screen.getByRole("button", { name: /Architecture Plan/ }),
+      screen.getByRole("button", { name: /^Architecture\s*1$/ }),
     );
     fireEvent.click(
       screen.getByRole("option", { name: /Project navigation architecture/ }),

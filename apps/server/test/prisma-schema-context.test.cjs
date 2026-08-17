@@ -10,6 +10,13 @@ const ts = require("typescript");
 const serverRoot = join(__dirname, "..");
 const prismaServicePath = join(serverRoot, "src", "prisma", "prisma.service.ts");
 const mcpServicePath = join(serverRoot, "src", "mcp", "mcp.service.ts");
+const deploymentArchitecturePath = join(
+  serverRoot,
+  "src",
+  "services",
+  "architectures",
+  "deployment-architecture.ts",
+);
 const dineugDocumentPath = join(
   serverRoot,
   "src",
@@ -53,8 +60,15 @@ const dineugErdDocumentSchema = loadTypescriptExport(
   "dineugErdDocumentSchema",
   { "../../../scripts/lib/dineug-erd-document.mjs": dineugRuntimeStub },
 );
+const deploymentArchitectureSchema = loadTypescriptExport(
+  deploymentArchitecturePath,
+  "deploymentArchitectureSchema",
+);
 const loadMcpService = () =>
   loadTypescriptExport(mcpServicePath, "McpService", {
+    "../services/architectures/deployment-architecture": {
+      deploymentArchitectureSchema,
+    },
     "../services/erd/dineug-document": { dineugErdDocumentSchema },
   });
 

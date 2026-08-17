@@ -48,13 +48,7 @@ const domains = [
     resource: "architectures",
     model: "architecture",
     className: "Architectures",
-    orderField: "updatedAt",
-  },
-  {
-    resource: "architecture-plans",
-    model: "architecturePlan",
-    className: "ArchitecturePlans",
-    orderField: "updatedAt",
+    orderField: "type",
   },
   {
     resource: "tasks",
@@ -297,7 +291,6 @@ test("resource module과 AppModule은 목록 controller를 등록한다", () => 
     "DbModule",
     "ErdModule",
     "ArchitecturesModule",
-    "ArchitecturePlansModule",
     "WireframesModule",
     "AssetsModule",
     "DesignsModule",
@@ -411,11 +404,19 @@ test("일반 목록 service는 project 소유권을 검증하고 각 table을 �
     assert.ok(ensureIndex >= 0, `${resource} list는 project 존재를 검증해야 한다`);
     assert.ok(queryIndex > ensureIndex, `${resource} list는 project 검증 후 조회해야 한다`);
     assert.match(body, /where:\s*\{\s*projectId\s*\}/);
-    assert.match(
-      body,
-      new RegExp(`orderBy:\\s*\\{\\s*${orderField}:\\s*["']desc["']\\s*\\}`),
-      `${resource} list의 정렬 기준이 일관되어야 한다`,
-    );
+    if (resource === "architectures") {
+      assert.match(
+        body,
+        /orderBy:\s*\[\s*\{\s*type:\s*["']asc["']\s*\}\s*\]/,
+        "architectures list는 PLAN 다음 PRODUCTION 순서로 조회해야 한다",
+      );
+    } else {
+      assert.match(
+        body,
+        new RegExp(`orderBy:\\s*\\{\\s*${orderField}:\\s*["']desc["']\\s*\\}`),
+        `${resource} list의 정렬 기준이 일관되어야 한다`,
+      );
+    }
   }
 });
 

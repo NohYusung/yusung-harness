@@ -88,7 +88,7 @@ function assertProjectOwnedDocument(
 test("Project workflow 모델은 상태와 프로젝트 소유권 계약을 제공한다", () => {
   const schema = readFileSync(schemaPath, "utf8");
   const project = modelBody(schema, "Project");
-  const architecturePlan = modelBody(schema, "ArchitecturePlan");
+  const architecture = modelBody(schema, "Architecture");
   const request = modelBody(schema, "Request");
   const workLog = modelBody(schema, "WorkLog");
   const requestStatus = schema.match(
@@ -102,16 +102,17 @@ test("Project workflow 모델은 상태와 프로젝트 소유권 계약을 제�
   );
 
   for (const [field, type] of [
-    ["architecturePlans", "ArchitecturePlan"],
+    ["architectures", "Architecture"],
     ["requests", "Request"],
     ["workLogs", "WorkLog"],
   ]) {
     assert.match(project, new RegExp(`^\\s*${field}\\s+${type}\\[\\]\\s*$`, "m"));
   }
 
-  assertProjectOwnedDocument(architecturePlan, "ArchitecturePlan", {
-    uniqueProject: true,
-  });
+  assertProjectOwnedDocument(architecture, "Architecture");
+  assert.match(architecture, /^\s*type\s+ArchitectureType\s*$/m);
+  assert.match(architecture, /@@unique\(\[projectId,\s*type\]\)/);
+  assert.doesNotMatch(schema, /model\s+ArchitecturePlan\s*\{/);
   assertProjectOwnedDocument(request, "Request");
   assertProjectOwnedDocument(workLog, "WorkLog");
   assert.match(

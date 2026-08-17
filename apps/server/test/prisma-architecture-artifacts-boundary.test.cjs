@@ -73,20 +73,24 @@ test("Plan은 version과 ArchitecturePlan relation 없이 lifecycle status를 �
   assert.doesNotMatch(plan, /@@index\(\[architecturePlanId\]\)/);
 });
 
-test("ArchitecturePlan은 project당 하나이며 version과 Plan relation을 갖지 않는다", () => {
+test("Architecture는 PLAN·PRODUCTION type별 한 행을 소유하고 별도 ArchitecturePlan 모델을 두지 않는다", () => {
   const architecture = modelBody("Architecture");
-  const architecturePlan = modelBody("ArchitecturePlan");
 
-  assert.match(architecture, /^\s*html\s+String\b/m);
-  assert.match(architecturePlan, /^\s*html\s+String\b/m);
-  assert.match(architecturePlan, /^\s*projectId\s+Int(?:\s+@unique)?\s*$/m);
-  assert.ok(
-    /^\s*projectId\s+Int\s+@unique\s*$/m.test(architecturePlan) ||
-      /@@unique\(\[projectId\]\)/.test(architecturePlan),
-    "ArchitecturePlan.projectId에 단일-column unique가 있어야 한다",
+  assert.match(
+    schema,
+    /enum\s+ArchitectureType\s*\{[\s\S]*?\bPLAN\b[\s\S]*?\bPRODUCTION\b[\s\S]*?\}/,
   );
-  assert.doesNotMatch(architecturePlan, /^\s*version\s+/m);
-  assert.doesNotMatch(architecturePlan, /^\s*plans\s+Plan\[\]\s*$/m);
+  assert.match(architecture, /^\s*type\s+ArchitectureType\s*$/m);
+  assert.match(architecture, /^\s*html\s+String\b/m);
+  assert.match(
+    architecture,
+    /@@unique\(\[projectId,\s*type\]\)/,
+  );
+  assert.doesNotMatch(schema, /model\s+ArchitecturePlan\s*\{/);
+  assert.doesNotMatch(
+    modelBody("Project"),
+    /^\s*architecturePlans\s+ArchitecturePlan\[\]\s*$/m,
+  );
 });
 
 test("Plan lifecycle schema에는 처리되지 않은 AGENT 주석이 남지 않는다", () => {
@@ -107,7 +111,7 @@ test("변경된 relation을 포함한 Prisma schema는 유효하다", () => {
   );
 });
 
-test("migration은 기존 Architecture 산출물과 Plan을 보존하며 nullable FK를 추가한다", () => {
+test("historical migration은 당시 Architecture 산출물과 Plan nullable FK를 보존한다", () => {
   const migration = readFileSync(findArchitectureArtifactsMigration(), "utf8");
   const directory = mkdtempSync(join(tmpdir(), "architecture-artifacts-migration-"));
   const databasePath = join(directory, "migration.db");

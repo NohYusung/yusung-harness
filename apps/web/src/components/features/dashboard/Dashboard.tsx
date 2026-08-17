@@ -1,10 +1,14 @@
 import type { ProjectContext, ProjectSummary } from "@/types/dashboard";
-import { ArtifactWorkbench } from "./ArtifactWorkbench";
+import {
+  ArtifactWorkbench,
+  type ArchitectureView,
+} from "./ArtifactWorkbench";
 import type { WorkspaceRelation } from "./ArtifactBrowser";
 
 /** 프로젝트 shell과 URL 기반 workspace 선택을 조립하는 dashboard props. */
 interface DashboardProps {
   activeRelation: WorkspaceRelation;
+  architectureView?: ArchitectureView | null;
   context: ProjectContext;
   projects: ProjectSummary[];
   selectedArtifactId: number | null;
@@ -14,6 +18,7 @@ interface DashboardProps {
 /** 프로젝트의 모든 record를 시안과 동일한 통합 Artifact Workbench로 조립한다. */
 export function Dashboard({
   activeRelation,
+  architectureView = null,
   context,
   projects,
   selectedArtifactId,
@@ -23,6 +28,7 @@ export function Dashboard({
     <ArtifactWorkbench
       key={context.id}
       activeRelation={activeRelation}
+      architectureView={architectureView}
       context={context}
       projects={projects}
       selectedArtifactId={selectedArtifactId}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Wireframe } from "@/types/dashboard";
 import {
-  architecturePlanListResponseSchema,
+  architectureListResponseSchema,
   databaseListResponseSchema,
   designListResponseSchema,
   draftListResponseSchema,
@@ -14,7 +14,7 @@ import {
   workLogListResponseSchema,
 } from "@/lib/validations/dashboard";
 import {
-  createArchitecturePlan,
+  createArchitecture,
   createArtifact,
   createDatabase,
   createDesign,
@@ -55,9 +55,9 @@ const cases = [
   ["reviews", reviewListResponseSchema, createReview()],
   ["worklogs", workLogListResponseSchema, createWorkLog()],
   [
-    "architecture plans",
-    architecturePlanListResponseSchema,
-    createArchitecturePlan(),
+    "architectures",
+    architectureListResponseSchema,
+    createArchitecture(),
   ],
   ["databases", databaseListResponseSchema, createDatabase()],
   ["erds", erdListResponseSchema, createErd()],
@@ -198,16 +198,70 @@ describe("project-scoped list response schemas", () => {
     expect(createDesign()).toMatchObject({ version: 1 });
   });
 
-  it("Architecture Plan은 full HTML content와 빈 호환 html 필드를 그대로 보존한다", () => {
-    const architecturePlan = createArchitecturePlan({ html: "" });
-    const parsed = architecturePlanListResponseSchema.parse({
-      data: [architecturePlan],
-    });
-
-    expect(parsed.data[0]).toMatchObject({
-      content: architecturePlan.content,
+  it("Architecture는 PLAN과 PRODUCTION type을 구분하고 html 필드를 보존한다", () => {
+    const plan = createArchitecture({ id: 201, type: "PLAN", html: "" });
+    const production = createArchitecture({
+      id: 202,
+      type: "PRODUCTION",
       html: "",
     });
+    const parsed = architectureListResponseSchema.parse({
+      data: [plan, production],
+    });
+
+    expect(parsed.data).toMatchObject([plan, production]);
+    expect(
+      architectureListResponseSchema.safeParse({
+        data: [{ ...plan, type: "LEGACY_PLAN" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      architectureListResponseSchema.safeParse({
+        data: [{ ...plan, legacyField: true }],
+      }).success,
+    ).toBe(false);
+    expect(
+      architectureListResponseSchema.safeParse({
+        data: [plan],
+        legacyEnvelopeField: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("Project summary는 Architecture workspace count를 0 또는 1로 제한한다", () => {
+    const project = createProjectSummary(
+      createProjectContext({
+        architectures: [
+          createArchitecture({ id: 201, type: "PLAN" }),
+          createArchitecture({ id: 202, type: "PRODUCTION" }),
+        ],
+      }),
+    );
+
+    expect(project._count.architectures).toBe(1);
+    expect(projectListResponseSchema.safeParse({ data: [project] }).success).toBe(
+      true,
+    );
+    expect(
+      projectListResponseSchema.safeParse({
+        data: [
+          {
+            ...project,
+            _count: { ...project._count, architectures: 2 },
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      projectListResponseSchema.safeParse({
+        data: [
+          {
+            ...project,
+            _count: { ...project._count, architecturePlans: 1 },
+          },
+        ],
+      }).success,
+    ).toBe(false);
   });
 
   it("ERD는 nullable Dineug document 문자열을 보존하고 legacy 필드를 공개 shape에서 제거한다", () => {

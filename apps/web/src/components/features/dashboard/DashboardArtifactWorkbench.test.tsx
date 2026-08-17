@@ -2,7 +2,6 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createArtifact,
-  createArchitecturePlan,
   createAsset,
   createDesign,
   createDomain,
@@ -143,7 +142,11 @@ function createWorkbenchFixture() {
   });
   const context = createProjectContext({
     architectures: [
-      createArtifact({ id: 50, title: "Harness production" }),
+      {
+        ...createArtifact({ id: 50, title: "Harness production" }),
+        html: "",
+        type: "PRODUCTION" as const,
+      },
     ],
     assets: [asset],
     designs: [design],
@@ -311,18 +314,26 @@ describe("Dashboard artifact workbench visual contract", () => {
       name: "Newer architecture B",
       nodeName: "Newer API B",
     });
-    const selectedArchitecture = createArtifact({
-      content: selectedContent,
-      id: 501,
-      title: "Selected production A",
-      updatedAt: "2026-07-21T09:00:00.000Z",
-    });
-    const newerArchitecture = createArtifact({
-      content: newerContent,
-      id: 502,
-      title: "Newer production B",
-      updatedAt: "2026-07-21T10:00:00.000Z",
-    });
+    const selectedArchitecture = {
+      ...createArtifact({
+        content: selectedContent,
+        id: 501,
+        title: "Selected production A",
+        updatedAt: "2026-07-21T09:00:00.000Z",
+      }),
+      html: "",
+      type: "PRODUCTION" as const,
+    };
+    const newerArchitecture = {
+      ...createArtifact({
+        content: newerContent,
+        id: 502,
+        title: "Newer production B",
+        updatedAt: "2026-07-21T10:00:00.000Z",
+      }),
+      html: "",
+      type: "PRODUCTION" as const,
+    };
     const context = createProjectContext({
       architectures: [newerArchitecture, selectedArchitecture],
     });
@@ -356,21 +367,29 @@ describe("Dashboard artifact workbench visual contract", () => {
   });
 
   it("선택한 legacy Architecture를 newer valid graph로 대체하지 않고 원문 fallback으로 표시한다", () => {
-    const legacyArchitecture = createArtifact({
-      content: "Legacy gateway -> worker -> database",
-      id: 511,
-      title: "Selected legacy A",
-      updatedAt: "2026-07-21T09:00:00.000Z",
-    });
-    const newerArchitecture = createArtifact({
-      content: createDeploymentArchitectureContent({
-        name: "Newer valid B",
-        nodeName: "Newer valid API B",
+    const legacyArchitecture = {
+      ...createArtifact({
+        content: "Legacy gateway -> worker -> database",
+        id: 511,
+        title: "Selected legacy A",
+        updatedAt: "2026-07-21T09:00:00.000Z",
       }),
-      id: 512,
-      title: "Newer valid architecture B",
-      updatedAt: "2026-07-21T10:00:00.000Z",
-    });
+      html: "",
+      type: "PRODUCTION" as const,
+    };
+    const newerArchitecture = {
+      ...createArtifact({
+        content: createDeploymentArchitectureContent({
+          name: "Newer valid B",
+          nodeName: "Newer valid API B",
+        }),
+        id: 512,
+        title: "Newer valid architecture B",
+        updatedAt: "2026-07-21T10:00:00.000Z",
+      }),
+      html: "",
+      type: "PRODUCTION" as const,
+    };
     const context = createProjectContext({
       architectures: [newerArchitecture, legacyArchitecture],
     });
@@ -401,14 +420,18 @@ describe("Dashboard artifact workbench visual contract", () => {
   });
 
   it("Architecture graph를 visual preview grid와 단일 내부 scroll owner에 배치한다", () => {
-    const architecture = createArtifact({
-      content: createDeploymentArchitectureContent({
-        name: "Bounded production graph",
-        nodeName: "Bounded API",
+    const architecture = {
+      ...createArtifact({
+        content: createDeploymentArchitectureContent({
+          name: "Bounded production graph",
+          nodeName: "Bounded API",
+        }),
+        id: 521,
+        title: "Bounded architecture",
       }),
-      id: 521,
-      title: "Bounded architecture",
-    });
+      html: "",
+      type: "PRODUCTION" as const,
+    };
     const context = createProjectContext({ architectures: [architecture] });
 
     render(
@@ -462,6 +485,170 @@ describe("Dashboard artifact workbench visual contract", () => {
       "flex-1",
       "overflow-y-auto",
     );
+  });
+
+  it("Architecture는 logical root 하나와 Plan Current 중앙 탭을 제공하고 Current를 우선한다", () => {
+    const plan = {
+      ...createArtifact({ id: 531, title: "Unified architecture plan" }),
+      html: "<!doctype html><html><head><title>Plan</title></head><body><main>Unified plan diagram</main></body></html>",
+      type: "PLAN" as const,
+    };
+    const production = {
+      ...createArtifact({
+        content: createDeploymentArchitectureContent({
+          name: "Unified current architecture",
+          nodeName: "Unified current API",
+        }),
+        id: 532,
+        title: "Unified production snapshot",
+      }),
+      html: "",
+      type: "PRODUCTION" as const,
+    };
+    const context = createProjectContext({
+      architectures: [plan, production],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="architectures"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /^Architecture\s*1$/ }),
+    ).toBeInTheDocument();
+    const records = screen.getByRole("region", { name: "Records" });
+    const views = within(records).getByRole("tablist", {
+      name: "Architecture views",
+    });
+    const planTab = within(views).getByRole("tab", { name: "Plan" });
+    const currentTab = within(views).getByRole("tab", { name: "Current" });
+
+    expect(currentTab).toHaveAttribute("aria-selected", "true");
+    expect(planTab).toHaveAttribute("aria-selected", "false");
+    expect(
+      within(records).getByRole("option", {
+        name: /Unified production snapshot/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(records).queryByRole("option", { name: /Unified architecture plan/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", {
+        name: "Unified current architecture deployment architecture",
+      }),
+    ).toHaveTextContent("Unified current API");
+
+    fireEvent.click(planTab);
+
+    expect(planTab).toHaveAttribute("aria-selected", "true");
+    expect(routerReplace).toHaveBeenLastCalledWith(
+      "/projects/1?type=architectures&view=plan",
+      { scroll: false },
+    );
+    expect(
+      within(records).getByRole("option", { name: /Unified architecture plan/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(records).queryByRole("option", {
+        name: /Unified production snapshot/,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Current가 없으면 Plan을 기본 선택하고 둘 다 없으면 Plan empty state를 표시한다", () => {
+    const plan = {
+      ...createArtifact({ id: 541, title: "Plan-only architecture" }),
+      html: "",
+      type: "PLAN" as const,
+    };
+    const planContext = createProjectContext({ architectures: [plan] });
+    const { rerender } = render(
+      <Dashboard
+        activeRelation="architectures"
+        context={planContext}
+        projects={[createProjectSummary(planContext)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    let views = screen.getByRole("tablist", { name: "Architecture views" });
+    expect(within(views).getByRole("tab", { name: "Plan" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(
+      screen.getByRole("option", { name: /Plan-only architecture/ }),
+    ).toBeInTheDocument();
+
+    const emptyContext = createProjectContext({ architectures: [] });
+    rerender(
+      <Dashboard
+        activeRelation="architectures"
+        context={emptyContext}
+        projects={[createProjectSummary(emptyContext)]}
+        selectedArtifactId={null}
+        selectedTaskId={null}
+      />,
+    );
+
+    views = screen.getByRole("tablist", { name: "Architecture views" });
+    expect(within(views).getByRole("tab", { name: "Plan" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByText("No Architecture Plan records")).toBeInTheDocument();
+  });
+
+  it("명시한 Architecture view와 record type이 다르면 다른 record로 대체하지 않는다", () => {
+    const plan = {
+      ...createArtifact({ id: 551, title: "Explicit plan record" }),
+      html: "",
+      type: "PLAN" as const,
+    };
+    const production = {
+      ...createArtifact({
+        content: createDeploymentArchitectureContent({
+          name: "Mismatched production",
+          nodeName: "Must not render production API",
+        }),
+        id: 552,
+        title: "Explicit current record",
+      }),
+      html: "",
+      type: "PRODUCTION" as const,
+    };
+    const context = createProjectContext({
+      architectures: [plan, production],
+    });
+
+    render(
+      <Dashboard
+        activeRelation="architectures"
+        architectureView="plan"
+        context={context}
+        projects={[createProjectSummary(context)]}
+        selectedArtifactId={production.id}
+        selectedTaskId={null}
+      />,
+    );
+
+    expect(
+      screen.getByRole("tab", { name: "Plan" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("complementary", { name: "Architecture not found" }),
+    ).toHaveTextContent(`Architecture #${production.id}`);
+    expect(
+      screen.queryByText("Must not render production API"),
+    ).not.toBeInTheDocument();
   });
 
   it("Wireframe preview는 Desktop이 기본이고 같은 iframe에서 Mobile viewport로 전환한다", () => {
@@ -572,13 +759,16 @@ describe("Dashboard artifact workbench visual contract", () => {
       record: createAsset({ id: 301, title: "Viewport-free asset" }),
     },
     {
-      activeRelation: "architecturePlans" as const,
-      contextKey: "architecturePlans" as const,
-      record: createArchitecturePlan({
+      activeRelation: "architectures" as const,
+      contextKey: "architectures" as const,
+      record: {
+        ...createArtifact({
+          id: 302,
+          title: "Viewport-free architecture plan",
+        }),
         html: "<!doctype html><html><head></head><body>Architecture diagram</body></html>",
-        id: 302,
-        title: "Viewport-free architecture plan",
-      }),
+        type: "PLAN" as const,
+      },
     },
     {
       activeRelation: "erds" as const,

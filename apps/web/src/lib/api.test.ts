@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getPlans, getProjectDashboard, getProjects, getTasks } from "@/lib/api";
 import {
+  createArchitecture,
   createArtifact,
   createErd,
   createProjectContext,
@@ -93,7 +94,6 @@ describe("dashboard API helpers", () => {
       context.reviews,
       context.requests,
       context.workLogs,
-      context.architecturePlans,
       context.databases,
       context.erds,
     ];
@@ -125,7 +125,6 @@ describe("dashboard API helpers", () => {
         "/reviews/7",
         "/requests/7",
         "/worklogs/7",
-        "/architecture-plans/7",
         "/db/7",
         "/erd/7",
       ].map((path) => [
@@ -136,22 +135,24 @@ describe("dashboard API helpers", () => {
     expect("_count" in context).toBe(false);
   });
 
-  it("project dashboard는 WorkLogs, Architecture Plan, DB, ERD REST 목록을 실제 context에 조립한다", async () => {
-    const architecturePlanHtml =
-      "<!doctype html><html><head><title>Architecture plan</title></head><body><main>Architecture plan from content</main></body></html>";
+  it("project dashboard는 typed Architecture, WorkLogs, DB, ERD REST 목록을 실제 context에 조립한다", async () => {
     const context = Object.assign(createProjectContext({ id: 1 }), {
+      architectures: [
+        createArchitecture({
+          id: 201,
+          title: "Project architecture plan",
+          type: "PLAN" as const,
+          html: "<!doctype html><html><head><title>Architecture plan</title></head><body><main>Architecture plan diagram</main></body></html>",
+        }),
+        createArchitecture({
+          id: 202,
+          title: "Current architecture",
+          type: "PRODUCTION" as const,
+          html: "",
+        }),
+      ],
       workLogs: [
         createArtifact({ id: 101, title: "Implementation work log" }),
-      ],
-      architecturePlans: [
-        {
-          ...createArtifact({
-            content: architecturePlanHtml,
-            id: 201,
-            title: "Project architecture plan",
-          }),
-          html: "",
-        },
       ],
       databases: [
         createArtifact({ id: 301, title: "Project database schema" }),
@@ -161,10 +162,10 @@ describe("dashboard API helpers", () => {
     const project = createProjectSummary(context);
     Object.assign(project._count, {
       workLogs: context.workLogs.length,
-      architecturePlans: context.architecturePlans.length,
       databases: context.databases.length,
       erds: context.erds.length,
     });
+    expect(project._count.architectures).toBe(1);
     const dataByPath: Record<string, unknown[]> = {
       "/projects": [project],
       "/plans/1": context.plans,
@@ -177,7 +178,6 @@ describe("dashboard API helpers", () => {
       "/reviews/1": context.reviews,
       "/requests/1": context.requests,
       "/worklogs/1": context.workLogs,
-      "/architecture-plans/1": context.architecturePlans,
       "/db/1": context.databases,
       "/erd/1": context.erds,
     };
@@ -199,18 +199,21 @@ describe("dashboard API helpers", () => {
     const dashboard = await getProjectDashboard(1);
 
     expect(dashboard.context).toMatchObject({
+      architectures: context.architectures,
       workLogs: context.workLogs,
-      architecturePlans: context.architecturePlans,
       databases: context.databases,
       erds: context.erds,
     });
     expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual(
       expect.arrayContaining([
         "http://127.0.0.1:4000/worklogs/1",
-        "http://127.0.0.1:4000/architecture-plans/1",
+        "http://127.0.0.1:4000/architectures/1",
         "http://127.0.0.1:4000/db/1",
         "http://127.0.0.1:4000/erd/1",
       ]),
+    );
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain(
+      "http://127.0.0.1:4000/architecture-plans/1",
     );
   });
 

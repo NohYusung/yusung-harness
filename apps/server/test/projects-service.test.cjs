@@ -98,20 +98,36 @@ test("ProjectsService.create는 Project와 repository 경로를 nested create로
   assert.equal(calls.some(([method]) => method === "update"), false);
 });
 
-test("ProjectsService.list는 repository 경로와 모든 project record count를 조회한다", async () => {
+test("ProjectsService.list는 repository 경로와 논리 Architecture workspace count를 조회한다", async () => {
   const calls = [];
+  const rows = [
+    {
+      id: 1,
+      title: "Plan and Current",
+      description: "two physical architecture rows",
+      repoPaths: [],
+      _count: { architectures: 2, plans: 0 },
+    },
+    {
+      id: 2,
+      title: "No architecture",
+      description: "empty workspace",
+      repoPaths: [],
+      _count: { architectures: 0, plans: 0 },
+    },
+  ];
   const prisma = {
     project: {
       findMany: async (args) => {
         calls.push(["findMany", args]);
-        return [];
+        return rows;
       },
     },
   };
   const ProjectsService = loadProjectsService();
   const service = new ProjectsService(prisma);
 
-  await service.list();
+  const result = await service.list();
 
   assert.deepEqual(calls[0][1].select.repoPaths, {
     select: { path: true, repoType: true },
@@ -130,13 +146,15 @@ test("ProjectsService.list는 repository 경로와 모든 project record count�
       reviews: true,
       requests: true,
       workLogs: true,
-      architecturePlans: true,
       databases: true,
       erds: true,
     },
   });
   assert.equal(Object.hasOwn(calls[0][1].select, "repoPath"), false);
   assert.equal(Object.hasOwn(calls[0][1].select, "repoType"), false);
+  assert.equal(result[0]._count.architectures, 1);
+  assert.equal(result[1]._count.architectures, 0);
+  assert.deepEqual(rows.map((row) => row._count.architectures), [2, 0]);
 });
 
 test("ProjectsService.create는 빈 repository 경로 목록을 거부한다", async () => {

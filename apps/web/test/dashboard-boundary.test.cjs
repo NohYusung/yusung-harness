@@ -189,6 +189,40 @@ test("App Router page는 목록 redirect/empty와 project Server Component 경�
     projectPage,
     /workspaceRelations\s*=\s*\[[^\]]*["']plans["'][^\]]*["']drafts["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']designs["']/s,
   );
+  assert.doesNotMatch(projectPage, /["']architecturePlans["']/);
+});
+
+test("Architecture route는 view=plan|current만 허용하고 legacy architecturePlans type을 notFound 처리한다", () => {
+  const projectPage = source("app/projects/[projectId]/page.tsx");
+
+  assert.match(
+    projectPage,
+    /searchParams:\s*Promise<\{[\s\S]*?view\?:\s*string/,
+  );
+  assert.match(
+    projectPage,
+    /(?:architectureViews|architectureViewValues)\s*=\s*\[[^\]]*["']plan["'][^\]]*["']current["']/,
+  );
+  assert.match(projectPage, /query\.view/);
+  assert.match(projectPage, /architectureView=\{architectureView\}/);
+  assert.match(
+    projectPage,
+    /query\.type\s*&&\s*!isWorkspaceRelation\(query\.type\)[\s\S]*?notFound\(\)/,
+  );
+  assert.doesNotMatch(projectPage, /["']architecturePlans["']/);
+});
+
+test("Project route는 명시한 artifact id가 양의 safe integer가 아니면 notFound 처리한다", () => {
+  const projectPage = source("app/projects/[projectId]/page.tsx");
+
+  assert.match(
+    projectPage,
+    /Number\.isSafeInteger\(id\)\s*&&\s*id\s*>\s*0\s*\?\s*id\s*:\s*null/,
+  );
+  assert.match(
+    projectPage,
+    /query\.id\s*!==\s*undefined\s*&&\s*selectedArtifactId\s*===\s*null[\s\S]*?notFound\(\)/,
+  );
 });
 
 test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한다", () => {

@@ -43,11 +43,144 @@ GET /domains/:projectId ──> ArtifactWorkbench read-only tree
 ## 산출물 책임 경계
 
 - `Domain`: 업무 Domain별 계층형 Markdown 페이지
-- `Architecture Plan`: 구현 전 시스템 구조 계획과 HTML 구조도
-- `Architecture`: 구현 후 배포 구조 snapshot 또는 legacy text
+- `Architecture(type=PLAN)`: 구현 전 시스템 구조 계획 Markdown과 HTML 구조도
+- `Architecture(type=PRODUCTION)`: 구현 후 현재 배포 구조의 canonical JSON graph
 - `Database`: 현행 DB schema Markdown
 - `ERD`: Dineug v3 관계 문서
 - 폴더, 기술 계층, DB table을 업무 Domain으로 추정하지 않고 각 산출물의 책임을 섞지 않는다.
+
+## Architecture 통합 계약
+
+- 별도 계획 모델을 두지 않고 `Architecture.type`으로 PLAN과 PRODUCTION을 구분한다.
+- `(projectId, type)`은 유일하며 프로젝트마다 각 type의 최신본을 최대 한 건 유지한다.
+- 조회는 `get_architecture({ projectId })`, 저장은 `upsert_architecture`만 사용한다.
+- upsert 갱신은 `id`, `type`, `createdAt`을 보존하고 title·content·html·updatedAt을 교체한다.
+- REST `GET /architectures/:projectId`와 `get_project`는 type이 포함된 Architecture를 0~2건 반환한다. 별도 계획 route는 제공하지 않는다.
+- Project summary의 `_count.architectures`는 물리 row 수가 아니라 Architecture workspace 존재 여부인 `0 | 1`이다.
+- 대시보드는 Architecture 아래 `Plan | Current`를 표시하고 Current가 있으면 기본 선택하며, 없으면 Plan으로 fallback한다.
+
+```text
+Architecture
+├─ PLAN
+│  ├─ content: Markdown 설계 문서
+│  └─ html: 완전한 단일 HTML 구조도
+└─ PRODUCTION
+   ├─ content: DeploymentArchitectureV1 canonical JSON
+   └─ html: ""
+```
+
+### `DeploymentArchitectureV1`
+
+- root는 `kind: "deployment-architecture"`, `schemaVersion: 1`, `name`, `environments`, `nodes`, `connections`만 사용한다.
+- environment kind는 `client | local | cloud | edge | external`이다.
+- node kind는 `client | gateway | service | worker | database | cache | queue | storage | external`이다.
+- node의 `environmentId`는 존재하는 environment를 참조하고 connection의 source·target은 존재하는 서로 다른 node를 참조한다.
+- environment와 node의 ID·name, connection ID와 동일 방향 endpoint 쌍은 중복될 수 없다.
+- environment 50개, node 100개, connection 1,000개의 상한을 지킨다.
+- `generatedAt`을 포함하면 offset이 있는 ISO datetime을, `sourceRevision`을 포함하면 확인된 revision을 사용한다.
+
+### 통합 migration 보존 규칙
+
+- 기존 Architecture row는 ID를 보존한 채 `PRODUCTION`으로 복사한다.
+- 기존 계획 row는 `max(old Architecture.id) + old plan id`로 충돌 없는 새 ID를 계산해 `PLAN`으로 복사한다.
+- projectId, title, content, html, createdAt과 updatedAt은 원문을 보존한다.
+- type 중복, orphan project, ID overflow 또는 유효하지 않은 PRODUCTION JSON이 있으면 migration 전체를 중단한다.
+- 과거 migration 파일과 그 당시 계약을 설명하는 fixture는 감사 이력으로 보존한다.
+
+### Architecture consolidation maintenance runbook
+
+#### 자동 실행 순서
+
+- `predev`는 다음 순서를 `&&`로 실행한다.
+
+```text
+prisma generate
+  → prepare-sqlite.mjs
+  → preflight-architecture-consolidation.mjs
+  → prisma migrate deploy
+  → backfill-erd-documents.mjs
+  → nest start --watch
+```
+
+- `prestart`는 이미 생성된 Prisma client를 전제로 다음 순서를 `&&`로 실행한다.
+
+```text
+prepare-sqlite.mjs
+  → preflight-architecture-consolidation.mjs
+  → prisma migrate deploy
+  → backfill-erd-documents.mjs
+  → node dist/main.js
+```
+
+- 수동 개발 migration용 `prisma:migrate`도 같은 safety gate를 우회하지 않고 다음 순서를 `&&`로 실행한다.
+
+```text
+prepare-sqlite.mjs
+  → preflight-architecture-consolidation.mjs
+  → prisma migrate dev
+  → backfill-erd-documents.mjs
+```
+
+- 세 script 모두 preflight 또는 migration이 실패하면 뒤 단계를 실행하지 않는다. `predev`와 `prestart`에서는 새 Nest server도 시작되지 않는다.
+- 상위 `apps`의 `pnpm dev`는 workspace를 병렬 실행하므로 web process가 따로 시작됐을 수 있다. cutover 실패 시 해당 web process도 명시적으로 중지한다.
+- `preflight-architecture-consolidation.mjs`가 `fresh` 또는 `already-consolidated`를 확인하면 backup 없이 아래 no-op evidence를 출력하고 migration 단계로 진행한다.
+
+```text
+Architecture consolidation preflight: {"action":"noop","state":"fresh|already-consolidated"}
+```
+
+#### legacy cutover preflight evidence
+
+- legacy `Architecture`와 계획 table이 함께 존재할 때 preflight는 다음 작업을 순서대로 완료해야 한다.
+  1. 원본 DB의 `PRAGMA integrity_check = ok`와 `PRAGMA foreign_key_check` 0건을 확인한다.
+  2. 기존 Architecture 전체를 runtime과 동일한 `DeploymentArchitectureV1` schema로 검증한다.
+  3. legacy Architecture와 계획 row count를 기록한다.
+  4. SQLite online backup을 `/private/tmp/<database>-architecture-consolidation-<timestamp>-<uuid>.db`에 생성하고 SHA-256을 계산한다.
+  5. backup을 별도 임시 DB로 복사해 전체 복원 rehearsal을 수행하고 integrity, FK와 row count가 원본과 일치하는지 확인한다.
+  6. rehearsal 임시 DB만 제거하고 실제 backup은 보존한다.
+- migration을 허용하려면 `Architecture consolidation preflight: ` prefix 뒤 JSON이 `action: "ready"`이고 다음 evidence를 모두 포함해야 한다.
+
+```json
+{
+  "action": "ready",
+  "databasePath": "/absolute/path/to/harness-board.db",
+  "backupPath": "/private/tmp/harness-board-architecture-consolidation-<timestamp>-<uuid>.db",
+  "sha256": "<64 lowercase hex>",
+  "counts": {
+    "architectures": 1,
+    "architecturePlans": 4
+  },
+  "integrityCheck": "ok",
+  "foreignKeyViolationCount": 0,
+  "restoreRehearsal": {
+    "ok": true,
+    "integrityCheck": "ok",
+    "foreignKeyViolationCount": 0,
+    "counts": {
+      "architectures": 1,
+      "architecturePlans": 4
+    }
+  }
+}
+```
+
+- `databasePath`, `backupPath`, `sha256`와 실제 count 값은 실행 출력 그대로 cutover evidence에 보관한다. 예시의 `1`과 `4`를 다른 DB에 하드코딩하지 않는다.
+- 원본과 rehearsal의 count가 다르거나 health·deployment schema 검증이 실패하면 backup이 있더라도 migration을 실행하지 않는다.
+
+#### migration 실패 복원
+
+1. 실패한 새 server와 web을 즉시 중지하고 모든 writer를 닫는다.
+2. preflight 출력의 `backupPath` 파일이 존재하고 현재 SHA-256이 기록된 `sha256`과 exact-match하는지 확인한다.
+3. partial migration DB를 row 단위로 고치지 말고, 출력된 backup 파일로 `databasePath` 전체를 복원한다.
+4. 복원 DB에서 integrity `ok`, FK 위반 0건과 preflight의 `counts`가 다시 일치하는지 확인한다.
+5. 애플리케이션 코드를 revision `f408a8cb8108cde0843900076b69da86815a7906`로 되돌려 server와 web을 재기동한다.
+6. 이전 revision의 프로젝트 조회와 Architecture·계획 조회가 정상일 때만 writer를 다시 연다.
+
+#### rollback 금지 경계
+
+- migration 이후 새 `upsert_architecture`가 한 번이라도 성공하면 preflight backup에는 새 PLAN·PRODUCTION 쓰기가 없으므로 전체 backup rollback을 수행하지 않는다.
+- 이 경계 이후 결함은 새 쓰기를 보존하는 forward-fix migration 또는 검증된 type별 데이터 보정으로 해결한다.
+- post-upsert 문제를 이유로 이전 revision만 재기동하거나 preflight backup으로 DB를 덮어쓰지 않는다.
 
 ## HTML 산출물 계약
 
@@ -73,6 +206,11 @@ enum RepoType {
 enum TaskStatus {
     PENDING //작업 전
     COMPLETED //작업 완료
+}
+
+enum ArchitectureType {
+    PLAN
+    PRODUCTION
 }
 
 model Project {
@@ -159,7 +297,10 @@ model Architecture {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     title String
-    content String // 구현 후 배포 구조 snapshot 또는 legacy text
+    type ArchitectureType
+    content String // PLAN Markdown 또는 PRODUCTION canonical JSON
+    html String // PLAN 완전한 HTML; PRODUCTION은 빈 문자열
+    @@unique([projectId, type])
     @@index([projectId])
 }
 

@@ -2,7 +2,6 @@ import "server-only";
 
 import type { ZodType } from "zod";
 import {
-  architecturePlanListResponseSchema,
   architectureListResponseSchema,
   assetListResponseSchema,
   designListResponseSchema,
@@ -23,7 +22,6 @@ import {
 } from "@/lib/validations/dashboard";
 import type {
   Architecture,
-  ArchitecturePlan,
   Asset,
   CreateRequestInput,
   Database,
@@ -146,7 +144,7 @@ export function getDomains(projectId: number): Promise<Domain[]> {
   return getProjectResource(projectId, "domains", domainListResponseSchema);
 }
 
-/** 프로젝트의 배포 Architecture 목록을 조회한다. */
+/** 프로젝트의 PLAN과 PRODUCTION Architecture 목록을 한 번에 조회한다. */
 export function getArchitectures(projectId: number): Promise<Architecture[]> {
   return getProjectResource(
     projectId,
@@ -187,17 +185,6 @@ export function getRequests(projectId: number): Promise<Request[]> {
 /** 프로젝트의 WorkLog 목록을 조회한다. */
 export function getWorkLogs(projectId: number): Promise<WorkLog[]> {
   return getProjectResource(projectId, "worklogs", workLogListResponseSchema);
-}
-
-/** 프로젝트의 Architecture Plan 목록을 조회한다. */
-export function getArchitecturePlans(
-  projectId: number,
-): Promise<ArchitecturePlan[]> {
-  return getProjectResource(
-    projectId,
-    "architecture-plans",
-    architecturePlanListResponseSchema,
-  );
 }
 
 /** 프로젝트의 DB schema 문서 목록을 조회한다. */
@@ -278,7 +265,6 @@ export async function getProjectDashboard(
     reviews,
     requests,
     workLogs,
-    architecturePlans,
     databases,
     erds,
   ] = await Promise.all([
@@ -296,7 +282,6 @@ export async function getProjectDashboard(
     getReviews(projectId),
     getRequests(projectId),
     getWorkLogs(projectId),
-    getArchitecturePlans(projectId),
     getDatabases(projectId),
     getErds(projectId),
   ]);
@@ -329,7 +314,6 @@ export async function getProjectDashboard(
       reviews,
       requests,
       workLogs,
-      architecturePlans,
       databases,
       erds,
     },
