@@ -255,6 +255,28 @@ def _validate_targeted_checks(
             raise WorktreeError("targeted check is not configured for source verification")
 
 
+def _validate_named_targeted_subset(
+    checks: Sequence[Mapping[str, Any]],
+    config: IntegrationConfig,
+) -> None:
+    """Require a legacy caller subset to match source profile names and commands."""
+
+    seen_names = set()
+    for check in checks:
+        name = check["name"]
+        if name in seen_names:
+            raise WorktreeError(f"duplicate targeted source profile: {name}")
+        seen_names.add(name)
+        configured = config.source.get(name)
+        if configured is None or (
+            configured.cwd != check["cwd"]
+            or configured.argv != tuple(check["argv"])
+        ):
+            raise WorktreeError(
+                f"targeted check does not exactly match source profile: {name}"
+            )
+
+
 def _manifest_template(
     *,
     repo: Path,
@@ -471,6 +493,9 @@ def _adopt_legacy_manifest(
     slug: str,
     expected_head: str,
     manifest_path: Path,
+    config_revision: str,
+    config: IntegrationConfig,
+    targeted_checks: Sequence[Mapping[str, Any]],
 ) -> Dict[str, Any]:
     """Adopt one exact clean ``.worktree/<slug>`` registration as ACTIVE."""
 
@@ -504,16 +529,11 @@ def _adopt_legacy_manifest(
         raise WorktreeError("legacy worktree has a different branch checked out")
 
     base_branch = _primary_branch(repo)
-    base_sha = resolve_commit(repo, base_branch)
-    config = load_config_from_revision(repo, base_sha).require_configured()
     if branch not in {slug, f"{config.branch_prefix}{slug}"}:
         raise WorktreeError("legacy branch does not match the configured namespace")
     central_path, expected_manifest_path = _managed_paths(repo, config, slug)
     if expected_manifest_path != manifest_path or central_path.exists() or central_path.is_symlink():
         raise WorktreeError("legacy adoption collides with central managed state")
-    targeted_checks = [
-        command.as_dict() for command in config.source.values()
-    ]
     if not targeted_checks:
         raise WorktreeError("legacy adoption requires configured source checks")
     manifest = _manifest_template(
@@ -521,7 +541,7 @@ def _adopt_legacy_manifest(
         branch=branch,
         path=legacy_path.resolve(),
         base_branch=base_branch,
-        base_sha=base_sha,
+        base_sha=config_revision,
         project_id=None,
         task_id=None,
         agent="legacy",
@@ -572,6 +592,8 @@ def mark_managed_worktree_ready(
     repo_value: str,
     branch: str,
     expected_head: str,
+    config_revision: Optional[str],
+    targeted_check_json: Sequence[str],
 ) -> Dict[str, Any]:
     """Run configured source checks and atomically write a clean READY attestation."""
 
@@ -597,14 +619,38 @@ def mark_managed_worktree_ready(
         ref_lock_path(common_dir, f"refs/heads/{branch}")
     ):
         if manifest_path.exists():
+            if config_revision is not None or targeted_check_json:
+                raise WorktreeError(
+                    "managed ready must use its persisted base config and checks"
+                )
             manifest = _load_manifest(manifest_path)
         else:
+            if config_revision is None or not targeted_check_json:
+                raise WorktreeError(
+                    "legacy ready requires config-revision and targeted checks"
+                )
+            if re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", config_revision) is None:
+                raise WorktreeError("config-revision must be a full target commit SHA")
+            resolved_config_revision = resolve_commit(repo, config_revision)
+            if resolved_config_revision != config_revision.lower():
+                raise WorktreeError("config-revision must be the exact full target SHA")
+            if resolved_config_revision != head_sha(repo):
+                raise WorktreeError("config-revision is stale against the target HEAD")
+            legacy_config = load_config_from_revision(
+                repo,
+                resolved_config_revision,
+            ).require_configured()
+            legacy_checks = _parse_targeted_checks(targeted_check_json)
+            _validate_named_targeted_subset(legacy_checks, legacy_config)
             manifest = _adopt_legacy_manifest(
                 repo=repo,
                 branch=branch,
                 slug=slug,
                 expected_head=expected_sha,
                 manifest_path=manifest_path,
+                config_revision=resolved_config_revision,
+                config=legacy_config,
+                targeted_checks=legacy_checks,
             )
         config = load_config_from_revision(
             repo,
@@ -750,6 +796,8 @@ def create_parser() -> argparse.ArgumentParser:
     ready.add_argument("--repo", required=True)
     ready.add_argument("--branch", required=True)
     ready.add_argument("--expected-head", required=True)
+    ready.add_argument("--config-revision")
+    ready.add_argument("--targeted-check-json", action="append", default=[])
     return parser
 
 
@@ -775,6 +823,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 repo_value=arguments.repo,
                 branch=arguments.branch,
                 expected_head=arguments.expected_head,
+                config_revision=arguments.config_revision,
+                targeted_check_json=arguments.targeted_check_json,
             )
             print(json.dumps(manifest, ensure_ascii=False, sort_keys=True))
     except IntegrationError as error:

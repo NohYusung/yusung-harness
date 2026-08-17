@@ -111,11 +111,35 @@ python3 <CODE_SKILL_DIR>/scripts/worktree.py ready \
 - `ready` 성공과 `READY` manifest를 확인한 뒤에만 root에게 `integration --merge` handoff를 보낸다.
 - handoff에는 repository, source/target branch, source/target full SHA, worktree manifest path, Project/Task ID와 targeted evidence ID를 포함한다.
 
+### 3. legacy `.worktree` ready 호환
+
+- 이 절은 `worktree.py create`가 만든 managed worktree가 아니라 기존 `<TARGET_REPO_ABSOLUTE_PATH>/.worktree/<WORKTREE_NAME>`를 처음 READY로 adopt할 때만 적용한다.
+- legacy source commit의 full HEAD SHA와 현재 target branch의 full HEAD SHA를 각각 고정한다.
+- `--config-revision <FULL_TARGET_SHA>`는 source SHA나 축약 SHA가 아니라 현재 target의 full SHA여야 한다.
+- target revision의 `.codex/integration.toml`에서 legacy 작업 범위에 필요한 `verification.source.*` profile을 하나 이상 선택하고, 각 profile의 exact `name`, `cwd`, `argv`를 별도 `--targeted-check-json <SOURCE_PROFILE_JSON>`으로 반복 전달한다.
+- 예를 들어 dashboard와 installer policy를 모두 바꾼 legacy source는 다음 configured subset을 전달한다.
+
+```bash
+python3 <CODE_SKILL_DIR>/scripts/worktree.py ready \
+  --repo <TARGET_REPO_ABSOLUTE_PATH> \
+  --branch <LEGACY_SOURCE_BRANCH> \
+  --expected-head <FULL_SOURCE_HEAD_SHA> \
+  --config-revision <FULL_TARGET_SHA> \
+  --targeted-check-json '{"name":"web-dashboard","cwd":"apps/web","argv":["pnpm","test"]}' \
+  --targeted-check-json '{"name":"harness-policy","cwd":".","argv":["python3","-m","unittest","discover","-s","tests","-p","test_install.py"]}'
+```
+
+- profile subset은 shell string이 아니라 config와 exact-match하는 argv JSON이어야 한다. 같은 profile의 이름만 바꾸거나 caller가 임의 argv를 넣으면 fail-closed한다.
+- config revision이 target의 최신 full SHA가 아니거나 target이 adoption 전에 이동하면 manifest·branch·worktree를 변경하지 않고 stale로 종료한다.
+- 기존 managed worktree의 `ready`는 `--config-revision`과 추가 `--targeted-check-json`을 사용하지 않고, create manifest에 고정된 base config와 targeted checks를 그대로 검증한다.
+- `merge.py prepare`는 expected target full SHA의 최신 config를 다시 읽고 legacy READY의 모든 targeted evidence가 여전히 configured subset인지 재검증한다. READY 이후 target config가 profile을 제거·변경했으면 candidate를 만들지 않는다.
+
 <HARD-GATE>
 
 - `worktree.py create` 전에 base SHA와 `configured = true`를 확인한다.
 - source profile을 임의 명령으로 바꾸거나 `--targeted-check-json`을 누락하지 않는다.
 - `worktree.py ready` 실패, dirty worktree, HEAD drift 또는 targeted check 실패를 READY로 보고하지 않는다.
+- legacy ready에서 최신 target `--config-revision` 또는 configured source profile subset을 누락·위조하지 않는다.
 - worktree·branch·state manifest를 raw `git worktree add`, 파일 직접 편집 또는 별도 스크립트로 우회 생성·갱신하지 않는다.
 
 </HARD-GATE>

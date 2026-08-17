@@ -23,6 +23,14 @@ argv = ["python3", ".codex/skills/code/scripts/test_worktree.py"]
 cwd = "."
 argv = ["python3", ".codex/skills/integration/scripts/test_merge.py"]
 
+[verification.source.web-dashboard]
+cwd = "apps/web"
+argv = ["pnpm", "test"]
+
+[verification.source.harness-policy]
+cwd = "."
+argv = ["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_install.py"]
+
 [verification.candidate.test]
 cwd = "apps"
 argv = ["pnpm", "test"]

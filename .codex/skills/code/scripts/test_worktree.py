@@ -199,6 +199,201 @@ class WorktreeScriptTests(unittest.TestCase):
     def load_manifest(self, name: str = "feature-test") -> dict[str, Any]:
         return json.loads(self.manifest_path(name).read_text(encoding="utf-8"))
 
+    def legacy_source_check(self, name: str = "web-dashboard") -> dict[str, Any]:
+        if name == "web-dashboard":
+            script = "print('web-dashboard literal:$() ; `not-shell`')"
+        elif name == "harness-policy":
+            script = "print('harness-policy must not run'); raise SystemExit(19)"
+        else:
+            raise AssertionError(f"unknown legacy source profile: {name}")
+        return {
+            "name": name,
+            "cwd": ".",
+            "argv": [sys.executable, "-c", script],
+        }
+
+    def legacy_target_config(self) -> str:
+        prepare_source_argv = json.dumps(
+            [sys.executable, "-c", "print('prepare legacy source')"]
+        )
+        prepare_candidate_argv = json.dumps(
+            [sys.executable, "-c", "print('prepare legacy candidate')"]
+        )
+        web_dashboard_argv = json.dumps(
+            self.legacy_source_check("web-dashboard")["argv"]
+        )
+        harness_policy_argv = json.dumps(
+            self.legacy_source_check("harness-policy")["argv"]
+        )
+        candidate_sections = []
+        for category in ("test", "typecheck", "lint", "build"):
+            argv = json.dumps(
+                [sys.executable, "-c", f"print({category!r})"]
+            )
+            candidate_sections.extend(
+                [
+                    f"[verification.candidate.{category}]",
+                    'cwd = "."',
+                    f"argv = {argv}",
+                    "",
+                ]
+            )
+        return "\n".join(
+            [
+                "schema_version = 1",
+                "configured = true",
+                'branch_prefix = "codex/"',
+                'management_root = ".yusung-harness"',
+                'merge_strategy = "no-ff"',
+                'cleanup = "worktree-and-branch"',
+                'conflict_policy = "evidence-only"',
+                'required_verification_categories = ["test", "typecheck", "lint", "build"]',
+                "",
+                "[verification.prepare.source]",
+                'cwd = "."',
+                f"argv = {prepare_source_argv}",
+                "",
+                "[verification.prepare.candidate]",
+                'cwd = "."',
+                f"argv = {prepare_candidate_argv}",
+                "",
+                "[verification.source.web-dashboard]",
+                'cwd = "."',
+                f"argv = {web_dashboard_argv}",
+                "",
+                "[verification.source.harness-policy]",
+                'cwd = "."',
+                f"argv = {harness_policy_argv}",
+                "",
+                *candidate_sections,
+            ]
+        )
+
+    def prepare_legacy_source_without_engine_contract(
+        self,
+        branch: str = "legacy-feature",
+    ) -> dict[str, Any]:
+        config_path = self.repository / ".codex" / "integration.toml"
+        self.git("rm", ".codex/integration.toml")
+        self.git("commit", "--quiet", "-m", "Legacy base without integration engine")
+        legacy_base = self.head("main")
+        legacy_root = self.repository / ".worktree"
+        legacy_path = legacy_root / branch
+        exclude_value = self.git(
+            "rev-parse", "--git-path", "info/exclude"
+        ).stdout.strip()
+        exclude = Path(exclude_value)
+        if not exclude.is_absolute():
+            exclude = (self.repository / exclude).resolve()
+        with exclude.open("a", encoding="utf-8") as handle:
+            handle.write("/.worktree/\n")
+        self.git("worktree", "add", "-b", branch, str(legacy_path), legacy_base)
+        legacy_path.joinpath("legacy.txt").write_text(
+            "legacy feature\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            ["git", "-C", str(legacy_path), "add", "legacy.txt"],
+            check=True,
+            env=self.clean_environment(),
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(legacy_path),
+                "commit",
+                "--quiet",
+                "-m",
+                "Legacy feature",
+            ],
+            check=True,
+            env=self.clean_environment(),
+        )
+        source_head = self.head(branch)
+        for source_path in (
+            ".codex/integration.toml",
+            ".codex/skills/code/scripts/test_worktree.py",
+            ".codex/skills/integration/scripts/test_merge.py",
+        ):
+            self.assertNotEqual(
+                self.git(
+                    "cat-file",
+                    "-e",
+                    f"{source_head}:{source_path}",
+                    check=False,
+                ).returncode,
+                0,
+                msg=f"legacy source unexpectedly contains {source_path}",
+            )
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(self.legacy_target_config(), encoding="utf-8")
+        self.git("add", ".codex/integration.toml")
+        self.git("commit", "--quiet", "-m", "Add target integration contract")
+        target_head = self.head("main")
+        self.assertEqual(
+            self.git(
+                "cat-file",
+                "-e",
+                f"{target_head}:.codex/integration.toml",
+                check=False,
+            ).returncode,
+            0,
+        )
+        return {
+            "branch": branch,
+            "path": legacy_path,
+            "sourceHead": source_head,
+            "sourceTree": self.head(f"{branch}^{{tree}}"),
+            "targetHead": target_head,
+            "exclude": exclude,
+        }
+
+    def legacy_snapshot(self, fixture: dict[str, Any]) -> dict[str, Any]:
+        legacy_path = fixture["path"]
+        return {
+            "sourceHead": self.head(fixture["branch"]),
+            "targetHead": self.head("main"),
+            "sourceStatus": subprocess.run(
+                ["git", "-C", str(legacy_path), "status", "--porcelain=v1"],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=self.clean_environment(),
+            ).stdout,
+            "targetStatus": self.git("status", "--porcelain=v1").stdout,
+            "worktrees": self.git("worktree", "list", "--porcelain").stdout,
+            "exclude": fixture["exclude"].read_text(encoding="utf-8"),
+            "manifestExists": self.manifest_path(fixture["branch"]).exists(),
+        }
+
+    def run_legacy_ready(
+        self,
+        fixture: dict[str, Any],
+        *,
+        config_revision: str | None = None,
+        checks: list[dict[str, Any]] | None = None,
+        include_config_revision: bool = True,
+        include_checks: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        command = [
+            "ready",
+            "--repo",
+            str(self.repository),
+            "--branch",
+            fixture["branch"],
+            "--expected-head",
+            fixture["sourceHead"],
+        ]
+        if include_config_revision:
+            command.extend(
+                ["--config-revision", config_revision or fixture["targetHead"]]
+            )
+        if include_checks:
+            for check in checks or [self.legacy_source_check("web-dashboard")]:
+                command.extend(["--targeted-check-json", json.dumps(check)])
+        return self.run_script(*command)
+
     def test_create_uses_explicit_base_sha_and_writes_active_manifest(self) -> None:
         base_head = self.head("main")
 
@@ -469,52 +664,33 @@ class WorktreeScriptTests(unittest.TestCase):
         self.assertEqual(evidence["returncode"], 0)
         self.assertIn("literal:$() ; `not-shell`", evidence["stdout"])
 
-    def test_ready_adopts_clean_legacy_worktree_and_can_prepare_merge(self) -> None:
-        legacy_root = self.repository / ".worktree"
-        legacy_path = legacy_root / "legacy-feature"
-        exclude_value = self.git("rev-parse", "--git-path", "info/exclude").stdout.strip()
-        exclude = Path(exclude_value)
-        if not exclude.is_absolute():
-            exclude = (self.repository / exclude).resolve()
-        with exclude.open("a", encoding="utf-8") as handle:
-            handle.write("/.worktree/\n")
-        self.git(
-            "worktree",
-            "add",
-            "-b",
-            "legacy-feature",
-            str(legacy_path),
-            "main",
-        )
-        legacy_path.joinpath("legacy.txt").write_text("legacy feature\n", encoding="utf-8")
-        subprocess.run(
-            ["git", "-C", str(legacy_path), "add", "legacy.txt"],
-            check=True,
-            env=self.clean_environment(),
-        )
-        subprocess.run(
-            ["git", "-C", str(legacy_path), "commit", "--quiet", "-m", "Legacy feature"],
-            check=True,
-            env=self.clean_environment(),
-        )
-        feature_head = self.head("legacy-feature")
+    def test_ready_adopts_legacy_source_using_target_configured_subset(self) -> None:
+        fixture = self.prepare_legacy_source_without_engine_contract()
 
-        ready = self.run_script(
-            "ready",
-            "--repo",
-            str(self.repository),
-            "--branch",
-            "legacy-feature",
-            "--expected-head",
-            feature_head,
-        )
+        ready = self.run_legacy_ready(fixture)
 
         self.assertEqual(ready.returncode, 0, msg=ready.stderr)
         manifest = self.load_manifest("legacy-feature")
         self.assertEqual(manifest["state"], "READY")
-        self.assertEqual(manifest["path"], str(legacy_path))
-        self.assertEqual(manifest["headSha"], feature_head)
+        self.assertEqual(manifest["branch"], "legacy-feature")
+        self.assertEqual(manifest["path"], str(fixture["path"]))
+        self.assertEqual(manifest["baseSha"], fixture["targetHead"])
+        self.assertEqual(manifest["headSha"], fixture["sourceHead"])
+        self.assertEqual(
+            manifest["targetedChecks"],
+            [self.legacy_source_check("web-dashboard")],
+        )
         self.assertEqual(len(manifest["verification"]), 1)
+        evidence = manifest["verification"][0]
+        self.assertEqual(evidence["name"], "web-dashboard")
+        self.assertEqual(evidence["headSha"], fixture["sourceHead"])
+        self.assertEqual(evidence["treeSha"], fixture["sourceTree"])
+        self.assertEqual(
+            evidence["argv"],
+            self.legacy_source_check("web-dashboard")["argv"],
+        )
+        self.assertIn("literal:$() ; `not-shell`", evidence["stdout"])
+        self.assertNotIn("harness-policy must not run", evidence["stdout"])
         merge = self.run_python(
             MERGE_SCRIPT_PATH,
             "prepare",
@@ -525,11 +701,88 @@ class WorktreeScriptTests(unittest.TestCase):
             "--target",
             "main",
             "--expected-source-head",
-            feature_head,
+            fixture["sourceHead"],
             "--expected-target-head",
-            self.head("main"),
+            fixture["targetHead"],
         )
         self.assertEqual(merge.returncode, 0, msg=merge.stderr)
+
+    def test_legacy_ready_requires_config_revision_and_configured_subset_without_mutation(
+        self,
+    ) -> None:
+        cases = (
+            {
+                "name": "missing-config-revision",
+                "kwargs": {"include_config_revision": False},
+            },
+            {
+                "name": "missing-targeted-check",
+                "kwargs": {"include_checks": False},
+            },
+            {
+                "name": "source-revision-without-config",
+                "kwargs": {"config_revision": "SOURCE_HEAD"},
+            },
+            {
+                "name": "unconfigured-command",
+                "kwargs": {
+                    "checks": [
+                        {
+                            "name": "web-dashboard",
+                            "cwd": ".",
+                            "argv": [sys.executable, "-c", "print('arbitrary')"],
+                        }
+                    ]
+                },
+            },
+            {
+                "name": "spoofed-profile-name",
+                "kwargs": {
+                    "checks": [
+                        {
+                            **self.legacy_source_check("web-dashboard"),
+                            "name": "not-configured",
+                        }
+                    ]
+                },
+            },
+        )
+
+        for case in cases:
+            with self.subTest(case=case["name"]):
+                fixture = self.prepare_legacy_source_without_engine_contract(
+                    branch=f"legacy-{case['name']}"
+                )
+                kwargs = dict(case["kwargs"])
+                if kwargs.get("config_revision") == "SOURCE_HEAD":
+                    kwargs["config_revision"] = fixture["sourceHead"]
+                before = self.legacy_snapshot(fixture)
+
+                result = self.run_legacy_ready(fixture, **kwargs)
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.legacy_snapshot(fixture), before)
+
+    def test_legacy_ready_rejects_stale_target_config_revision_without_mutation(
+        self,
+    ) -> None:
+        fixture = self.prepare_legacy_source_without_engine_contract()
+        stale_config_revision = fixture["targetHead"]
+        self.repository.joinpath("tracked.txt").write_text(
+            "target advanced\n",
+            encoding="utf-8",
+        )
+        self.git("add", "tracked.txt")
+        self.git("commit", "--quiet", "-m", "Advance target after config pin")
+        before = self.legacy_snapshot(fixture)
+
+        result = self.run_legacy_ready(
+            fixture,
+            config_revision=stale_config_revision,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.legacy_snapshot(fixture), before)
 
     def test_ready_rejects_failed_check_dirty_tree_and_stale_head_without_ready_state(self) -> None:
         for scenario in ("failed-check", "dirty", "stale-head"):
