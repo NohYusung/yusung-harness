@@ -34,7 +34,6 @@ import type {
   Architecture,
   ArchitecturePlan,
   ArtifactDocument,
-  Design,
   Domain,
   Erd,
   HtmlArtifactDocument,
@@ -102,7 +101,6 @@ const relationOrder: readonly WorkbenchRelation[] = [
   "architectures",
   "wireframes",
   "assets",
-  "designs",
   "reviews",
   "requests",
   "workLogs",
@@ -153,12 +151,6 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
     label: "Asset",
     plural: "Assets",
     dotClassName: "bg-clay",
-  },
-  designs: {
-    code: "DS",
-    label: "Design",
-    plural: "Designs",
-    dotClassName: "bg-plum",
   },
   reviews: {
     code: "RV",
@@ -244,7 +236,6 @@ function getEntries(
     architectures: context.architectures,
     wireframes: context.wireframes,
     assets: context.assets,
-    designs: context.designs,
     reviews: context.reviews,
     requests: [...requests],
     workLogs: context.workLogs,
@@ -413,14 +404,6 @@ function getRelations(
     return plan ? [{ record: plan, relation: "plans" }] : [];
   }
 
-  if (entry.relation === "designs") {
-    const design = entry.record as Design;
-    return [
-      { record: design.wireframe, relation: "wireframes" },
-      { record: design.asset, relation: "assets" },
-    ];
-  }
-
   if (entry.relation === "domains") {
     const domain = entry.record as Domain;
     const parent =
@@ -440,20 +423,7 @@ function getRelations(
     ];
   }
 
-  const designRelations = context.designs.flatMap((design) => {
-    if (
-      entry.relation === "wireframes" &&
-      design.wireframeId === entry.record.id
-    ) {
-      return [{ record: design, relation: "designs" as const }];
-    }
-    if (entry.relation === "assets" && design.assetId === entry.record.id) {
-      return [{ record: design, relation: "designs" as const }];
-    }
-    return [];
-  });
-
-  return designRelations;
+  return [];
 }
 
 function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
@@ -465,7 +435,6 @@ function getHtmlSelection(entry: WorkbenchEntry): HtmlArtifactSelection | null {
 
   const kindByRelation: Partial<Record<WorkbenchRelation, HtmlArtifactKind>> = {
     assets: "Asset",
-    designs: "Design",
     wireframes: "Wireframe",
   };
   const kind = kindByRelation[entry.relation];
@@ -946,11 +915,6 @@ export function ArtifactWorkbench({
     selectedEntry?.relation === "wireframes"
       ? (selectedEntry.record as Wireframe)
       : null;
-  /** Design 전용 관계 ID metadata만 노출하도록 relation을 확인한 뒤 record를 좁힌다. */
-  const selectedDesign =
-    selectedEntry?.relation === "designs"
-      ? (selectedEntry.record as Design)
-      : null;
   /** Request 선택에서만 편집 진입점을 노출한다. */
   const selectedRequest =
     selectedEntry?.relation === "requests"
@@ -984,19 +948,15 @@ export function ArtifactWorkbench({
       ]
     : [];
   const isWireframeView = typeFilter === "wireframes";
-  const isVersionFilteredView =
-    typeFilter === "wireframes" || typeFilter === "designs";
+  const isVersionFilteredView = typeFilter === "wireframes";
   /** 현재 relation에 실제 존재하는 고유 version만 최신순으로 제공한다. */
   const availableVersions = useMemo(() => {
-    const versions =
-      typeFilter === "wireframes"
-        ? context.wireframes.map((wireframe) => wireframe.version)
-        : typeFilter === "designs"
-          ? context.designs.map((design) => design.version)
-          : [];
+    const versions = typeFilter === "wireframes"
+      ? context.wireframes.map((wireframe) => wireframe.version)
+      : [];
 
     return [...new Set(versions)].sort((left, right) => right - left);
-  }, [context.designs, context.wireframes, typeFilter]);
+  }, [context.wireframes, typeFilter]);
   /** Version relation은 유효한 현재 선택을 보존하고 없거나 stale하면 실제 최신 version을 기본값으로 사용한다. */
   const effectiveVersionFilter =
     isVersionFilteredView
@@ -1086,10 +1046,9 @@ export function ArtifactWorkbench({
     const config = relationConfig[entry.relation];
     /** Version relation에는 숨겨진 status filter 대신 선택한 version만 적용한다. */
     const matchesRecordFilter =
-      entry.relation === "wireframes" || entry.relation === "designs"
+      entry.relation === "wireframes"
         ? effectiveVersionFilter === null ||
-          (entry.record as Wireframe | Design).version ===
-            effectiveVersionFilter
+          (entry.record as Wireframe).version === effectiveVersionFilter
         : statusFilter === "All" || getStatus(entry) === statusFilter;
     const matchesQuery =
       normalizedQuery.length === 0 ||
@@ -1363,23 +1322,6 @@ export function ArtifactWorkbench({
 
     /** 해석할 형제 record가 없으면 현재 선택과 URL을 그대로 유지한다. */
     if (!wireframe) {
-      return;
-    }
-
-    /** Design preview에서는 같은 Asset을 사용한 대상 Wireframe의 형제 Design을 선택한다. */
-    if (selectedDesign) {
-      const siblingDesign = context.designs.find(
-        (candidate) =>
-          candidate.assetId === selectedDesign.assetId &&
-          candidate.wireframeId === wireframe.id,
-      );
-
-      /** 형제 Design이 없으면 현재 Design 선택과 deep link를 그대로 유지한다. */
-      if (!siblingDesign) {
-        return;
-      }
-
-      selectEntry({ record: siblingDesign, relation: "designs" });
       return;
     }
 
@@ -2147,18 +2089,6 @@ export function ArtifactWorkbench({
                     <dd className="m-0 text-ink">
                       {relationConfig[selectedEntry.relation].label}
                     </dd>
-                    {selectedDesign ? (
-                      <>
-                        <dt className="text-subtle">Asset ID</dt>
-                        <dd className="m-0 font-mono text-ink">
-                          {selectedDesign.assetId}
-                        </dd>
-                        <dt className="text-subtle">Wireframe ID</dt>
-                        <dd className="m-0 font-mono text-ink">
-                          {selectedDesign.wireframeId}
-                        </dd>
-                      </>
-                    ) : null}
                     {selectedWireframe ? (
                       <>
                         <dt className="text-subtle">Index</dt>
@@ -2279,15 +2209,13 @@ export function ArtifactWorkbench({
                         onNavigateWireframe={navigateToWireframe}
                         onScrollStateChange={updateHtmlPreviewScrollState}
                         onViewportChange={
-                          selectedEntry.relation === "wireframes" ||
-                          selectedEntry.relation === "designs"
+                          selectedEntry.relation === "wireframes"
                             ? setPreviewViewport
                             : undefined
                         }
                         record={selectedHtmlArtifact.record}
                         viewport={
-                          selectedEntry.relation === "wireframes" ||
-                          selectedEntry.relation === "designs"
+                          selectedEntry.relation === "wireframes"
                             ? previewViewport
                             : undefined
                         }

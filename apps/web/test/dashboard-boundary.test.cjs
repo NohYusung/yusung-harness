@@ -52,11 +52,10 @@ const artifactRelations = [
   "architectures",
   "wireframes",
   "assets",
-  "designs",
   "reviews",
 ];
 
-test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응답을 정의한다", () => {
+test("dashboard DTO와 Zod schema는 Designs를 제외한 프로젝트 산출물 응답을 정의한다", () => {
   const types = source("types/dashboard.ts");
   const validation = source("lib/validations/dashboard.ts");
 
@@ -79,9 +78,9 @@ test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응�
 
   assert.ok(taskType);
   assert.ok(planType);
-  assert.doesNotMatch(taskType, /\b(?:assets|wireframes|designs):/);
+  assert.doesNotMatch(taskType, /\b(?:assets|wireframes):/);
   assert.match(planType, /\btasks:\s*Task\[\]/);
-  assert.doesNotMatch(planType, /\b(?:assets|wireframes|designs|reviews):/);
+  assert.doesNotMatch(planType, /\b(?:assets|wireframes|reviews):/);
   assert.match(validation, /tasks:\s*z\.array\s*\(\s*taskSchema\s*\)/);
   assert.match(types, /interface\s+HtmlArtifactDocument\b[\s\S]*?html:\s*string/);
   assert.match(types, /type\s+Asset\s*=\s*HtmlArtifactDocument/);
@@ -92,7 +91,8 @@ test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응�
   assert.match(wireframeType, /\bindex:\s*string/);
   assert.match(wireframeType, /\bparentId:\s*number\s*\|\s*null/);
   assert.doesNotMatch(wireframeType, /\bindex:\s*number/);
-  assert.match(types, /interface\s+Design\s+extends\s+HtmlArtifactDocument/);
+  assert.doesNotMatch(types, /\bDesign\b|\bdesigns\b/);
+  assert.doesNotMatch(validation, /\bdesignSchema\b|\bdesigns\b/);
   assert.match(
     types,
     /interface\s+Erd\s+extends\s+ArtifactRecord\s*\{[\s\S]*?document:\s*string\s*\|\s*null/,
@@ -107,7 +107,7 @@ test("dashboard DTO와 Zod schema는 프로젝트 목록과 9종 산출물 응�
   );
 });
 
-test("API client는 project 목록과 9종 REST list의 Zod 조립 경계를 소유한다", () => {
+test("API client는 Designs를 제외한 REST list의 Zod 조립 경계를 소유한다", () => {
   const api = source("lib/api.ts");
 
   assert.match(api, /(?:import\s+["']server-only["']|server-only)/);
@@ -121,7 +121,6 @@ test("API client는 project 목록과 9종 REST list의 Zod 조립 경계를 소
     "getArchitectures",
     "getWireframes",
     "getAssets",
-    "getDesigns",
     "getReviews",
   ]) {
     assert.match(api, new RegExp(`export\\s+(?:async\\s+)?function\\s+${helper}\\s*\\(`));
@@ -133,9 +132,10 @@ test("API client는 project 목록과 9종 REST list의 Zod 조립 경계를 소
   assert.match(api, /cache:\s*["']no-store["']/);
   assert.match(api, /projectListResponseSchema/);
   assert.match(api, /Promise\.all\s*\(/);
+  assert.doesNotMatch(api, /\bgetDesigns\b|\bdesignListResponseSchema\b|["']designs["']/);
 });
 
-test("derive helper는 9종 합계, task 진행률, plan 완료 수, 마지막 활동을 계산한다", () => {
+test("derive helper는 Designs를 제외한 합계와 마지막 활동을 계산한다", () => {
   const dashboard = source("lib/dashboard.ts");
 
   assert.match(
@@ -156,6 +156,7 @@ test("derive helper는 9종 합계, task 진행률, plan 완료 수, 마지막 �
   assert.match(dashboard, /completedPlans/);
   assert.match(dashboard, /totalPlans/);
   assert.doesNotMatch(dashboard, /plans\s*\[\s*0\s*\]/);
+  assert.doesNotMatch(dashboard, /\bdesigns\b/);
 });
 
 test("App Router page는 목록 redirect/empty와 project Server Component 경계를 유지한다", () => {
@@ -187,11 +188,12 @@ test("App Router page는 목록 redirect/empty와 project Server Component 경�
   assert.match(projectPage, /:\s*["']plans["']/);
   assert.match(
     projectPage,
-    /workspaceRelations\s*=\s*\[[^\]]*["']plans["'][^\]]*["']drafts["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']designs["']/s,
+    /workspaceRelations\s*=\s*\[[^\]]*["']plans["'][^\]]*["']drafts["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["']/s,
   );
+  assert.doesNotMatch(projectPage, /["']designs["']/);
 });
 
-test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한다", () => {
+test("Dashboard는 Designs를 제외한 통합 Artifact Workbench를 조립한다", () => {
   const dashboard = source("components/features/dashboard/Dashboard.tsx");
   const workbench = source(
     "components/features/dashboard/ArtifactWorkbench.tsx",
@@ -224,8 +226,10 @@ test("Dashboard는 아홉 record type의 통합 Artifact Workbench를 조립한�
   );
   assert.match(
     workbench,
-    /relationOrder\s*:[^=]*=\s*\[[^\]]*["']plans["'][^\]]*["']tasks["'][^\]]*["']drafts["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']designs["'][^\]]*["']reviews["']/s,
+    /relationOrder\s*:[^=]*=\s*\[[^\]]*["']plans["'][^\]]*["']tasks["'][^\]]*["']drafts["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']reviews["']/s,
   );
+  assert.doesNotMatch(workbench, /\bDesign\b|\bdesigns\b/);
+  assert.doesNotMatch(htmlSidePage, /["']Design["']/);
   assert.match(workbench, /aria-label=["']Project artifact tree["']/);
   assert.match(workbench, /aria-label=["']Artifact types["']/);
   assert.match(

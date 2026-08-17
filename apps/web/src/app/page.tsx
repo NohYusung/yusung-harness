@@ -28,7 +28,7 @@ export default async function HomePage() {
           No Project connected
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
-          Plan, Task, Design, and Review records will appear after a harness
+          Plan, Task, Asset, and Wireframe records will appear after a harness
           agent registers a Project.
         </p>
         <Link

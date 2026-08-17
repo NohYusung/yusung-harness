@@ -81,7 +81,7 @@ UX 디자인 기반의 와이어 프레임을 만드는 스킬. click, scroll, p
 ```
 
 - Wireframe에서는 정보 구조, 사용자 흐름, 콘텐츠 우선순위, 상호작용, 반응형과 접근성 동작을 결정한다.
-- 브랜드 표현과 최종 시각 완성도는 Asset과 Design의 책임으로 남긴다.
+- 브랜드 표현과 시각 자산은 Asset의 책임으로 남긴다.
 - designer는 IA와 화면 명세, coder는 완전한 HTML, researcher는 외부 근거, doc-curator는 MCP 조회·저장·재조회를 담당한다.
 - IAInventory와 검증 매트릭스는 에이전트 간 hand-off 계약으로 사용하고 MCP나 DB의 미지원 필드로 전달하지 않는다.
 

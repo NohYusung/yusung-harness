@@ -21,7 +21,6 @@ export function deriveDashboardSummary(
     architectures,
     wireframes,
     assets,
-    designs,
     reviews,
     requests,
     workLogs,
@@ -38,7 +37,6 @@ export function deriveDashboardSummary(
     architectures.length +
     wireframes.length +
     assets.length +
-    designs.length +
     reviews.length +
     requests.length +
     workLogs.length +
@@ -62,7 +60,6 @@ export function deriveDashboardSummary(
     ...architectures.map(({ updatedAt }) => updatedAt),
     ...wireframes.map(({ updatedAt }) => updatedAt),
     ...assets.map(({ updatedAt }) => updatedAt),
-    ...designs.map(({ updatedAt }) => updatedAt),
     ...reviews.map(({ updatedAt }) => updatedAt),
     ...requests.map(({ updatedAt }) => updatedAt),
     ...workLogs.map(({ updatedAt }) => updatedAt),

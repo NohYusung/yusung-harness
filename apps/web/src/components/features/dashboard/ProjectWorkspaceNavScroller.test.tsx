@@ -33,7 +33,7 @@ describe("ProjectWorkspaceNavScroller", () => {
       { count: 0, label: "Architecture", relation: "architectures" },
       { count: 1, label: "Wireframe", relation: "wireframes" },
       { count: 1, label: "Asset", relation: "assets" },
-      { count: 1, label: "Design", relation: "designs" },
+      { count: 1, label: "Request", relation: "requests" },
     ] as const;
     const { rerender } = render(
       <ProjectWorkspaceNavScroller
@@ -58,19 +58,19 @@ describe("ProjectWorkspaceNavScroller", () => {
 
     rerender(
       <ProjectWorkspaceNavScroller
-        activeRelation="designs"
+        activeRelation="requests"
         items={items}
         projectId={1}
       />,
     );
-    const designLink = screen.getByRole("link", { name: "Design 1" });
+    const requestLink = screen.getByRole("link", { name: "Request 1" });
 
-    expect(designLink).toHaveAttribute("aria-current", "page");
+    expect(requestLink).toHaveAttribute("aria-current", "page");
     expect(scrollIntoView.mock.calls.length).toBeGreaterThan(mountCallCount);
     expect(scrollIntoView).toHaveBeenLastCalledWith({
       block: "nearest",
       inline: "nearest",
     });
-    expect(scrollIntoView.mock.contexts.at(-1)).toBe(designLink);
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(requestLink);
   });
 });

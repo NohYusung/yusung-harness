@@ -84,10 +84,10 @@ test("PlansService.list는 version 정렬 없이 최근 수정순으로 Plan과 
   assert.deepEqual(findManyArgs.include, {
     tasks: { orderBy: { createdAt: "asc" } },
   });
-  for (const relation of ["assets", "wireframes", "designs", "reviews"]) {
+  for (const relation of ["assets", "wireframes", "reviews"]) {
     assert.equal(Object.hasOwn(findManyArgs.include, relation), false);
   }
-  for (const relation of ["assets", "wireframes", "designs"]) {
+  for (const relation of ["assets", "wireframes"]) {
     assert.equal(Object.hasOwn(findManyArgs.include.tasks, relation), false);
   }
 });

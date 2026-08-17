@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { createDesign } from "@/test/fixtures/dashboard";
+import { createAsset } from "@/test/fixtures/dashboard";
 import {
   ArtifactHtmlPreviewFrame,
   ArtifactHtmlSidePage,
@@ -9,7 +9,7 @@ import {
 
 describe("ArtifactHtmlSidePage", () => {
   it("viewport를 생략하면 기존 full-size iframe과 title 계약을 유지한다", () => {
-    const design = createDesign({ title: "Default viewport preview" });
+    const design = createAsset({ title: "Default viewport preview" });
 
     const { container } = render(<ArtifactHtmlPreviewFrame record={design} />);
 
@@ -26,7 +26,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("Mobile 390 × 844 iframe을 장식이 접근성 트리에서 숨겨진 휴대폰 frame 안에 렌더한다", () => {
-    const design = createDesign({ title: "Mobile device preview" });
+    const design = createAsset({ title: "Mobile device preview" });
     const { container } = render(
       <ArtifactHtmlPreviewFrame record={design} viewport="mobile" />,
     );
@@ -67,7 +67,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("mobile↔desktop 전환은 phone frame만 바꾸고 같은 iframe과 srcDoc을 유지한다", () => {
-    const design = createDesign({ title: "Responsive design preview" });
+    const design = createAsset({ title: "Responsive design preview" });
     const { container, rerender } = render(
       <ArtifactHtmlPreviewFrame record={design} viewport="desktop" />,
     );
@@ -128,7 +128,7 @@ describe("ArtifactHtmlSidePage", () => {
   ])(
     "$shape HTML에 preview theme을 한 번만 주입하고 보호 경계와 원본을 보존한다",
     ({ html, marker, shape, title }) => {
-      const design = createDesign({ html, title });
+      const design = createAsset({ html, title });
 
       render(<ArtifactHtmlPreviewFrame record={design} />);
 
@@ -174,7 +174,7 @@ describe("ArtifactHtmlSidePage", () => {
   );
 
   it("preview theme은 원본 style 다음에 위치하고 레거시 색상 변수를 비파랑 팔레트로 재매핑한다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html><head><style data-original-theme>:root{--canvas:#0b0e13;--blue:#79b8ff;--teal:#6ed6ce}</style></head><body><main>Legacy themed preview</main></body></html>',
       title: "Legacy themed preview",
     });
@@ -222,7 +222,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("주석의 fake head보다 앞선 실제 protected head를 한 번만 생성한다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html><!-- <head></head> --><body class="preview"><script src="https://evil.invalid/x.js"></script><main>Adversarial</main></body></html>',
       title: "Adversarial document",
     });
@@ -230,7 +230,7 @@ describe("ArtifactHtmlSidePage", () => {
     render(
       <ArtifactHtmlSidePage
         onClose={vi.fn()}
-        selection={{ kind: "Design", record: design }}
+        selection={{ kind: "Asset", record: design }}
       />,
     );
 
@@ -259,7 +259,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("HTTPS 이미지만 허용하고 외부 실행·연결·frame·object는 계속 차단한다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html><head><title>External image policy</title></head><body><img alt="HTTPS icon" src="https://cdn.example.com/icon.svg"><img alt="HTTP icon" src="http://cdn.example.com/icon.svg"></body></html>',
       title: "External image policy document",
     });
@@ -309,12 +309,12 @@ describe("ArtifactHtmlSidePage", () => {
       title: "HTML fragment",
     },
   ])("$title에도 CSP와 Escape bridge를 주입한다", ({ html, marker, title }) => {
-    const design = createDesign({ html, title });
+    const design = createAsset({ html, title });
 
     render(
       <ArtifactHtmlSidePage
         onClose={vi.fn()}
-        selection={{ kind: "Design", record: design }}
+        selection={{ kind: "Asset", record: design }}
       />,
     );
 
@@ -341,7 +341,7 @@ describe("ArtifactHtmlSidePage", () => {
 
   it("scroll-state bridge를 주입하고 현재 iframe의 유효한 scrollTop만 전달한다", () => {
     const onScrollStateChange = vi.fn();
-    const design = createDesign({
+    const design = createAsset({
       html: "<!doctype html><html><head><title>Scroll state</title></head><body><main>Scrollable preview</main></body></html>",
       title: "Scroll state bridge document",
     });
@@ -400,7 +400,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("hash route link의 기본 navigation을 막고 iframe 내부 hash만 갱신하는 bridge를 주입한다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html><head><title>Route preview</title></head><body><a class="route-link" href="#/home">Home</a></body></html>',
       title: "Route bridge document",
     });
@@ -408,7 +408,7 @@ describe("ArtifactHtmlSidePage", () => {
     render(
       <ArtifactHtmlSidePage
         onClose={vi.fn()}
-        selection={{ kind: "Design", record: design }}
+        selection={{ kind: "Asset", record: design }}
       />,
     );
 
@@ -469,7 +469,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("일반 section hash link도 native navigation을 막고 iframe hash만 갱신한다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html><head><title>Section preview</title></head><body><a href="#result">Result</a><section id="result">Outcome</section></body></html>',
       title: "Section hash bridge document",
     });
@@ -477,7 +477,7 @@ describe("ArtifactHtmlSidePage", () => {
     render(
       <ArtifactHtmlSidePage
         onClose={vi.fn()}
-        selection={{ kind: "Design", record: design }}
+        selection={{ kind: "Asset", record: design }}
       />,
     );
 
@@ -526,7 +526,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("wireframe index가 있는 상대 HTML 링크는 iframe 이동을 막고 부모에 navigation을 요청한다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html><head><title>Wireframe navigation</title></head><body><a data-wireframe-index="1.2" href="./projects.html">Projects</a></body></html>',
       title: "Wireframe navigation bridge",
     });
@@ -598,7 +598,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("표식 없는 상대 HTML 링크도 iframe native navigation을 막고 현재 preview를 유지한다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html><head><title>Unresolved navigation</title></head><body><a href="./projects.html">Projects</a></body></html>',
       title: "Unresolved relative navigation",
     });
@@ -663,7 +663,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("완성형 HTML의 기존 head에 보호 meta와 bridge를 중첩 문서 없이 주입한다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Existing head marker</title></head><body><main>Complete document</main></body></html>',
       title: "Complete document",
     });
@@ -671,7 +671,7 @@ describe("ArtifactHtmlSidePage", () => {
     render(
       <ArtifactHtmlSidePage
         onClose={vi.fn()}
-        selection={{ kind: "Design", record: design }}
+        selection={{ kind: "Asset", record: design }}
       />,
     );
 
@@ -726,7 +726,7 @@ describe("ArtifactHtmlSidePage", () => {
         render();
       })();
     `;
-    const design = createDesign({
+    const design = createAsset({
       html: `<!doctype html><html><head><title>Wireframe 3 route</title></head><body data-initial-route="case-study"><a class="route-link" data-route="about" href="#/about">About</a><article data-page="case-study">Case study</article><article data-page="about">About page</article><script>${wireframe3Bootstrap}</script></body></html>`,
       title: "Wireframe 3 route bootstrap",
     });
@@ -830,7 +830,7 @@ describe("ArtifactHtmlSidePage", () => {
   });
 
   it("History bridge는 비-hash URL을 그대로 전달하고 일반 오류를 숨기지 않는다", () => {
-    const design = createDesign({
+    const design = createAsset({
       html: '<!doctype html><html><head><title>History bridge</title></head><body><a class="route-link" href="#/home">Home</a></body></html>',
       title: "History bridge boundaries",
     });
@@ -838,7 +838,7 @@ describe("ArtifactHtmlSidePage", () => {
     render(
       <ArtifactHtmlSidePage
         onClose={vi.fn()}
-        selection={{ kind: "Design", record: design }}
+        selection={{ kind: "Asset", record: design }}
       />,
     );
 

@@ -27,7 +27,6 @@ export interface ArtifactCounts {
   architectures: number;
   wireframes: number;
   assets: number;
-  designs: number;
   reviews: number;
   requests: number;
   workLogs: number;
@@ -72,14 +71,6 @@ export interface Wireframe extends HtmlArtifactDocument {
 }
 
 export type Asset = HtmlArtifactDocument;
-
-export interface Design extends HtmlArtifactDocument {
-  wireframeId: number;
-  assetId: number;
-  version: number;
-  wireframe: Wireframe;
-  asset: Asset;
-}
 
 export interface Task {
   id: number;
@@ -139,7 +130,6 @@ export interface ProjectContext {
   architectures: Architecture[];
   wireframes: Wireframe[];
   assets: Asset[];
-  designs: Design[];
   reviews: Review[];
   requests: Request[];
   workLogs: WorkLog[];

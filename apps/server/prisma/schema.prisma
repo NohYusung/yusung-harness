@@ -44,7 +44,6 @@ model Project {
   architecturePlans ArchitecturePlan[]
   drafts            Draft[]
   assets            Asset[]
-  designs           Design[]
   reviews           Review[]
   requests          Request[]
   workLogs          WorkLog[]
@@ -87,31 +86,10 @@ model Asset {
   project   Project  @relation(fields: [projectId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  designs   Design[]
   html      String
   title     String
 
   @@index([projectId])
-}
-
-model Design {
-  id          Int       @id @default(autoincrement())
-  projectId   Int
-  project     Project   @relation(fields: [projectId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  wireframeId Int
-  wireframe   Wireframe @relation(fields: [wireframeId], references: [id])
-  assetId     Int
-  asset       Asset     @relation(fields: [assetId], references: [id])
-  html        String
-  title       String
-  version     Int       @default(1)
-
-  @@unique([wireframeId, assetId, version])
-  @@index([projectId])
-  @@index([assetId])
-  @@index([wireframeId])
 }
 
 //실제 구현된 아키텍쳐 기준
@@ -220,7 +198,6 @@ model Wireframe {
   project   Project     @relation(fields: [projectId], references: [id])
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
-  designs   Design[]
   plans     Plan[]      @relation("PlanWireframes")
   title     String
   html      String

@@ -17,7 +17,6 @@ const artifactRelations = [
   "architectures",
   "wireframes",
   "assets",
-  "designs",
   "reviews",
 ];
 
@@ -30,7 +29,7 @@ test("MCP get_project는 projectId가 없을 때 dashboard 프로젝트 목록 s
   assert.match(mcpService, /readOnlyHint:\s*true/);
 });
 
-test("ProjectsService.list는 9종 산출물 count를 한 번에 조회한다", () => {
+test("ProjectsService.list는 8종 산출물 count를 한 번에 조회한다", () => {
   const service = source("services/projects/projects.service.ts");
 
   assert.match(service, /\blist\s*\(\s*\)\s*\{/);
@@ -54,7 +53,7 @@ test("Plan은 Task를 소유하되 Task는 산출물 역방향 relation을 소�
   assert.ok(task, "Task 모델이 존재해야 한다");
   assert.doesNotMatch(task, /^\s*(?:assets|wireframes|designs)\s+/m);
 
-  for (const model of ["Asset", "Wireframe", "Design"]) {
+  for (const model of ["Asset", "Wireframe"]) {
     const modelBlock = schema.match(
       new RegExp(`model ${model}\\s*\\{([\\s\\S]*?)\\n\\}`),
     )?.[1];
@@ -63,12 +62,13 @@ test("Plan은 Task를 소유하되 Task는 산출물 역방향 relation을 소�
     assert.doesNotMatch(modelBlock, /^\s*taskId\s+/m);
     assert.doesNotMatch(modelBlock, /^\s*task\s+Task\b/m);
   }
+  assert.doesNotMatch(schema, /^model Design\s*\{/m);
 });
 
-test("Asset, Wireframe, Design은 content 대신 HTML 문서를 저장한다", () => {
+test("Asset과 Wireframe은 content 대신 HTML 문서를 저장한다", () => {
   const schema = prismaSource("schema.prisma");
 
-  for (const model of ["Asset", "Wireframe", "Design"]) {
+  for (const model of ["Asset", "Wireframe"]) {
     const modelBlock = schema.match(
       new RegExp(`model ${model}\\s*\\{([\\s\\S]*?)\\n\\}`),
     );
@@ -149,7 +149,7 @@ test("Plan은 Task와 PlanWireframes 관계를 유지하고 나머지 산출물�
   );
   assert.doesNotMatch(plan, /^\s*(?:assets|designs|reviews)\s+/m);
 
-  for (const model of ["Asset", "Wireframe", "Design", "Review"]) {
+  for (const model of ["Asset", "Wireframe", "Review"]) {
     const modelBlock = schema.match(
       new RegExp(`model ${model}\\s*\\{([\\s\\S]*?)\\n\\}`),
     )?.[1];

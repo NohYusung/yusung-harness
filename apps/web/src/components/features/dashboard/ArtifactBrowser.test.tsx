@@ -4,7 +4,6 @@ import { ArtifactBrowser } from "./ArtifactBrowser";
 import {
   createArtifact,
   createAsset,
-  createDesign,
   createPlan,
   createProjectContext,
   createTask,
@@ -177,130 +176,6 @@ describe("ArtifactBrowser", () => {
     );
   });
 
-  it("Design relation은 목록 선택 URL, metadata, 명시적 preview CTA를 제공한다", () => {
-    const asset = createAsset({ id: 31, title: "Design source asset" });
-    const wireframe = createWireframe({
-      id: 32,
-      title: "Design source wireframe",
-    });
-    const design = createDesign({
-      asset,
-      assetId: asset.id,
-      html: "<!doctype html><html><body>Standalone design preview</body></html>",
-      id: 33,
-      title: "Standalone design",
-      wireframe,
-      wireframeId: wireframe.id,
-    });
-    const context = createProjectContext({
-      assets: [asset],
-      designs: [design],
-      wireframes: [wireframe],
-    });
-    const { rerender } = render(
-      <ArtifactBrowser
-        activeRelation="designs"
-        context={context}
-        selectedArtifactId={null}
-        selectedTaskId={null}
-      />,
-    );
-
-    expect(screen.getByRole("heading", { name: "Design 1" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Standalone design/ }));
-    expect(routerReplace).toHaveBeenLastCalledWith(
-      "/projects/1?type=designs&id=33",
-      { scroll: false },
-    );
-
-    rerender(
-      <ArtifactBrowser
-        activeRelation="designs"
-        context={context}
-        selectedArtifactId={design.id}
-        selectedTaskId={null}
-      />,
-    );
-    expect(
-      screen.getByRole("heading", { name: "Standalone design" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Record ID")).toBeInTheDocument();
-    expect(screen.getByText("#33")).toBeInTheDocument();
-    expect(screen.getByText("Created")).toBeInTheDocument();
-    expect(screen.getByText("Updated")).toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open Design preview" }),
-    );
-    expect(
-      screen.getByRole("complementary", {
-        name: "Design preview: Standalone design",
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByTitle("Standalone design HTML preview")).toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining("Standalone design preview"),
-    );
-  });
-
-  it("같은 Design relation에서 선택을 왕복해도 이전 preview를 CTA 클릭 전에 복원하지 않는다", () => {
-    const designA = createDesign({
-      html: "<!doctype html><html><head></head><body>Design A preview</body></html>",
-      id: 41,
-      title: "Design A",
-    });
-    const designB = createDesign({
-      html: "<!doctype html><html><head></head><body>Design B preview</body></html>",
-      id: 42,
-      title: "Design B",
-    });
-    const context = createProjectContext({ designs: [designA, designB] });
-    const { rerender } = render(
-      <ArtifactBrowser
-        activeRelation="designs"
-        context={context}
-        selectedArtifactId={designA.id}
-        selectedTaskId={null}
-      />,
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open Design preview" }),
-    );
-    expect(
-      screen.getByRole("complementary", { name: "Design preview: Design A" }),
-    ).toBeInTheDocument();
-
-    rerender(
-      <ArtifactBrowser
-        activeRelation="designs"
-        context={context}
-        selectedArtifactId={designB.id}
-        selectedTaskId={null}
-      />,
-    );
-    expect(
-      screen.queryByRole("complementary", { name: "Design preview: Design A" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Design B" })).toBeInTheDocument();
-
-    rerender(
-      <ArtifactBrowser
-        activeRelation="designs"
-        context={context}
-        selectedArtifactId={designA.id}
-        selectedTaskId={null}
-      />,
-    );
-    expect(
-      screen.queryByRole("complementary", { name: "Design preview: Design A" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Design A" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Open Design preview" }),
-    ).toBeInTheDocument();
-  });
-
   it("모바일 detail의 Back to list는 이전 record trigger로 focus를 복원한다", () => {
     const draft = createArtifact({ id: 7, title: "Draft focus target" });
     const context = createProjectContext({ drafts: [draft] });
@@ -428,28 +303,14 @@ describe("ArtifactBrowser", () => {
 
   it("선택 record를 Metadata, Relations, Preview 탭으로 검사한다", () => {
     const asset = createAsset({ id: 71, title: "Workbench tokens" });
-    const wireframe = createWireframe({
-      id: 72,
-      title: "Workbench flow",
-    });
-    const design = createDesign({
-      id: 73,
-      title: "Workbench UI",
-      asset,
-      assetId: asset.id,
-      wireframe,
-      wireframeId: wireframe.id,
-    });
 
     render(
       <ArtifactBrowser
-        activeRelation="designs"
+        activeRelation="assets"
         context={createProjectContext({
           assets: [asset],
-          designs: [design],
-          wireframes: [wireframe],
         })}
-        selectedArtifactId={design.id}
+        selectedArtifactId={asset.id}
         selectedTaskId={null}
       />,
     );
@@ -461,12 +322,11 @@ describe("ArtifactBrowser", () => {
     );
 
     fireEvent.click(within(tabs).getByRole("tab", { name: "Relations" }));
-    expect(screen.getByText("Workbench tokens")).toBeInTheDocument();
-    expect(screen.getByText("Workbench flow")).toBeInTheDocument();
+    expect(screen.getByText("Yusung Harness")).toBeInTheDocument();
 
     fireEvent.click(within(tabs).getByRole("tab", { name: "Preview" }));
     expect(
-      screen.getByRole("button", { name: "Open Design preview" }),
+      screen.getByRole("button", { name: "Open Asset preview" }),
     ).toBeInTheDocument();
   });
 });

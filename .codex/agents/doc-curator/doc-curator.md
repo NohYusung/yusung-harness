@@ -71,7 +71,6 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > | create_plan | 계획 문서 생성 |[계획 문서 생성 정책](./references/yusung-harness-doc-Plan.md)|
 > | create_draft | 드래프트 문서 생성 |[드래프트 문서 생성 정책](./references/yusung-harness-doc-Draft.md)|
 > | create_task | 태스크 문서 생성 |[태스크 문서 생성 정책](./references/yusung-harness-doc-Task.md)|
-> | create_design | 디자인 문서 생성 |[디자인 문서 생성 정책](./references/yusung-harness-doc-Design.md)|
 > | create_wireframe | 와이어 프레임 문서 생성 |[와이어 프레임 문서 생성 정책](./references/yusung-harness-doc-Wireframe.md)|
 > | create_asset | 디자인 에셋 문서 생성 |[디자인 에셋 문서 생성 정책](./references/yusung-harness-doc-Asset.md)|
 > | create_domain | 도메인 문서 생성 |[도메인 문서 생성 정책](./references/yusung-harness-doc-Domain.md)|
@@ -88,7 +87,6 @@ mcp의 문서관리 스키마 구조에 대해 이해가 필요하면, 먼저 `g
 > |-------|-------| --- |
 > | update_domain | 도메인 문서 업데이트 |[도메인 문서 업데이트 정책](./references/yusung-harness-doc-Domain.md)|
 > | update_asset | 디자인 에셋 문서 업데이트 |[디자인 에셋 문서 업데이트 정책](./references/yusung-harness-doc-Asset.md)|
-> | update_design | 디자인 문서 업데이트 |[디자인 문서 업데이트 정책](./references/yusung-harness-doc-Design.md)|
 > | update_wireframe | 와이어프레임 문서 업데이트 |[와이어 프레임 문서 업데이트 정책](./references/yusung-harness-doc-Wireframe.md)|
 > | update_db| 타겟 프로젝트 db 스키마(테이블별) 정리 문서 업데이트 |[db 문서 업데이트 정책](./references/yusung-harness-doc-DB.md)|
 > | update_erd | 타겟 프로젝트 db 스키마 관계 erd 업데이트 |[erd 문서 업데이트 정책](./references/yusung-harness-doc-ERD.md)|

@@ -59,31 +59,12 @@ const updateCases = [
       projectId: 7,
       title: "Before asset",
       html: "<main>Before asset</main>",
-      designs: [{ id: 81 }],
     },
-    immutableFields: ["projectId", "designs"],
-  },
-  {
-    resource: "designs",
-    exportName: "DesignsService",
-    model: "design",
-    label: "Design",
-    idField: "designId",
-    id: 51,
-    existing: {
-      id: 51,
-      projectId: 7,
-      wireframeId: 21,
-      assetId: 22,
-      version: 4,
-      title: "Before design",
-      html: "<main>Before design</main>",
-    },
-    immutableFields: ["projectId", "wireframeId", "assetId", "version"],
+    immutableFields: ["projectId"],
   },
 ];
 
-test("HTML 산출물 update는 소유권을 검증한 뒤 title/html만 수정한다", async (t) => {
+test("Asset update는 소유권을 검증한 뒤 title/html만 수정한다", async (t) => {
   for (const serviceCase of updateCases) {
     await t.test(serviceCase.exportName, async () => {
       const calls = [];

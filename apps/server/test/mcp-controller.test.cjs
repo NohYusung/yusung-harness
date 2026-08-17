@@ -32,7 +32,6 @@ const expectedToolNames = [
   "get_project",
   "get_plan",
   "get_asset",
-  "get_design",
   "get_architecture",
   "get_architecturePlan",
   "get_request",
@@ -57,8 +56,6 @@ const expectedToolNames = [
   "update_erd",
   "create_task",
   "update_task",
-  "create_design",
-  "update_design",
   "create_wireframe",
   "update_wireframe",
   "create_asset",
@@ -208,7 +205,7 @@ test("remote hostname과 origin의 POST 요청도 MCP transport까지 전달한�
   assert.deepEqual(calls.at(-1), ["server.close"]);
 });
 
-test("실제 Streamable HTTP client는 GET 405 후 POST로 43개 tool을 조회한다", async () => {
+test("실제 Streamable HTTP client는 GET 405 후 POST로 40개 tool을 조회한다", async () => {
   const McpController = loadMcpController();
   const McpService = loadMcpService();
   const emptyService = {};

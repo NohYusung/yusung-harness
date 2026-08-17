@@ -23,12 +23,12 @@ test("ProjectWorkspaceNav server wrapper는 context를 primitive nav items로 �
   assert.match(wrapper, /getLatestDeploymentArchitecture/);
   assert.match(
     wrapper,
-    /label:\s*["']Plan["'][\s\S]*?label:\s*["']Draft["'][\s\S]*?label:\s*["']Domain["'][\s\S]*?label:\s*["']Architecture["'][\s\S]*?label:\s*["']Wireframe["'][\s\S]*?label:\s*["']Asset["'][\s\S]*?label:\s*["']Design["']/,
+    /label:\s*["']Plan["'][\s\S]*?label:\s*["']Draft["'][\s\S]*?label:\s*["']Domain["'][\s\S]*?label:\s*["']Architecture["'][\s\S]*?label:\s*["']Wireframe["'][\s\S]*?label:\s*["']Asset["']/,
   );
   assert.match(wrapper, /context\.wireframes\.length/);
   assert.match(wrapper, /context\.domains\.length/);
   assert.match(wrapper, /context\.assets\.length/);
-  assert.match(wrapper, /context\.designs\.length/);
+  assert.doesNotMatch(wrapper, /\bDesign\b|\bdesigns\b/);
   assert.match(wrapper, /<ProjectWorkspaceNavScroller\b/);
   assert.match(wrapper, /activeRelation=\{activeRelation\}/);
   assert.match(wrapper, /items=\{items\}/);

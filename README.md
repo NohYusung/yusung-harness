@@ -16,7 +16,7 @@
 
 - 긴 작업에서도 기획 의도와 구현 맥락이 사라지지 않습니다.
 - 에이전트마다 역할과 책임이 분리되어 계획, 구현, 테스트와 리뷰가 뒤섞이지 않습니다.
-- Draft, Plan, Task, Design, Review 같은 산출물이 채팅 안에서 휘발되지 않고 프로젝트 단위로 축적됩니다.
+- Draft, Plan, Task, Asset, Wireframe, Review 같은 산출물이 채팅 안에서 휘발되지 않고 프로젝트 단위로 축적됩니다.
 - Codex 전용 설정과 Project Workbench를 같은 설치 흐름으로 대상 프로젝트에 배포할 수 있습니다.
 - 기존 프로젝트에 안전하게 설치하고, 충돌을 확인하며 업데이트할 수 있습니다.
 
@@ -25,9 +25,9 @@
 | 구성 요소 | 역할 |
 | --- | --- |
 | Agent Team | Architect, Coder, Designer 등 8개 역할이 작업을 분담합니다. |
-| Workflow Skills | 기획, 설계, 구현, 테스트와 통합을 14개 스킬로 표준화합니다. |
+| Workflow Skills | 기획, 설계, 구현, 테스트와 통합을 13개 스킬로 표준화합니다. |
 | Installer | Codex 하네스와 전체 `apps/` workspace를 프로젝트에 안전하게 배포합니다. |
-| Document MCP | 에이전트 산출물을 43개 MCP 도구로 조회·생성·수정합니다. |
+| Document MCP | 에이전트 산출물을 40개 MCP 도구로 조회·생성·수정합니다. |
 | Project Workbench | 프로젝트의 요청, 계획, 태스크, 설계와 작업 기록을 웹에서 탐색합니다. |
 | Conventions | NestJS, TypeScript, React와 Next.js 코드 규칙을 저장소 안에서 공유합니다. |
 
@@ -53,7 +53,7 @@ flowchart LR
 
 ## 실제 사용 예시
 
-`wireframe`, `asset`, `design` 워크플로우에서 만든 산출물은 Project Workbench에서 프로젝트 맥락과 함께 탐색하고 바로 미리 볼 수 있습니다.
+`wireframe`, `asset` 워크플로우에서 만든 산출물은 Project Workbench에서 프로젝트 맥락과 함께 탐색하고 바로 미리 볼 수 있습니다.
 
 ### 1. 와이어프레임 검토
 
@@ -68,13 +68,6 @@ flowchart LR
 
 - 워드마크, 로고, 컬러 팔레트 같은 디자인 자산을 프로젝트별로 축적합니다.
 - 산출물의 버전과 연결 관계를 유지한 채 브라우저에서 확인합니다.
-
-### 3. 완성 디자인 검토
-
-![Project Workbench에서 완성된 포트폴리오 디자인을 검토하는 화면](./docs/images/readme/portfolio-design.png)
-
-- 와이어프레임과 에셋을 결합한 최종 디자인을 원본 크기로 미리 봅니다.
-- 기획부터 디자인까지 이어지는 작업 결과를 동일한 프로젝트 기록에서 추적합니다.
 
 ## Agent Team
 
@@ -95,7 +88,7 @@ flowchart LR
 | --- | --- | --- |
 | 발견 | `curate`, `research`, `draft` | 프로젝트 등록, 근거 조사, 초기 제안 |
 | 설계 | `plan`, `architecturePlan`, `domain`, `db`, `erd` | 실행 계획, 아키텍처, 계층형 업무 Domain 문서와 데이터 구조 |
-| 제작 | `asset`, `wireframe`, `design`, `code` | 디자인 자산, 인터랙션, UI와 실제 코드 |
+| 제작 | `asset`, `wireframe`, `code` | 디자인 자산, 화면 흐름과 실제 코드 |
 | 검증·관리 | `test`, `integration` | 테스트, 커밋과 병합 |
 
 ## 빠른 설치
@@ -234,14 +227,14 @@ Codex의 `doc-curator` 프로필에는 로컬 문서 서버 연결이 미리 정
 url = "http://127.0.0.1:4000/mcp"
 ```
 
-MCP 서버는 프로젝트와 산출물을 다루는 43개 도구를 제공합니다.
+MCP 서버는 프로젝트와 산출물을 다루는 40개 도구를 제공합니다.
 
 | 분류 | 대표 도구 | 용도 |
 | --- | --- | --- |
 | Context | `get_context`, `get_project` | DB 구조와 프로젝트 전체 맥락을 조회합니다. |
 | Planning | `create_draft`, `create_plan`, `update_plan`, `create_task`, `update_task` | 제안과 실행 계획을 저장하고 진행 상태를 갱신합니다. |
 | Architecture | `create_architecturePlan`, `create_domain`, `update_domain`, `create_db`, `create_erd` | 아키텍처 계획, 계층형 업무 Domain Markdown과 데이터 구조를 기록합니다. |
-| Design | `create_asset`, `create_wireframe`, `create_design` | HTML 기반 시각 산출물과 버전을 저장합니다. |
+| Visual | `create_asset`, `create_wireframe` | HTML 기반 시각 산출물과 버전을 저장합니다. |
 | Execution | `create_request`, `update_request`, `create_workLog`, `get_review` | 요청 수명주기와 작업 기록, 리뷰를 관리합니다. |
 | Files | `create_file`, `get_file`, `update_file`, `delete_file` | 프로젝트에 연결된 임시 파일과 업로드 상태를 관리합니다. |
 
@@ -251,8 +244,8 @@ MCP 서버는 프로젝트와 산출물을 다루는 43개 도구를 제공합�
 - 초기 아이디어와 제안을 담는 `Draft`
 - 구현 전 `Architecture Plan`과 구현 후 `Architecture`
 - 한 업무 Domain당 한 Markdown 페이지로 구성된 무제한 `Domain` 계층, DB 문서와 ERD
+- 디자인 에셋 팔레트인 `Asset`
 - 버전과 계층 구조를 가진 `Wireframe`
-- `Asset`과 Wireframe을 결합한 `Design`
 - 작업 과정의 `WorkLog`와 결과를 평가하는 `Review`
 - Markdown 문서와 sandbox iframe으로 미리 보는 HTML 아티팩트
 
@@ -305,7 +298,7 @@ yusung-harness/
 
 ## 선택 연동
 
-- `asset`, `wireframe`, `design` 워크플로우는 Open Design MCP를 활용할 수 있습니다.
+- `asset`, `wireframe` 워크플로우는 Open Design MCP를 활용할 수 있습니다.
 - Open Design을 사용할 수 없는 환경에서는 해당 에이전트 규칙에 따라 설치 여부나 대체 진행 방식을 먼저 확인합니다.
 - 일반적인 기획, 코딩, 테스트와 문서 관리에는 Open Design이 필요하지 않습니다.
 

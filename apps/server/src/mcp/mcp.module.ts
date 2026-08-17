@@ -4,7 +4,6 @@ import { ArchitecturePlansModule } from "../services/architecture-plans/architec
 import { ArchitecturesModule } from "../services/architectures/architectures.module";
 import { AssetsModule } from "../services/assets/assets.module";
 import { DbModule } from "../services/db/db.module";
-import { DesignsModule } from "../services/designs/designs.module";
 import { DomainsModule } from "../services/domains/domains.module";
 import { DraftsModule } from "../services/drafts/drafts.module";
 import { ErdModule } from "../services/erd/erd.module";
@@ -31,7 +30,6 @@ import { McpService } from "./mcp.service";
     ArchitecturesModule,
     ArchitecturePlansModule,
     WireframesModule,
-    DesignsModule,
     DbModule,
     ErdModule,
     FilesModule,

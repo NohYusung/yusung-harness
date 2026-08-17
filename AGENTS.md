@@ -53,11 +53,6 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 │ └── 📂 assets/
 │ └── 📂 references/
 │ └── 📂 scripts/
-│ └── 📂 design/
-│ ├── 📄 SKILL.md
-│ └── 📂 assets/
-│ └── 📂 references/
-│ └── 📂 scripts/
 │ └── 📂 draft/
 │ ├── 📄 SKILL.md
 │ └── 📂 assets/
@@ -103,7 +98,6 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 │  ├── 📄 reviewer.md
 │  ├── 📄 tester.md
 └── 📂 skills/
-│  └── 📂 design/
 │  └── 📂 research/
 ```
 

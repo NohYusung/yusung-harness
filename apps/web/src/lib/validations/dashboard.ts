@@ -7,7 +7,6 @@ import type {
   Asset,
   CreateRequestInput,
   Database,
-  Design,
   Domain,
   Draft,
   Erd,
@@ -48,7 +47,6 @@ const artifactCountsSchema = z.object({
   architectures: z.number().int().nonnegative(),
   wireframes: z.number().int().nonnegative(),
   assets: z.number().int().nonnegative(),
-  designs: z.number().int().nonnegative(),
   reviews: z.number().int().nonnegative(),
   requests: z.number().int().nonnegative(),
   workLogs: z.number().int().nonnegative(),
@@ -97,14 +95,6 @@ const wireframeSchema: z.ZodType<Wireframe> = htmlArtifactSchema.extend({
   version: z.number().int().positive(),
 });
 const assetSchema: z.ZodType<Asset> = htmlArtifactSchema;
-
-const designSchema: z.ZodType<Design> = htmlArtifactSchema.extend({
-  wireframeId: z.number().int().positive(),
-  assetId: z.number().int().positive(),
-  version: z.number().int().positive(),
-  wireframe: wireframeSchema,
-  asset: assetSchema,
-});
 
 const reviewSchema: z.ZodType<Review> = artifactDocumentSchema;
 
@@ -201,11 +191,6 @@ export const assetListResponseSchema: z.ZodType<ListResponse<Asset>> = z.object(
   data: z.array(assetSchema),
 });
 
-/** Design 목록 API의 `{ data }` 응답을 검증한다. */
-export const designListResponseSchema: z.ZodType<ListResponse<Design>> = z.object({
-  data: z.array(designSchema),
-});
-
 /** Review 목록 API의 `{ data }` 응답을 검증한다. */
 export const reviewListResponseSchema: z.ZodType<ListResponse<Review>> = z.object({
   data: z.array(reviewSchema),
@@ -262,7 +247,6 @@ export const projectContextSchema: z.ZodType<ProjectContext> =
     architectures: z.array(artifactDocumentSchema),
     wireframes: z.array(wireframeSchema),
     assets: z.array(assetSchema),
-    designs: z.array(designSchema),
     reviews: z.array(reviewSchema),
     requests: z.array(requestSchema),
     workLogs: z.array(workLogSchema),

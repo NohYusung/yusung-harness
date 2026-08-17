@@ -15,7 +15,6 @@ import type { HtmlArtifactDocument } from "@/types/dashboard";
 export type HtmlArtifactKind =
   | "Asset"
   | "Wireframe"
-  | "Design"
   | "Architecture Plan";
 
 export interface HtmlArtifactSelection {

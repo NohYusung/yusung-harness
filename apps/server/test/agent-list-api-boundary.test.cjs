@@ -75,12 +75,6 @@ const domains = [
     orderField: "updatedAt",
   },
   {
-    resource: "designs",
-    model: "design",
-    className: "Designs",
-    orderField: "updatedAt",
-  },
-  {
     resource: "reviews",
     model: "review",
     className: "Reviews",
@@ -300,7 +294,6 @@ test("resource module과 AppModule은 목록 controller를 등록한다", () => 
     "ArchitecturePlansModule",
     "WireframesModule",
     "AssetsModule",
-    "DesignsModule",
     "ReviewsModule",
     "RequestsModule",
     "WorklogsModule",
@@ -332,7 +325,7 @@ test("Requests와 Worklogs module은 목록 controller와 service 의존성을 �
   }
 });
 
-test("MCP get_project는 projectId가 있으면 11종 domain list service를 병렬 조립한다", () => {
+test("MCP get_project는 projectId가 있으면 10종 domain list service를 병렬 조립한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const domainServices = [
     "plans",
@@ -344,7 +337,6 @@ test("MCP get_project는 projectId가 있으면 11종 domain list service를 병
     "architectures",
     "wireframes",
     "assets",
-    "designs",
     "reviews",
   ];
 
@@ -422,20 +414,11 @@ test("일반 목록 service는 project 소유권을 검증하고 각 table을 �
 test("HTML 산출물 공통 validator는 삭제하고 저장 service에서 참조하지 않는다", () => {
   assert.equal(existsSync(sourcePath("common/html-artifact.ts")), false);
 
-  for (const resource of ["wireframes", "assets", "designs"]) {
+  for (const resource of ["wireframes", "assets"]) {
     const service = source(`services/${resource}/${resource}.service.ts`);
 
     assert.doesNotMatch(service, /html-artifact|assertHtmlArtifact/);
   }
-});
-
-test("디자인 목록은 dashboard context와 동일한 연결 산출물을 포함한다", () => {
-  const body = methodBody(source("services/designs/designs.service.ts"), "list");
-
-  assert.match(
-    body,
-    /include:\s*\{\s*wireframe:\s*true\s*,\s*asset:\s*true\s*\}/,
-  );
 });
 
 test("Plan은 Task만 포함하고 Task 목록은 제거된 산출물 relation을 포함하지 않는다", () => {
@@ -443,7 +426,7 @@ test("Plan은 Task만 포함하고 Task 목록은 제거된 산출물 relation�
   const planInclude = objectBodyAfter(planList, /include\s*:/, "Plan include");
 
   assert.notEqual(topLevelPropertyIndex(planInclude, "tasks"), -1);
-  for (const relation of ["assets", "wireframes", "designs", "reviews"]) {
+  for (const relation of ["assets", "wireframes", "reviews"]) {
     assert.equal(
       topLevelPropertyIndex(planInclude, relation),
       -1,
@@ -460,7 +443,7 @@ test("Plan은 Task만 포함하고 Task 목록은 제거된 산출물 relation�
 
   const taskList = methodBody(source("services/tasks/tasks.service.ts"), "list");
   assert.doesNotMatch(taskList, /\binclude\s*:/);
-  for (const relation of ["assets", "wireframes", "designs"]) {
+  for (const relation of ["assets", "wireframes"]) {
     assert.doesNotMatch(taskList, new RegExp(`\\b${relation}\\s*:`));
   }
 });

@@ -13,7 +13,6 @@ const workspaceRelations = [
   "architectures",
   "wireframes",
   "assets",
-  "designs",
   "requests",
   "workLogs",
   "architecturePlans",
