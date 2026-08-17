@@ -54,12 +54,39 @@ test("Artifact Workbench header는 full-width 첫 행이고 body는 230px Explor
   const detailPaneOpeningTag = workbench.match(
     /<aside\b[^>]*aria-labelledby=["']detail-heading["'][^>]*>/,
   );
+  const headerClass = workbench.match(
+    /<header\b[^>]*className=["']([^"']+)["'][^>]*>/,
+  );
   const mainOpeningTag = workbench.match(/<main\b[^>]*>/);
+  const projectPickerColumnClass = workbench.match(
+    /<div\b[^>]*className=["']([^"']+)["'][^>]*>\s*<ProjectPicker\b/,
+  );
 
   assert.match(
     workbench,
     /className=\{`[^`]*\bgrid\b[^`]*\bgrid-rows-\[58px_minmax\(0,1fr\)\][^`]*`\}[\s\S]*?<header\b[\s\S]*?<main\b/,
     "viewport root는 full-width header와 body를 58px/remaining 행으로 배치해야 한다",
+  );
+  assert.ok(headerClass, "header class를 찾을 수 있어야 한다");
+  assert.match(
+    headerClass[1],
+    /(?:^|\s)md:pl-0(?:\s|$)/,
+    "desktop header는 Explorer 경계에서 시작하도록 왼쪽 padding을 제거해야 한다",
+  );
+  assert.ok(
+    projectPickerColumnClass,
+    "ProjectPicker column class를 찾을 수 있어야 한다",
+  );
+  for (const token of ["md:w-[230px]", "md:px-2"]) {
+    assert.match(
+      projectPickerColumnClass[1],
+      new RegExp(`(?:^|\\s)${token.replace(/[()[\].-]/g, "\\$&")}(?:\\s|$)`),
+      `ProjectPicker column은 Explorer와 정렬되는 ${token}을 가져야 한다`,
+    );
+  }
+  assert.doesNotMatch(
+    projectPickerColumnClass[1],
+    /(?:^|\s)md:w-\[250px\](?:\s|$)/,
   );
   assert.ok(mainOpeningTag, "main opening tag를 찾을 수 있어야 한다");
   for (const token of [
