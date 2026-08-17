@@ -48,7 +48,6 @@ model Project {
   architectures Architecture[]
   research      Research[]
   assets        Asset[]
-  designs       Design[]
   reviews       Review[]
   requests      Request[]
   workLogs      WorkLog[]
@@ -91,31 +90,10 @@ model Asset {
   project   Project  @relation(fields: [projectId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  designs   Design[]
   html      String
   title     String
 
   @@index([projectId])
-}
-
-model Design {
-  id          Int       @id @default(autoincrement())
-  projectId   Int
-  project     Project   @relation(fields: [projectId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  wireframeId Int
-  wireframe   Wireframe @relation(fields: [wireframeId], references: [id])
-  assetId     Int
-  asset       Asset     @relation(fields: [assetId], references: [id])
-  html        String
-  title       String
-  version     Int       @default(1)
-
-  @@unique([wireframeId, assetId, version])
-  @@index([projectId])
-  @@index([assetId])
-  @@index([wireframeId])
 }
 
 // 설계 계획과 실제 배포 현황을 type별 단일 레코드로 저장한다.
@@ -214,7 +192,6 @@ model Wireframe {
   project   Project     @relation(fields: [projectId], references: [id])
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
-  designs   Design[]
   plans     Plan[]      @relation("PlanWireframes")
   title     String
   html      String

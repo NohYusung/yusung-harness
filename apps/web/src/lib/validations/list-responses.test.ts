@@ -4,7 +4,6 @@ import * as dashboardSchemas from "@/lib/validations/dashboard";
 import {
   architectureListResponseSchema,
   databaseListResponseSchema,
-  designListResponseSchema,
   erdListResponseSchema,
   planListResponseSchema,
   projectListResponseSchema,
@@ -17,7 +16,6 @@ import {
   createArchitecture,
   createArtifact,
   createDatabase,
-  createDesign,
   createErd,
   createErdDocument,
   createPlan,
@@ -50,7 +48,6 @@ const cases = [
   ["plans", planListResponseSchema, createPlan()],
   ["tasks", taskListResponseSchema, createTask()],
   ["wireframes", wireframeListResponseSchema, wireframe],
-  ["designs", designListResponseSchema, createDesign()],
   ["reviews", reviewListResponseSchema, createReview()],
   ["worklogs", workLogListResponseSchema, createWorkLog()],
   [
@@ -182,32 +179,12 @@ describe("project-scoped list response schemas", () => {
     }
   });
 
-  it("designs는 양의 정수 version을 필수로 검증하고 응답에 유지한다", () => {
-    const design = { ...createDesign(), version: 3 };
-
-    expect(
-      designListResponseSchema.parse({ data: [design] }).data[0],
-    ).toMatchObject({ version: 3 });
-
-    for (const invalidVersion of [undefined, 0, -1, 1.5, "3"]) {
-      expect(
-        designListResponseSchema.safeParse({
-          data: [{ ...design, version: invalidVersion }],
-        }).success,
-      ).toBe(false);
-    }
-  });
-
   it("createWireframe fixture는 root 계층과 version 기본값을 제공한다", () => {
     expect(createWireframe()).toMatchObject({
       parentId: null,
       index: "1",
       version: 1,
     });
-  });
-
-  it("createDesign fixture는 version 기본값을 제공한다", () => {
-    expect(createDesign()).toMatchObject({ version: 1 });
   });
 
   it("Architecture는 PLAN과 PRODUCTION type을 구분하고 html 필드를 보존한다", () => {

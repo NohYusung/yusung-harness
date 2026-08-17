@@ -12,7 +12,7 @@ const source = (relativePath) => {
   return readFileSync(path, "utf8");
 };
 
-test("Web API는 project 목록과 9종 project-scoped REST list helper를 제공한다", () => {
+test("Web API는 Designs를 제외한 project-scoped REST list helper를 제공한다", () => {
   const api = source("lib/api.ts");
   const validation = source("lib/validations/dashboard.ts");
   const resources = [
@@ -23,7 +23,6 @@ test("Web API는 project 목록과 9종 project-scoped REST list helper를 제�
     ["Architectures", "architectures", "architectureListResponseSchema"],
     ["Wireframes", "wireframes", "wireframeListResponseSchema"],
     ["Assets", "assets", "assetListResponseSchema"],
-    ["Designs", "designs", "designListResponseSchema"],
     ["Reviews", "reviews", "reviewListResponseSchema"],
   ];
 
@@ -43,6 +42,9 @@ test("Web API는 project 목록과 9종 project-scoped REST list helper를 제�
     assert.match(validation, new RegExp(`export\\s+const\\s+${schema}\\b`));
   }
 
+  assert.doesNotMatch(api, /\bgetDesigns\b|\bdesignListResponseSchema\b|["']designs["']/);
+  assert.doesNotMatch(validation, /\bdesignSchema\b|\bdesignListResponseSchema\b|\bdesigns\b/);
+
   const getPlansBody = api.match(
     /export\s+(?:async\s+)?function\s+getPlans\s*\([^)]*\)[\s\S]*?\n}/,
   )?.[0] ?? "";
@@ -61,7 +63,6 @@ test("getProjectDashboard는 선택한 plan 범위의 Task와 REST helper를 한
     "getArchitectures(projectId)",
     "getWireframes(projectId)",
     "getAssets(projectId)",
-    "getDesigns(projectId)",
     "getReviews(projectId)",
   ];
 
@@ -71,6 +72,7 @@ test("getProjectDashboard는 선택한 plan 범위의 Task와 REST helper를 한
   for (const helper of helpers) {
     assert.match(promiseAll, new RegExp(helper.replace(/[()]/g, "\\$&")));
   }
+  assert.doesNotMatch(promiseAll, /getDesigns\s*\(/);
   assert.match(
     page,
     /getProjectDashboard\s*\(\s*projectId\s*,\s*selectedPlanId\s*,?\s*\)/,

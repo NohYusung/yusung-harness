@@ -218,11 +218,10 @@ Project
 
 ## HTML 산출물 계약
 
-- `Asset`, `Wireframe`, `Design`은 일반 텍스트가 아니라 완전한 HTML 문서를 `html` 필드에 저장한다.
-- 세 산출물은 `Project`, `Plan`, `Task`에 모두 연결되며 `planId`는 연결된 `Task.planId`로 보장한다.
+- `Asset`, `Wireframe`은 일반 텍스트가 아니라 완전한 HTML 문서를 `html` 필드에 저장한다.
+- `Asset`은 `Project`가 직접 소유하고, `Wireframe`은 `Project`가 직접 소유하면서 `Plan`과 다대다 관계를 맺는다.
 - `Asset`은 로고, 색상 조합, 타이포그래피, 디자인 토큰 등 시각 자원을 정의한 HTML이다.
 - `Wireframe`은 유저 여정과 화면 전환을 확인할 수 있는 클릭 가능한 디자인 전 단계 HTML이다.
-- `Design`은 동일한 `Task`의 `Wireframe`과 `Asset`을 결합한 실제 적용 가능한 수준의 HTML이다.
 - HTML은 `doctype`, `html`, `head`, `body`를 포함한 독립 문서여야 한다. 대시보드는 호스트 DOM에 직접 삽입하지 않고 sandbox iframe으로 미리보기한다.
 
 # 데이터 모델(Prisma / SQLite)
@@ -260,7 +259,6 @@ model Project {
     architectures Architecture[]
     research Research[]
     assets Asset[]
-    designs Design[]
     reviews Review[]
 }
 
@@ -276,9 +274,7 @@ model Plan {
     content String
     title String
     tasks Task[]
-    assets Asset[]
-    wireframes Wireframe[]
-    designs Design[]
+    wireframes Wireframe[] @relation("PlanWireframes")
     reviews Review[]
     @@index([projectId])
 }
@@ -287,41 +283,11 @@ model Asset {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
-    planId Int
-    plan Plan @relation(fields: [planId], references: [id])
-    taskId Int
-    task Task @relation(fields: [taskId], references: [id])
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
-    designs Design[]
     html String // 로고, 색상, 타이포그래피, 디자인 토큰을 정의한 완전한 HTML
     title String
     @@index([projectId])
-    @@index([planId])
-    @@index([taskId])
-}
-
-model Design {
-    id Int @id @default(autoincrement())
-    projectId Int
-    project Project @relation(fields: [projectId], references: [id])
-    planId Int
-    plan Plan @relation(fields: [planId], references: [id])
-    taskId Int
-    task Task @relation(fields: [taskId], references: [id])
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    wireframeId Int
-    wireframe Wireframe @relation(fields: [wireframeId], references: [id])
-    assetId Int
-    asset Asset @relation(fields: [assetId], references: [id])
-    html String // 연결된 Wireframe과 Asset을 결합한 실제 적용 수준의 완전한 HTML
-    title String
-    @@index([projectId])
-    @@index([planId])
-    @@index([taskId])
-    @@index([assetId])
-    @@index([wireframeId])
 }
 
 model Architecture {
@@ -350,9 +316,6 @@ model Task {
     status TaskStatus @default(PENDING)
     title String
     content String?
-    assets Asset[]
-    wireframes Wireframe[]
-    designs Design[]
     @@index([projectId])
     @@index([planId])
 }
@@ -372,18 +335,20 @@ model Wireframe {
     id Int @id @default(autoincrement())
     projectId Int
     project Project @relation(fields: [projectId], references: [id])
-    planId Int
-    plan Plan @relation(fields: [planId], references: [id])
-    taskId Int
-    task Task @relation(fields: [taskId], references: [id])
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
-    designs Design[]
+    plans Plan[] @relation("PlanWireframes")
     title String
     html String // 유저 여정 기반의 클릭 가능한 완전한 HTML
-    @@index([projectId])
-    @@index([planId])
-    @@index([taskId])
+    page String @default(cuid())
+    index String
+    parentId Int?
+    parent Wireframe? @relation("WireframeHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+    children Wireframe[] @relation("WireframeHierarchy")
+    version Int @default(1)
+    @@unique([projectId, page, version])
+    @@index([projectId, index])
+    @@index([parentId])
 }
 
 model Review {

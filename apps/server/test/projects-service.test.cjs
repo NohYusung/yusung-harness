@@ -142,7 +142,6 @@ test("ProjectsService.list는 repository 경로와 논리 Architecture workspace
       architectures: true,
       wireframes: true,
       assets: true,
-      designs: true,
       reviews: true,
       requests: true,
       workLogs: true,

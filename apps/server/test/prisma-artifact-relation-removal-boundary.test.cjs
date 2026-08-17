@@ -30,8 +30,8 @@ const assertProjectRelation = (modelName, { standaloneIndex = true } = {}) => {
   }
 };
 
-test("Asset, Design, Wireframe은 Plan·Task 필드와 index를 제거한다", () => {
-  for (const modelName of ["Asset", "Design", "Wireframe"]) {
+test("Asset과 Wireframe은 Plan·Task 필드와 index를 제거한다", () => {
+  for (const modelName of ["Asset", "Wireframe"]) {
     const model = modelBody(modelName);
 
     for (const field of ["planId", "taskId"]) {
@@ -87,17 +87,15 @@ test("Project 소유권과 산출물 간 핵심 relation은 유지한다", () =>
   const task = modelBody("Task");
   const asset = modelBody("Asset");
   const wireframe = modelBody("Wireframe");
-  const design = modelBody("Design");
 
   for (const [field, type] of [
     ["assets", "Asset"],
     ["wireframes", "Wireframe"],
-    ["designs", "Design"],
     ["reviews", "Review"],
   ]) {
     assert.match(project, new RegExp(`^\\s*${field}\\s+${type}\\[\\]`, "m"));
   }
-  for (const modelName of ["Asset", "Design", "Review"]) {
+  for (const modelName of ["Asset", "Review"]) {
     assertProjectRelation(modelName);
   }
   assertProjectRelation("Wireframe", { standaloneIndex: false });
@@ -107,8 +105,10 @@ test("Project 소유권과 산출물 간 핵심 relation은 유지한다", () =>
     task,
     /^\s*plan\s+Plan\s+@relation\(fields:\s*\[planId\],\s*references:\s*\[id\],\s*onDelete:\s*Cascade\)/m,
   );
-  assert.match(asset, /^\s*designs\s+Design\[\]/m);
-  assert.match(wireframe, /^\s*designs\s+Design\[\]/m);
+  assert.doesNotMatch(schema, /^model Design\s*\{/m);
+  assert.doesNotMatch(project, /^\s*designs\s+Design\[\]/m);
+  assert.doesNotMatch(asset, /^\s*designs\s+Design\[\]/m);
+  assert.doesNotMatch(wireframe, /^\s*designs\s+Design\[\]/m);
   assert.match(wireframe, /^\s*index\s+String\s*$/m);
   assert.match(wireframe, /^\s*parentId\s+Int\?\s*$/m);
   assert.match(
@@ -122,18 +122,6 @@ test("Project 소유권과 산출물 간 핵심 relation은 유지한다", () =>
   assert.match(wireframe, /@@index\(\[projectId,\s*index\]\)/);
   assert.match(wireframe, /@@index\(\[parentId\]\)/);
   assert.doesNotMatch(wireframe, /@@unique\(\[projectId,\s*index\]\)/);
-  assert.match(design, /^\s*wireframeId\s+Int\b/m);
-  assert.match(
-    design,
-    /^\s*wireframe\s+Wireframe\s+@relation\(fields:\s*\[wireframeId\],\s*references:\s*\[id\]\)/m,
-  );
-  assert.match(design, /@@index\(\[wireframeId\]\)/);
-  assert.match(design, /^\s*assetId\s+Int\b/m);
-  assert.match(
-    design,
-    /^\s*asset\s+Asset\s+@relation\(fields:\s*\[assetId\],\s*references:\s*\[id\]\)/m,
-  );
-  assert.match(design, /@@index\(\[assetId\]\)/);
 });
 
 test("schema.prisma에는 처리되지 않은 AGENT 주석이 남지 않는다", () => {

@@ -38,7 +38,6 @@ export class ProjectsService {
             architectures: true,
             wireframes: true,
             assets: true,
-            designs: true,
             reviews: true,
             requests: true,
             workLogs: true,

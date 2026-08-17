@@ -2,7 +2,6 @@ import { Module } from "@nestjs/common";
 import { ArchitecturesModule } from "./services/architectures/architectures.module";
 import { AssetsModule } from "./services/assets/assets.module";
 import { DbModule } from "./services/db/db.module";
-import { DesignsModule } from "./services/designs/designs.module";
 import { DomainsModule } from "./services/domains/domains.module";
 import { ErdModule } from "./services/erd/erd.module";
 import { McpModule } from "./mcp/mcp.module";
@@ -24,7 +23,6 @@ import { WorklogsModule } from "./services/worklogs/worklogs.module";
     TasksModule,
     WireframesModule,
     AssetsModule,
-    DesignsModule,
     DbModule,
     ErdModule,
     ReviewsModule,

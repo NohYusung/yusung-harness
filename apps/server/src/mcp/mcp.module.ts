@@ -3,7 +3,6 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { ArchitecturesModule } from "../services/architectures/architectures.module";
 import { AssetsModule } from "../services/assets/assets.module";
 import { DbModule } from "../services/db/db.module";
-import { DesignsModule } from "../services/designs/designs.module";
 import { DomainsModule } from "../services/domains/domains.module";
 import { ErdModule } from "../services/erd/erd.module";
 import { FilesModule } from "../services/files/files.module";
@@ -29,7 +28,6 @@ import { McpService } from "./mcp.service";
     DomainsModule,
     ArchitecturesModule,
     WireframesModule,
-    DesignsModule,
     DbModule,
     ErdModule,
     FilesModule,

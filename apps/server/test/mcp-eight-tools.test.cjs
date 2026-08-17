@@ -92,7 +92,6 @@ const expectedToolNames = [
   "get_project",
   "get_plan",
   "get_asset",
-  "get_design",
   "get_architecture",
   "get_request",
   "get_workLog",
@@ -117,8 +116,6 @@ const expectedToolNames = [
   "update_erd",
   "create_task",
   "update_task",
-  "create_design",
-  "update_design",
   "create_wireframe",
   "update_wireframe",
   "create_asset",
@@ -146,6 +143,9 @@ const removedToolNames = [
   "update_architecturePlan",
   "get_draft",
   "create_draft",
+  "get_design",
+  "create_design",
+  "update_design",
 ];
 
 const loadMcpService = () => {
@@ -213,7 +213,6 @@ const createHarness = () => {
       "architectures",
       "wireframes",
       "assets",
-      "designs",
       "databases",
       "erds",
       "reviews",
@@ -294,17 +293,6 @@ const createHarness = () => {
           taskId,
           status,
         });
-      },
-    },
-    designsService: {
-      list: listService("designsService", "designs"),
-      create: async (input) => {
-        calls.push(["designsService", "create", input]);
-        return result("designsService", "create", input);
-      },
-      update: async (input) => {
-        calls.push(["designsService", "update", input]);
-        return result("designsService", "update", input);
       },
     },
     dbService: {
@@ -471,7 +459,7 @@ const parseSdkToolResult = (result) => {
   return JSON.parse(result.content[0].text);
 };
 
-test("MCP source와 runtime 등록 목록은 공개 계약의 42개 도구와 정확히 일치한다", () => {
+test("MCP source와 runtime 등록 목록은 공개 계약의 39개 도구와 정확히 일치한다", () => {
   const source = readFileSync(servicePath, "utf8");
   const { tools } = createHarness();
   const registeredNames = [...source.matchAll(/server\.registerTool\(\s*["']([^"']+)["']/g)]
@@ -479,7 +467,7 @@ test("MCP source와 runtime 등록 목록은 공개 계약의 42개 도구와 �
 
   assert.deepEqual(registeredNames, expectedToolNames);
   assert.deepEqual([...tools.keys()], expectedToolNames);
-  assert.equal(tools.size, 42);
+  assert.equal(tools.size, 39);
 
   for (const name of removedToolNames) {
     assert.equal(tools.has(name), false, `${name} 도구는 제거해야 한다`);
@@ -491,7 +479,6 @@ test("산출물 조회 도구는 읽기 전용 schema를 지키고 domain servic
   const contracts = [
     ["get_plan", "plansService", "plans"],
     ["get_asset", "assetsService", "assets"],
-    ["get_design", "designsService", "designs"],
     ["get_architecture", "architecturesService", "architectures"],
     ["get_request", "requestsService", "requests"],
     ["get_workLog", "worklogsService", "worklogs"],
@@ -1195,7 +1182,7 @@ test("get_context는 전체 SQLite schema context를 읽기 전용으로 반환�
   );
 });
 
-test("get_project는 projectId가 있으면 11종 domain list를 병렬 조립한다", async () => {
+test("get_project는 projectId가 있으면 10종 domain list를 병렬 조립한다", async () => {
   const harness = createHarness();
   const listResponse = await harness.invoke("get_project", {});
   const contextResponse = await harness.invoke("get_project", {
@@ -1212,7 +1199,6 @@ test("get_project는 projectId가 있으면 11종 domain list를 병렬 조립�
     ["architecturesService", "list", { projectId: 17 }],
     ["wireframesService", "list", { projectId: 17 }],
     ["assetsService", "list", { projectId: 17 }],
-    ["designsService", "list", { projectId: 17 }],
     ["dbService", "list", { projectId: 17 }],
     ["erdService", "list", { projectId: 17 }],
     ["reviewsService", "list", { projectId: 17 }],
@@ -1230,7 +1216,6 @@ test("get_project는 projectId가 있으면 11종 domain list를 병렬 조립�
     architectures: harness.domainResults.architectures,
     wireframes: harness.domainResults.wireframes,
     assets: harness.domainResults.assets,
-    designs: harness.domainResults.designs,
     databases: harness.domainResults.databases,
     erds: harness.domainResults.erds,
     reviews: harness.domainResults.reviews,
@@ -1354,19 +1339,6 @@ const createToolCases = [
     },
   },
   {
-    name: "create_design",
-    service: "designsService",
-    method: "create",
-    input: {
-      projectId: 1,
-      wireframeId: 4,
-      assetId: 5,
-      title: "Design",
-      html: "<!doctype html><html><head></head><body>Design</body></html>",
-      version: 1,
-    },
-  },
-  {
     name: "create_wireframe",
     service: "wireframesService",
     method: "create",
@@ -1484,14 +1456,6 @@ test("project 산출물 MCP 입력 schema는 제거된 taskId와 planId를 노�
       "projectId",
       "parentId",
       "index",
-      "title",
-      "html",
-      "version",
-    ],
-    create_design: [
-      "projectId",
-      "wireframeId",
-      "assetId",
       "title",
       "html",
       "version",
@@ -1641,82 +1605,6 @@ test("실제 MCP create_wireframe은 필수 version 1과 2만 service에 전달�
   assert.deepEqual(harness.calls, [
     ["wireframesService", "create", versionTwoInput],
     ["wireframesService", "create", versionOneInput],
-  ]);
-  assert.equal(missingVersionResult.isError, true);
-  assert.match(missingVersionResult.content[0].text, /invalid/i);
-});
-
-test("Design 생성 도구는 필수 positive integer version만 그대로 위임한다", async () => {
-  const harness = createHarness();
-  const createInput = createToolCases.find(
-    ({ name }) => name === "create_design",
-  ).input;
-  const createTool = harness.tools.get("create_design");
-
-  for (const invalidVersion of [0, -1, 1.5, "2"]) {
-    assert.equal(
-      createTool.definition.inputSchema.safeParse({
-        ...createInput,
-        version: invalidVersion,
-      }).success,
-      false,
-    );
-  }
-
-  const { version: _version, ...missingVersionInput } = createInput;
-  assert.equal(
-    createTool.definition.inputSchema.safeParse(missingVersionInput).success,
-    false,
-  );
-  assert.equal(createTool.definition.inputSchema.parse(createInput).version, 1);
-  assert.equal(
-    createTool.definition.inputSchema.parse({ ...createInput, version: 2 })
-      .version,
-    2,
-  );
-
-  const versionTwoInput = { ...createInput, version: 2 };
-  const created = await harness.invoke("create_design", versionTwoInput);
-
-  assert.deepEqual(harness.calls, [
-    ["designsService", "create", versionTwoInput],
-  ]);
-  assert.deepEqual(created.input, versionTwoInput);
-});
-
-test("실제 MCP create_design은 explicit version만 service에 전달한다", async (t) => {
-  const harness = await createSdkHarness();
-  t.after(() => harness.close());
-  const baseInput = {
-    projectId: 17,
-    wireframeId: 41,
-    assetId: 42,
-    title: "Portfolio design",
-    html: "<!doctype html><html><head></head><body>Portfolio</body></html>",
-  };
-  const versionOneInput = { ...baseInput, version: 1 };
-  const versionTwoInput = { ...baseInput, version: 2 };
-
-  parseSdkToolResult(
-    await harness.client.callTool({
-      name: "create_design",
-      arguments: versionOneInput,
-    }),
-  );
-  parseSdkToolResult(
-    await harness.client.callTool({
-      name: "create_design",
-      arguments: versionTwoInput,
-    }),
-  );
-  const missingVersionResult = await harness.client.callTool({
-    name: "create_design",
-    arguments: baseInput,
-  });
-
-  assert.deepEqual(harness.calls, [
-    ["designsService", "create", versionOneInput],
-    ["designsService", "create", versionTwoInput],
   ]);
   assert.equal(missingVersionResult.isError, true);
   assert.match(missingVersionResult.content[0].text, /invalid/i);
@@ -2166,20 +2054,9 @@ const htmlUpdateToolCases = [
       html: "<!doctype html><html><head></head><body>Updated asset</body></html>",
     },
   },
-  {
-    name: "update_design",
-    service: "designsService",
-    idField: "designId",
-    input: {
-      projectId: 17,
-      designId: 51,
-      title: "Updated portfolio design",
-      html: "<!doctype html><html><head></head><body>Updated design</body></html>",
-    },
-  },
 ];
 
-test("Asset과 Design 수정 도구는 입력, annotations, service 위임 계약을 지킨다", async (t) => {
+test("Asset 수정 도구는 입력, annotations, service 위임 계약을 지킨다", async (t) => {
   for (const toolCase of htmlUpdateToolCases) {
     await t.test(toolCase.name, async () => {
       const harness = createHarness();
@@ -2300,7 +2177,7 @@ test("실제 MCP update_wireframe은 성공과 service 오류 응답을 직렬�
   });
 });
 
-test("실제 MCP update_asset과 update_design은 성공과 service 오류 응답을 직렬화한다", async (t) => {
+test("실제 MCP update_asset은 성공과 service 오류 응답을 직렬화한다", async (t) => {
   for (const toolCase of htmlUpdateToolCases) {
     await t.test(toolCase.name, async (subtest) => {
       const harness = await createSdkHarness();
@@ -2384,7 +2261,7 @@ test("실제 MCP workflow update는 성공과 service 오류 응답을 직렬화
   }
 });
 
-test("실제 MCP tools/list와 제거된 도구 호출도 42개 공개 계약을 따른다", async (t) => {
+test("실제 MCP tools/list와 제거된 도구 호출도 39개 공개 계약을 따른다", async (t) => {
   const harness = await createSdkHarness();
   t.after(() => harness.close());
 
@@ -2480,7 +2357,7 @@ test("create-only 산출물 도구는 id를 update 입력으로 전달하지 않
   t.after(() => harness.close());
 
   for (const toolCase of createToolCases.filter(({ name }) =>
-    ["create_design", "create_wireframe", "create_asset"].includes(name),
+    ["create_wireframe", "create_asset"].includes(name),
   )) {
     try {
       await harness.client.callTool({

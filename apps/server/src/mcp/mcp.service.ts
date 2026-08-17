@@ -13,7 +13,6 @@ import { deploymentArchitectureSchema } from "../services/architectures/deployme
 import { ArchitecturesService } from "../services/architectures/architectures.service";
 import { AssetsService } from "../services/assets/assets.service";
 import { DbService } from "../services/db/db.service";
-import { DesignsService } from "../services/designs/designs.service";
 import { DomainsService } from "../services/domains/domains.service";
 import { dineugErdDocumentSchema } from "../services/erd/dineug-document";
 import { ErdService } from "../services/erd/erd.service";
@@ -46,12 +45,6 @@ const wireframeVersionSchema = z
   .positive()
   .describe("Wireframe version set");
 const assetIdSchema = z.number().int().positive().describe("Asset ID");
-const designIdSchema = z.number().int().positive().describe("Design ID");
-const designVersionSchema = z
-  .number()
-  .int()
-  .positive()
-  .describe("Explicit Design version");
 const wireframeIndexSchema = z
   .string()
   .trim()
@@ -173,7 +166,6 @@ export class McpService {
     private readonly architecturesService: ArchitecturesService,
     private readonly wireframesService: WireframesService,
     private readonly assetsService: AssetsService,
-    private readonly designsService: DesignsService,
     private readonly dbService: DbService,
     private readonly erdService: ErdService,
     private readonly reviewsService: ReviewsService,
@@ -182,7 +174,7 @@ export class McpService {
     private readonly filesService: FilesService,
   ) {}
 
-  /** 42개 도구를 등록한 stateless MCP 연결을 생성한다. */
+  /** 39개 도구를 등록한 stateless MCP 연결을 생성한다. */
   async createConnection(): Promise<McpConnection> {
     const server = new McpServer(
       {
@@ -210,7 +202,7 @@ export class McpService {
     return { server, transport };
   }
 
-  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 42개를 등록한다. */
+  /** 에이전트가 사용하는 schema 조회와 프로젝트 산출물 도구 39개를 등록한다. */
   private registerTools(server: McpServer): void {
     /** SQLite 내부 객체를 제외한 실제 database schema 전체를 조회한다. */
     server.registerTool(
@@ -287,24 +279,6 @@ export class McpService {
       },
       ({ projectId }) =>
         this.execute(() => this.assetsService.list({ projectId })),
-    );
-
-    /** 선택한 프로젝트의 design 목록을 조회한다. */
-    server.registerTool(
-      "get_design",
-      {
-        title: "Get Design",
-        description: "Returns Designs owned by the selected Project.",
-        inputSchema: z.object({ projectId: projectIdSchema }),
-        annotations: {
-          readOnlyHint: true,
-          destructiveHint: false,
-          idempotentHint: true,
-          openWorldHint: false,
-        },
-      },
-      ({ projectId }) =>
-        this.execute(() => this.designsService.list({ projectId })),
     );
 
     /** 선택한 프로젝트의 PLAN과 PRODUCTION architecture를 함께 조회한다. */
@@ -815,54 +789,6 @@ export class McpService {
         ),
     );
 
-    /** 같은 프로젝트의 wireframe과 asset을 조합한 HTML design을 생성한다. */
-    server.registerTool(
-      "create_design",
-      {
-        title: "Create Design",
-        description:
-          "Creates production-ready HTML by combining a Wireframe and Asset from the same Project.",
-        inputSchema: z.object({
-          projectId: projectIdSchema,
-          wireframeId: z.number().int().positive(),
-          assetId: z.number().int().positive(),
-          title: z.string().trim().min(1),
-          html: htmlSchema,
-          version: designVersionSchema,
-        }),
-        annotations: {
-          readOnlyHint: false,
-          destructiveHint: false,
-          idempotentHint: false,
-          openWorldHint: false,
-        },
-      },
-      (input) => this.execute(() => this.designsService.create(input)),
-    );
-
-    /** 같은 프로젝트가 소유한 HTML design의 제목과 내용을 교체한다. */
-    server.registerTool(
-      "update_design",
-      {
-        title: "Update Design",
-        description:
-          "Replaces the title and HTML of a Design in the same Project.",
-        inputSchema: z.object({
-          projectId: projectIdSchema,
-          designId: designIdSchema,
-          title: z.string().trim().min(1),
-          html: htmlSchema,
-        }),
-        annotations: {
-          readOnlyHint: false,
-          destructiveHint: true,
-          idempotentHint: false,
-          openWorldHint: false,
-        },
-      },
-      (input) => this.execute(() => this.designsService.update(input)),
-    );
-
     /** 프로젝트에 속한 HTML wireframe을 생성한다. */
     server.registerTool(
       "create_wireframe",
@@ -1274,7 +1200,7 @@ export class McpService {
     return { dialect: "sqlite", schemaObjects, tables };
   }
 
-  /** 프로젝트 기본 정보와 11종 도메인 목록을 하나의 MCP context로 조립한다. */
+  /** 프로젝트 기본 정보와 10종 도메인 목록을 하나의 MCP context로 조립한다. */
   private async getProjectContext(projectId: number) {
     /** 독립적인 도메인 조회를 병렬 실행해 MCP 응답 지연을 줄인다. */
     const [
@@ -1286,7 +1212,6 @@ export class McpService {
       architectures,
       wireframes,
       assets,
-      designs,
       databases,
       erds,
       reviews,
@@ -1299,7 +1224,6 @@ export class McpService {
       this.architecturesService.list({ projectId }),
       this.wireframesService.list({ projectId }),
       this.assetsService.list({ projectId }),
-      this.designsService.list({ projectId }),
       this.dbService.list({ projectId }),
       this.erdService.list({ projectId }),
       this.reviewsService.list({ projectId }),
@@ -1324,7 +1248,6 @@ export class McpService {
       architectures,
       wireframes,
       assets,
-      designs,
       databases,
       erds,
       reviews,

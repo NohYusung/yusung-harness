@@ -4,7 +4,6 @@ import {
   createArchitecture,
   createArtifact,
   createAsset,
-  createDesign,
   createDomain,
   createPlan,
   createProjectContext,
@@ -26,7 +25,7 @@ describe("deriveDashboardSummary", () => {
     });
   });
 
-  it("9종 산출물 합계와 Task·Plan 완료율, 마지막 활동을 계산한다", () => {
+  it("Designs를 제외한 산출물 합계와 Task·Plan 완료율, 마지막 활동을 계산한다", () => {
     const completedTask = createTask({ id: 1, status: "COMPLETED" });
     const pendingTask = createTask({ id: 2, status: "PENDING" });
     const context = createProjectContext({
@@ -57,16 +56,6 @@ describe("deriveDashboardSummary", () => {
       ],
       wireframes: [createWireframe({ id: 5, title: "Wireframe" })],
       assets: [createAsset({ id: 6, title: "Asset" })],
-      designs: [
-        createDesign({
-          id: 7,
-          title: "Design",
-          wireframeId: 5,
-          assetId: 6,
-          wireframe: createWireframe({ id: 5, title: "Wireframe" }),
-          asset: createAsset({ id: 6, title: "Asset" }),
-        }),
-      ],
       reviews: [
         createReview({
           id: 8,
@@ -78,7 +67,7 @@ describe("deriveDashboardSummary", () => {
 
     /** PLAN과 PRODUCTION 두 record는 Architecture workspace 한 건으로 합산한다. */
     expect(deriveDashboardSummary(context)).toEqual({
-      totalArtifacts: 11,
+      totalArtifacts: 10,
       completedTasks: 1,
       totalTasks: 2,
       taskCompletionPercent: 50,

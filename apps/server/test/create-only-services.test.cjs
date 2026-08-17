@@ -90,19 +90,6 @@ const createContracts = [
     forbiddenFields: ["id", "taskId", "planId"],
   },
   {
-    resource: "designs",
-    model: "design",
-    fields: [
-      "projectId",
-      "wireframeId",
-      "assetId",
-      "title",
-      "html",
-      "version",
-    ],
-    forbiddenFields: ["id", "taskId", "planId"],
-  },
-  {
     resource: "research",
     model: "research",
     fields: ["projectId", "title", "content"],
@@ -122,7 +109,7 @@ const createContracts = [
   },
 ];
 
-test("6개 직접 생성 service는 create 입력과 허용된 Prisma 쓰기 경계를 제공한다", () => {
+test("5개 직접 생성 service는 create 입력과 허용된 Prisma 쓰기 경계를 제공한다", () => {
   for (const contract of createContracts) {
     const source = serviceSource(contract.resource);
     const createSource = serviceMethodSource(source, "create");
@@ -245,123 +232,6 @@ test("직접 생성 service는 project를 검증한 뒤 create만 호출한다",
         calls.some(([name]) => name === `${serviceCase.model}.update`),
         false,
       );
-    });
-  }
-});
-
-test("DesignsService.create는 관련 산출물을 검증하고 design.create만 호출한다", async () => {
-  const calls = [];
-  const input = {
-    projectId: 7,
-    wireframeId: 21,
-    assetId: 22,
-    title: "Design",
-    html: "<!doctype html><html><body>Design</body></html>",
-    version: 2,
-  };
-  const created = { id: 31, ...input };
-  const transaction = {
-    wireframe: {
-      findUnique: async (args) => {
-        calls.push(["wireframe.findUnique", args]);
-        return { id: 21, projectId: 7 };
-      },
-    },
-    asset: {
-      findUnique: async (args) => {
-        calls.push(["asset.findUnique", args]);
-        return { id: 22, projectId: 7 };
-      },
-    },
-    design: {
-      create: async (args) => {
-        calls.push(["design.create", args]);
-        return created;
-      },
-      update: async () => {
-        throw new Error("design.update must not be called");
-      },
-    },
-  };
-  const prisma = {
-    $transaction: async (operation) => operation(transaction),
-  };
-  const projectsService = {
-    ensureProject: async (projectId) => {
-      calls.push(["projects.ensureProject", projectId]);
-    },
-  };
-  const DesignsService = loadService("designs", "DesignsService");
-  const service = new DesignsService(prisma, projectsService);
-
-  const result = await service.create(input);
-
-  assert.deepEqual(result, created);
-  assert.equal(service.save, undefined);
-  assert.deepEqual(calls, [
-    ["projects.ensureProject", 7],
-    ["wireframe.findUnique", { where: { id: 21 } }],
-    ["asset.findUnique", { where: { id: 22 } }],
-    [
-      "design.create",
-      {
-        data: {
-          projectId: 7,
-          wireframeId: 21,
-          assetId: 22,
-          title: "Design",
-          html: "<!doctype html><html><body>Design</body></html>",
-          version: 2,
-        },
-      },
-    ],
-  ]);
-});
-
-test("DesignsService.create는 같은 project의 Asset과 Wireframe만 조합한다", async (t) => {
-  const input = {
-    projectId: 7,
-    wireframeId: 21,
-    assetId: 22,
-    title: "Design",
-    html: "<!doctype html><html><body>Design</body></html>",
-    version: 1,
-  };
-
-  for (const foreignRelation of ["wireframe", "asset"]) {
-    await t.test(`${foreignRelation}이 다른 project에 속하면 거부한다`, async () => {
-      let createCalled = false;
-      const transaction = {
-        wireframe: {
-          findUnique: async () => ({
-            id: 21,
-            projectId: foreignRelation === "wireframe" ? 8 : 7,
-          }),
-        },
-        asset: {
-          findUnique: async () => ({
-            id: 22,
-            projectId: foreignRelation === "asset" ? 8 : 7,
-          }),
-        },
-        design: {
-          create: async () => {
-            createCalled = true;
-          },
-        },
-      };
-      const prisma = {
-        $transaction: async (operation) => operation(transaction),
-      };
-      const projectsService = { ensureProject: async () => undefined };
-      const DesignsService = loadService("designs", "DesignsService");
-      const service = new DesignsService(prisma, projectsService);
-
-      await assert.rejects(
-        service.create(input),
-        new RegExp(`does not belong to project ${input.projectId}`),
-      );
-      assert.equal(createCalled, false);
     });
   }
 });

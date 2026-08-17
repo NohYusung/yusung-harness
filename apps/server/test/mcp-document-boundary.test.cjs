@@ -27,7 +27,6 @@ const domains = [
   ["architectures", "ArchitecturesService", "upsert"],
   ["wireframes", "WireframesService", "create"],
   ["reviews", "ReviewsService", "create"],
-  ["designs", "DesignsService", "create"],
   ["files", "FilesService", "create"],
   ["files", "FilesService", "update"],
   ["files", "FilesService", "delete"],
@@ -90,7 +89,6 @@ test("Nest HTTP controller는 MCP transport와 읽기 전용 목록 API만 노�
       join("mcp", "mcp.controller.ts"),
       join("services", "architectures", "architectures.controller.ts"),
       join("services", "assets", "assets.controller.ts"),
-      join("services", "designs", "designs.controller.ts"),
       join("services", "db", "db.controller.ts"),
       join("services", "domains", "domains.controller.ts"),
       join("services", "research", "research.controller.ts"),
@@ -176,7 +174,6 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
     "architectures",
     "wireframes",
     "assets",
-    "designs",
     "reviews",
   ]) {
     assert.match(mcpService, new RegExp(`this\\.${domain}Service\\.list\\s*\\(`));
@@ -191,7 +188,7 @@ test("MCP는 schema context와 project 조회를 노출하고 revision 상태를
   );
 });
 
-test("MCP의 26개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
+test("MCP의 24개 mutation tool은 공통 execute 경계로 결과를 직렬화한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
   const mutationTools = [
     "create_project",
@@ -207,8 +204,6 @@ test("MCP의 26개 mutation tool은 공통 execute 경계로 결과를 직렬화
     "update_erd",
     "create_task",
     "update_task",
-    "create_design",
-    "update_design",
     "create_wireframe",
     "update_wireframe",
     "create_asset",
@@ -238,7 +233,7 @@ test("MCP의 26개 mutation tool은 공통 execute 경계로 결과를 직렬화
     );
   }
 
-  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 42);
+  assert.equal((mcpService.match(/this\.execute\s*\(/g) ?? []).length, 39);
   assert.doesNotMatch(mcpService, /\bAGENT\b/);
   assert.doesNotMatch(mcpService, /executeMutation|publishProjectChange/);
 });
@@ -318,7 +313,6 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
     ["DbService", "dbService", ["list", "create", "update"]],
     ["ErdService", "erdService", ["list", "create", "update"]],
     ["ArchitecturesService", "architecturesService", ["list", "upsert"]],
-    ["DesignsService", "designsService", ["list", "create", "update"]],
     ["WireframesService", "wireframesService", ["list", "create", "update"]],
     ["AssetsService", "assetsService", ["list", "create", "update"]],
     ["FilesService", "filesService", ["list", "create", "update", "delete"]],
@@ -344,21 +338,21 @@ test("McpService는 도구 요청을 각 도메인 service로 위임한다", () 
 
   assert.doesNotMatch(
     mcpService,
-    /plansService\.createVersion\s*\(|(?:research|designs|wireframes|assets)Service\.save\s*\(/,
+    /plansService\.createVersion\s*\(|(?:research|wireframes|assets)Service\.save\s*\(/,
   );
 });
 
 test("Project 산출물 생성 도구와 domain service는 taskId 없이 project에 직접 저장한다", () => {
   const mcpService = source("mcp/mcp.service.ts");
 
-  for (const toolName of ["create_wireframe", "create_asset", "create_design"]) {
+  for (const toolName of ["create_wireframe", "create_asset"]) {
     const toolBlock = registeredToolBlock(mcpService, toolName);
 
     assert.match(toolBlock, /projectId:\s*projectIdSchema/);
     assert.doesNotMatch(toolBlock, /\btaskId\b|\bplanId\b/);
   }
 
-  for (const domain of ["assets", "wireframes", "designs"]) {
+  for (const domain of ["assets", "wireframes"]) {
     const service = source(`services/${domain}/${domain}.service.ts`);
 
     assert.match(service, /projectId:\s*number/);
@@ -367,7 +361,7 @@ test("Project 산출물 생성 도구와 domain service는 taskId 없이 project
   }
 });
 
-test("Asset, Wireframe, Design MCP 입력은 완전한 HTML이고 service는 공통 validator에 결합되지 않는다", () => {
+test("Asset과 Wireframe MCP 입력은 완전한 HTML이고 service는 공통 validator에 결합되지 않는다", () => {
   const mcpService = source("mcp/mcp.service.ts");
 
   assert.equal(existsSync(sourcePath("common/html-artifact.ts")), false);
@@ -376,14 +370,14 @@ test("Asset, Wireframe, Design MCP 입력은 완전한 HTML이고 service는 공
     mcpService,
     /const htmlSchema\s*=\s*z\s*\.string\(\)[\s\S]*?Complete HTML document/,
   );
-  for (const toolName of ["create_wireframe", "create_asset", "create_design"]) {
+  for (const toolName of ["create_wireframe", "create_asset"]) {
     assert.match(
       mcpService,
       new RegExp(`"${toolName}"[\\s\\S]*?html:\\s*htmlSchema`),
     );
   }
 
-  for (const domain of ["assets", "wireframes", "designs"]) {
+  for (const domain of ["assets", "wireframes"]) {
     const service = source(`services/${domain}/${domain}.service.ts`);
     assert.match(service, /html:\s*string/);
     assert.doesNotMatch(service, /assertHtmlArtifact|html-artifact/);
@@ -432,8 +426,8 @@ test("ERD MCP와 service는 legacy payload 대신 검증된 Dineug v3 document�
   );
 });
 
-test("Asset, Wireframe, Design, Review는 Plan과 Task 없이 Project가 직접 소유한다", () => {
-  for (const domain of ["assets", "wireframes", "designs"]) {
+test("Asset, Wireframe, Review는 Plan과 Task 없이 Project가 직접 소유한다", () => {
+  for (const domain of ["assets", "wireframes"]) {
     const service = source(`services/${domain}/${domain}.service.ts`);
 
     assert.match(service, /data:\s*\{[\s\S]*?projectId/);
@@ -446,9 +440,6 @@ test("Asset, Wireframe, Design, Review는 Plan과 Task 없이 Project가 직접 
   assert.match(reviewsService, /data:\s*\{\s*projectId\s*,\s*title\s*,\s*content\s*\}/);
   assert.doesNotMatch(reviewsService, /PlansService|ensurePlan|\bplanId\b/);
 
-  const designsService = source("services/designs/designs.service.ts");
-  assert.match(designsService, /assertRelatedProject\s*\(\s*wireframe\s*,\s*projectId/);
-  assert.match(designsService, /assertRelatedProject\s*\(\s*asset\s*,\s*projectId/);
 });
 
 test("McpModule은 각 도메인 모듈을 조립하고 McpService만 제공한다", () => {
@@ -464,7 +455,6 @@ test("McpModule은 각 도메인 모듈을 조립하고 McpService만 제공한�
     "DomainsModule",
     "ArchitecturesModule",
     "WireframesModule",
-    "DesignsModule",
     "ReviewsModule",
     "RequestsModule",
     "WorklogsModule",

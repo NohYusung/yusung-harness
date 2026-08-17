@@ -2,7 +2,6 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createAsset,
-  createDesign,
   createPlan,
   createProjectContext,
   createProjectSummary,
@@ -87,11 +86,10 @@ describe("Dashboard", () => {
     for (const label of [
       "Plans",
       "Research",
-      "Domain",
+      "Domains",
       "Architecture",
       "Wireframes",
       "Assets",
-      "Designs",
       "Reviews",
     ]) {
       expect(
@@ -123,35 +121,27 @@ describe("Dashboard", () => {
   });
 
   it("HTML record 상세 영역에서 sandboxed iframe을 즉시 렌더한다", () => {
-    const asset = createAsset({ id: 51, title: "Preview asset" });
-    const wireframe = createWireframe({ id: 52, title: "Preview wireframe" });
-    const design = createDesign({
-      asset,
-      assetId: asset.id,
+    const asset = createAsset({
       html: "<!doctype html><html><body>Workbench preview state</body></html>",
-      id: 53,
-      title: "Preview design",
-      wireframe,
-      wireframeId: wireframe.id,
+      id: 51,
+      title: "Preview asset",
     });
     const context = createProjectContext({
       assets: [asset],
-      designs: [design],
-      wireframes: [wireframe],
     });
 
     render(
       <Dashboard
-        activeRelation="designs"
+        activeRelation="assets"
         context={context}
         projects={[createProjectSummary(context)]}
-        selectedArtifactId={design.id}
+        selectedArtifactId={asset.id}
         selectedTaskId={null}
       />,
     );
 
     const detailPane = screen.getByRole("complementary", {
-      name: "Preview design",
+      name: "Preview asset",
     });
     expect(
       within(detailPane).queryByRole("tablist", { name: "Record details" }),
@@ -167,13 +157,13 @@ describe("Dashboard", () => {
     ).toBeInTheDocument();
     expect(detailPane.querySelector("dl")).not.toBeNull();
     expect(
-      within(detailPane).getByText("Design", { selector: "dd" }),
+      within(detailPane).getByText("Asset", { selector: "dd" }),
     ).toBeInTheDocument();
     expect(document.querySelector("#preview-panel")).toBeNull();
     expect(document.querySelector("#relations-panel")).toBeNull();
 
     const preview = within(detailPane).getByTitle(
-      "Preview design HTML preview · Desktop 1440 × 900",
+      "Preview asset HTML preview",
     );
     expect(preview).toHaveAttribute(
       "srcdoc",
@@ -185,14 +175,14 @@ describe("Dashboard", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: "Open Design preview" }),
+      screen.queryByRole("button", { name: "Open Asset preview" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Open isolated preview" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("complementary", {
-        name: "Design preview: Preview design",
+        name: "Asset preview: Preview asset",
       }),
     ).not.toBeInTheDocument();
   });

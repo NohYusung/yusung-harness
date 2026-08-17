@@ -4,7 +4,6 @@ import type { ZodType } from "zod";
 import {
   architectureListResponseSchema,
   assetListResponseSchema,
-  designListResponseSchema,
   databaseListResponseSchema,
   domainListResponseSchema,
   erdListResponseSchema,
@@ -25,7 +24,6 @@ import type {
   Asset,
   CreateRequestInput,
   Database,
-  Design,
   Domain,
   Erd,
   ListResponse,
@@ -167,11 +165,6 @@ export function getAssets(projectId: number): Promise<Asset[]> {
   return getProjectResource(projectId, "assets", assetListResponseSchema);
 }
 
-/** 프로젝트의 Design 목록을 조회한다. */
-export function getDesigns(projectId: number): Promise<Design[]> {
-  return getProjectResource(projectId, "designs", designListResponseSchema);
-}
-
 /** 프로젝트의 Review 목록을 조회한다. */
 export function getReviews(projectId: number): Promise<Review[]> {
   return getProjectResource(projectId, "reviews", reviewListResponseSchema);
@@ -261,7 +254,6 @@ export async function getProjectDashboard(
     architectures,
     wireframes,
     assets,
-    designs,
     reviews,
     requests,
     workLogs,
@@ -278,7 +270,6 @@ export async function getProjectDashboard(
     getArchitectures(projectId),
     getWireframes(projectId),
     getAssets(projectId),
-    getDesigns(projectId),
     getReviews(projectId),
     getRequests(projectId),
     getWorkLogs(projectId),
@@ -295,7 +286,7 @@ export async function getProjectDashboard(
   /** Plan 선택 전에는 Plan 응답에 포함된 Task를 프로젝트 목록으로 사용한다. */
   const tasks = selectedPlanTasks ?? plans.flatMap((plan) => plan.tasks);
 
-  /** `_count`를 제외한 기본 필드와 9종 목록으로 context를 완성한다. */
+  /** `_count`를 제외한 기본 필드와 산출물 목록으로 context를 완성한다. */
   return {
     projects,
     context: {
@@ -310,7 +301,6 @@ export async function getProjectDashboard(
       architectures,
       wireframes,
       assets,
-      designs,
       reviews,
       requests,
       workLogs,

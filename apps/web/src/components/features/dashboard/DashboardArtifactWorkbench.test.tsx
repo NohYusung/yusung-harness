@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createArtifact,
   createAsset,
-  createDesign,
   createDomain,
   createErd,
   createPlan,
@@ -132,14 +131,6 @@ function createWorkbenchFixture() {
     id: 70,
     title: "Workbench interface tokens",
   });
-  const design = createDesign({
-    asset,
-    assetId: asset.id,
-    id: 80,
-    title: "Workbench production UI",
-    wireframe,
-    wireframeId: wireframe.id,
-  });
   const context = createProjectContext({
     architectures: [
       {
@@ -149,7 +140,6 @@ function createWorkbenchFixture() {
       },
     ],
     assets: [asset],
-    designs: [design],
     domains: [
       createDomain({ id: 40, title: "Harness business domain" }),
     ],
@@ -197,13 +187,7 @@ function getWorkbenchLayout() {
   return { topbar, viewportLayout, workspace };
 }
 
-function renderPreviewNavigationWorkbench({
-  includeTargetDesign = true,
-  initialRelation = "designs",
-}: {
-  includeTargetDesign?: boolean;
-  initialRelation?: "designs" | "wireframes";
-} = {}) {
+function renderPreviewNavigationWorkbench() {
   const sourceWireframe = createWireframe({
     html: '<!doctype html><html><body><a data-wireframe-index="1.2" href="./target.html">Target</a></body></html>',
     id: 160,
@@ -215,49 +199,23 @@ function renderPreviewNavigationWorkbench({
     index: "1.2",
     title: "Target wireframe",
   });
-  const asset = createAsset({ id: 170, title: "Shared design asset" });
-  const sourceDesign = createDesign({
-    asset,
-    assetId: asset.id,
-    html: '<!doctype html><html><body><a data-wireframe-index="1.2" href="./target.html">Target</a></body></html>',
-    id: 180,
-    title: "Source design",
-    wireframe: sourceWireframe,
-    wireframeId: sourceWireframe.id,
-  });
-  const targetDesign = createDesign({
-    asset,
-    assetId: asset.id,
-    id: 181,
-    title: "Target sibling design",
-    wireframe: targetWireframe,
-    wireframeId: targetWireframe.id,
-  });
   const context = createProjectContext({
-    assets: [asset],
-    designs: includeTargetDesign
-      ? [sourceDesign, targetDesign]
-      : [sourceDesign],
     wireframes: [sourceWireframe, targetWireframe],
   });
   const projects = [createProjectSummary(context)];
-  const selectedArtifactId =
-    initialRelation === "designs" ? sourceDesign.id : sourceWireframe.id;
   const rendered = render(
     <Dashboard
-      activeRelation={initialRelation}
+      activeRelation="wireframes"
       context={context}
       projects={projects}
-      selectedArtifactId={selectedArtifactId}
+      selectedArtifactId={sourceWireframe.id}
       selectedTaskId={null}
     />,
   );
 
   return {
     ...rendered,
-    sourceDesign,
     sourceWireframe,
-    targetDesign,
     targetWireframe,
   };
 }
@@ -289,7 +247,7 @@ function dispatchPreviewScroll(
   );
 }
 
-/** Wireframe과 Design의 기본 Dashboard viewport title을 일관되게 조회한다. */
+/** Wireframe의 기본 Dashboard viewport title을 일관되게 조회한다. */
 function getDesktopHtmlPreviewTitle(title: string): string {
   return `${title} HTML preview · Desktop 1440 × 900`;
 }
@@ -709,7 +667,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(previewCanvas.scrollTop).toBe(0);
   });
 
-  it("선택 record가 바뀌어도 Wireframe과 Design preview viewport를 세션 동안 유지한다", () => {
+  it("선택 Wireframe record가 바뀌어도 preview viewport를 세션 동안 유지한다", () => {
     renderWorkbench();
     fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
     fireEvent.click(
@@ -723,7 +681,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       screen.getByRole("option", { name: /ID target wireframe/ }),
     );
 
-    let detailPane = screen.getByRole("complementary", {
+    const detailPane = screen.getByRole("complementary", {
       name: "ID target wireframe",
     });
     expect(
@@ -735,21 +693,6 @@ describe("Dashboard artifact workbench visual contract", () => {
       ),
     ).toHaveStyle({ height: "844px", width: "390px" });
 
-    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
-    fireEvent.click(
-      screen.getByRole("option", { name: /Workbench production UI/ }),
-    );
-    detailPane = screen.getByRole("complementary", {
-      name: "Workbench production UI",
-    });
-    expect(
-      within(detailPane).getByRole("button", { name: "Mobile 390 × 844" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      within(detailPane).getByTitle(
-        "Workbench production UI HTML preview · Mobile 390 × 844",
-      ),
-    ).toBeInTheDocument();
   });
 
   it.each([
@@ -1114,106 +1057,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     ).toBeInTheDocument();
   });
 
-  it("Designs 목록은 All versions 없이 실제 version을 최신순으로 제공하고 선택한 version만 표시한다", () => {
-    const wireframe = createWireframe({ id: 700, version: 4 });
-    const asset = createAsset({ id: 710 });
-    const latestDesign = {
-      ...createDesign({
-        asset,
-        assetId: asset.id,
-        id: 720,
-        title: "Latest portfolio design",
-        wireframe,
-        wireframeId: wireframe.id,
-      }),
-      version: 3,
-    };
-    const latestDetailDesign = {
-      ...createDesign({
-        asset,
-        assetId: asset.id,
-        id: 721,
-        title: "Latest portfolio detail design",
-        wireframe,
-        wireframeId: wireframe.id,
-      }),
-      version: 3,
-    };
-    const previousDesign = {
-      ...createDesign({
-        asset,
-        assetId: asset.id,
-        id: 722,
-        title: "Previous portfolio design",
-        wireframe,
-        wireframeId: wireframe.id,
-      }),
-      version: 2,
-    };
-    const context = createProjectContext({
-      assets: [asset],
-      designs: [previousDesign, latestDesign, latestDetailDesign],
-      wireframes: [wireframe],
-    });
-
-    render(
-      <Dashboard
-        activeRelation="designs"
-        context={context}
-        projects={[createProjectSummary(context)]}
-        selectedArtifactId={null}
-        selectedTaskId={null}
-      />,
-    );
-
-    const records = screen.getByRole("listbox", { name: "Artifact records" });
-    expect(
-      screen.queryByRole("combobox", { name: "Status" }),
-    ).not.toBeInTheDocument();
-    const versionFilter = screen.getByRole("combobox", { name: "Version" });
-    expect(
-      within(versionFilter).getAllByRole("option").map((option) => ({
-        label: option.textContent,
-        value: (option as HTMLOptionElement).value,
-      })),
-    ).toEqual([
-      { label: "v3", value: "3" },
-      { label: "v2", value: "2" },
-    ]);
-    expect(
-      within(versionFilter).queryByRole("option", { name: "All versions" }),
-    ).not.toBeInTheDocument();
-    expect(versionFilter).toHaveValue("3");
-    expect(within(records).getAllByRole("option")).toHaveLength(2);
-    expect(
-      within(records).getByRole("option", { name: /Latest portfolio design/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(records).getByRole("option", {
-        name: /Latest portfolio detail design/,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      within(records).queryByRole("option", {
-        name: /Previous portfolio design/,
-      }),
-    ).not.toBeInTheDocument();
-
-    fireEvent.change(versionFilter, { target: { value: "2" } });
-    expect(within(records).getAllByRole("option")).toHaveLength(1);
-    expect(
-      within(records).getByRole("option", {
-        name: /Previous portfolio design/,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      within(records).queryByRole("option", {
-        name: /Latest portfolio design/,
-      }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("Wireframe과 Design은 relation 전환 시 각 relation의 최신 Version으로 시작한다", () => {
+  it("Wireframe relation을 다시 선택하면 최신 Version으로 시작한다", () => {
     const wireframeV4 = createWireframe({
       id: 730,
       title: "Wireframe v4",
@@ -1226,31 +1070,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     });
     const wireframes = [wireframeV4, wireframeV2];
     const asset = createAsset({ id: 740 });
-    const designs = [
-      {
-        ...createDesign({
-          asset,
-          assetId: asset.id,
-          id: 750,
-          title: "Design v3",
-          wireframe: wireframeV4,
-          wireframeId: wireframeV4.id,
-        }),
-        version: 3,
-      },
-      {
-        ...createDesign({
-          asset,
-          assetId: asset.id,
-          id: 751,
-          title: "Design v2",
-          wireframe: wireframeV2,
-          wireframeId: wireframeV2.id,
-        }),
-        version: 2,
-      },
-    ];
-    const context = createProjectContext({ assets: [asset], designs, wireframes });
+    const context = createProjectContext({ assets: [asset], wireframes });
 
     render(
       <Dashboard
@@ -1273,11 +1093,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     });
     expect(within(records).getAllByRole("option")).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
-    expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
-      "3",
-    );
-    expect(within(records).getAllByRole("option")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /Assets/ }));
 
     fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
     expect(screen.getByRole("combobox", { name: "Version" })).toHaveValue(
@@ -1625,12 +1441,6 @@ describe("Dashboard artifact workbench visual contract", () => {
         rowName: /Workbench interface tokens/,
         typeLabel: "Asset",
       },
-      {
-        contentTitle: getDesktopHtmlPreviewTitle("Workbench production UI"),
-        relationName: /Designs/,
-        rowName: /Workbench production UI/,
-        typeLabel: "Design",
-      },
     ];
 
     for (const testCase of cases) {
@@ -1802,7 +1612,6 @@ describe("Dashboard artifact workbench visual contract", () => {
       "Architecture",
       "Wireframes",
       "Assets",
-      "Designs",
       "Reviews",
     ]) {
       expect(
@@ -1963,42 +1772,9 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
   });
 
-  it("Design의 상대 HTML navigation은 같은 Asset의 대상 Wireframe Design을 선택한다", () => {
-    const { sourceDesign, targetDesign, targetWireframe } =
-      renderPreviewNavigationWorkbench();
-    const sourcePreview = screen.getByTitle(
-      getDesktopHtmlPreviewTitle(sourceDesign.title),
-    ) as HTMLIFrameElement;
-
-    expect(sourcePreview).toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining(
-        `data-wireframe-index="${targetWireframe.index}"`,
-      ),
-    );
-    fireEvent(
-      window,
-      new MessageEvent("message", {
-        data: {
-          type: "YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE",
-          wireframeIndex: targetWireframe.index,
-        },
-        source: sourcePreview.contentWindow,
-      }),
-    );
-
-    expect(
-      screen.getByRole("complementary", { name: targetDesign.title }),
-    ).toBeInTheDocument();
-    expect(routerReplace).toHaveBeenLastCalledWith(
-      `/projects/1?type=designs&id=${targetDesign.id}`,
-      { scroll: false },
-    );
-  });
-
   it("Wireframe의 상대 HTML navigation은 기존 대상 Wireframe 선택을 유지한다", () => {
     const { sourceWireframe, targetWireframe } =
-      renderPreviewNavigationWorkbench({ initialRelation: "wireframes" });
+      renderPreviewNavigationWorkbench();
     const sourcePreview = screen.getByTitle(
       getDesktopHtmlPreviewTitle(sourceWireframe.title),
     ) as HTMLIFrameElement;
@@ -2023,31 +1799,6 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
   });
 
-  it("대상 Wireframe의 형제 Design이 없으면 현재 Design과 URL을 유지한다", () => {
-    const { sourceDesign, targetWireframe } = renderPreviewNavigationWorkbench({
-      includeTargetDesign: false,
-    });
-    const sourcePreview = screen.getByTitle(
-      getDesktopHtmlPreviewTitle(sourceDesign.title),
-    ) as HTMLIFrameElement;
-
-    fireEvent(
-      window,
-      new MessageEvent("message", {
-        data: {
-          type: "YUSUNG_HARNESS_HTML_PREVIEW_NAVIGATE",
-          wireframeIndex: targetWireframe.index,
-        },
-        source: sourcePreview.contentWindow,
-      }),
-    );
-
-    expect(
-      screen.getByRole("complementary", { name: sourceDesign.title }),
-    ).toBeInTheDocument();
-    expect(routerReplace).not.toHaveBeenCalled();
-  });
-
   it("Cmd/Ctrl+K, Escape, relation/status filter로 현재 목록을 좁힌다", () => {
     renderWorkbench();
 
@@ -2068,14 +1819,14 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(search).not.toHaveFocus();
     expect(within(records).getAllByRole("option")).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
-    expect(screen.getByRole("button", { name: /Designs/ })).toHaveAttribute(
+    fireEvent.click(screen.getByRole("button", { name: /Assets/ }));
+    expect(screen.getByRole("button", { name: /Assets/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(within(records).getAllByRole("option")).toHaveLength(1);
     expect(
-      within(records).getByRole("option", { name: /Workbench production UI/ }),
+      within(records).getByRole("option", { name: /Workbench interface tokens/ }),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Plans/ }));
@@ -2146,29 +1897,29 @@ describe("Dashboard artifact workbench visual contract", () => {
     renderWorkbench();
 
     const records = screen.getByRole("listbox", { name: "Artifact records" });
-    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
-    const designRow = within(records).getByRole("option", {
-      name: /Workbench production UI/,
+    fireEvent.click(screen.getByRole("button", { name: /Assets/ }));
+    const assetRow = within(records).getByRole("option", {
+      name: /Workbench interface tokens/,
     });
 
-    fireEvent.click(designRow);
-    expect(designRow).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(assetRow);
+    expect(assetRow).toHaveAttribute("aria-selected", "true");
     const detailPane = screen.getByRole("complementary", {
-      name: "Workbench production UI",
+      name: "Workbench interface tokens",
     });
     expect(
       within(detailPane).getByRole("heading", {
         level: 2,
-        name: "Workbench production UI",
+        name: "Workbench interface tokens",
       }),
     ).toBeInTheDocument();
 
     const metadataContent = getMetadataContent(detailPane);
     expect(
       within(metadataContent).getByTitle(
-        getDesktopHtmlPreviewTitle("Workbench production UI"),
+        "Workbench interface tokens HTML preview",
       ),
-    ).toHaveAttribute("srcdoc", expect.stringContaining("Production design"));
+    ).toHaveAttribute("srcdoc", expect.stringContaining("Logo and color palette"));
     expect(
       within(detailPane).getByText("Record metadata"),
     ).toBeInTheDocument();
@@ -2188,15 +1939,15 @@ describe("Dashboard artifact workbench visual contract", () => {
     renderWorkbench();
 
     const records = screen.getByRole("listbox", { name: "Artifact records" });
-    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Wireframes/ }));
     fireEvent.click(
       within(records).getByRole("option", {
-        name: /Workbench production UI/,
+        name: /Artifact workbench flow/,
       }),
     );
 
     const detailPane = screen.getByRole("complementary", {
-      name: "Workbench production UI",
+      name: "Artifact workbench flow",
     });
     const recordDetails = within(detailPane).getByRole("region", {
       name: "Record details",
@@ -2208,7 +1959,7 @@ describe("Dashboard artifact workbench visual contract", () => {
       "[data-record-preview]",
     );
     const previewFrame = within(recordDetails).getByTitle(
-      getDesktopHtmlPreviewTitle("Workbench production UI"),
+      getDesktopHtmlPreviewTitle("Artifact workbench flow"),
     ) as HTMLIFrameElement;
 
     expect(metadataWrapper).not.toBeNull();
@@ -2232,15 +1983,15 @@ describe("Dashboard artifact workbench visual contract", () => {
   });
 
   it("다른 HTML record를 선택하면 Metadata 접힘 상태를 초기화한다", () => {
-    const { sourceDesign, targetDesign } = renderPreviewNavigationWorkbench();
+    const { sourceWireframe, targetWireframe } = renderPreviewNavigationWorkbench();
     const sourcePreview = screen.getByTitle(
-      getDesktopHtmlPreviewTitle(sourceDesign.title),
+      getDesktopHtmlPreviewTitle(sourceWireframe.title),
     ) as HTMLIFrameElement;
 
     dispatchPreviewScroll(sourcePreview, 160);
 
     let detailPane = screen.getByRole("complementary", {
-      name: sourceDesign.title,
+      name: sourceWireframe.title,
     });
     expect(
       within(detailPane).getByRole("region", { name: "Record details" }),
@@ -2248,12 +1999,12 @@ describe("Dashboard artifact workbench visual contract", () => {
 
     fireEvent.click(
       screen.getByRole("option", {
-        name: new RegExp(targetDesign.title, "i"),
+        name: new RegExp(targetWireframe.title, "i"),
       }),
     );
 
     detailPane = screen.getByRole("complementary", {
-      name: targetDesign.title,
+      name: targetWireframe.title,
     });
     const nextRecordDetails = within(detailPane).getByRole("region", {
       name: "Record details",
@@ -2274,53 +2025,6 @@ describe("Dashboard artifact workbench visual contract", () => {
       "data-preview-expanded",
       "false",
     );
-  });
-
-  it("Design Metadata에 연결된 Asset ID와 Wireframe ID만 표시한다", () => {
-    renderWorkbench();
-
-    const records = screen.getByRole("listbox", { name: "Artifact records" });
-    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
-    fireEvent.click(
-      within(records).getByRole("option", {
-        name: /Workbench production UI/,
-      }),
-    );
-
-    let detailPane = screen.getByRole("complementary", {
-      name: "Workbench production UI",
-    });
-    let metadataContent = getMetadataContent(detailPane);
-    const assetIdLabel = within(metadataContent).getByText("Asset ID", {
-      selector: "dt",
-    });
-    const wireframeIdLabel = within(metadataContent).getByText(
-      "Wireframe ID",
-      { selector: "dt" },
-    );
-
-    expect(assetIdLabel.nextElementSibling).toHaveTextContent(/^70$/);
-    expect(wireframeIdLabel.nextElementSibling).toHaveTextContent(/^60$/);
-
-    fireEvent.click(screen.getByRole("button", { name: /Assets/ }));
-    fireEvent.click(
-      within(records).getByRole("option", {
-        name: /Workbench interface tokens/,
-      }),
-    );
-
-    detailPane = screen.getByRole("complementary", {
-      name: "Workbench interface tokens",
-    });
-    metadataContent = getMetadataContent(detailPane);
-    expect(
-      within(metadataContent).queryByText("Asset ID", { selector: "dt" }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(metadataContent).queryByText("Wireframe ID", {
-        selector: "dt",
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it.each([
@@ -2355,22 +2059,6 @@ describe("Dashboard artifact workbench visual contract", () => {
       },
       kind: "Asset",
       marker: "Metadata asset marker",
-    },
-    {
-      activeRelation: "designs" as const,
-      buildContext: () => {
-        const record = createDesign({
-          html: "<!doctype html><html><head></head><body>Metadata design marker</body></html>",
-          id: 81,
-          title: "Metadata design",
-        });
-        return {
-          context: createProjectContext({ designs: [record] }),
-          record,
-        };
-      },
-      kind: "Design",
-      marker: "Metadata design marker",
     },
   ])(
     "$kind Metadata에 record HTML iframe을 즉시 렌더한다",
@@ -2449,18 +2137,6 @@ describe("Dashboard artifact workbench visual contract", () => {
       expectedIndex: null,
       kind: "Asset",
     },
-    {
-      activeRelation: "designs" as const,
-      buildContext: () => {
-        const record = createDesign({ id: 633, title: "Unindexed design" });
-        return {
-          context: createProjectContext({ designs: [record] }),
-          record,
-        };
-      },
-      expectedIndex: null,
-      kind: "Design",
-    },
   ])(
     "$kind Metadata의 Index 행을 record type에 맞게 표시한다",
     ({ activeRelation, buildContext, expectedIndex }) => {
@@ -2510,10 +2186,8 @@ describe("Dashboard artifact workbench visual contract", () => {
       title: "Case study detail",
     });
     const asset = createAsset({ id: 632, title: "Hierarchy-free asset" });
-    const design = createDesign({ id: 633, title: "Hierarchy-free design" });
     const context = createProjectContext({
       assets: [asset],
-      designs: [design],
       wireframes: [parentWireframe, childWireframe],
     });
 
@@ -2571,10 +2245,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
     expect(parentRelation).toHaveClass("sr-only");
 
-    for (const testCase of [
-      { relation: /Assets/, record: asset },
-      { relation: /Designs/, record: design },
-    ]) {
+    for (const testCase of [{ relation: /Assets/, record: asset }]) {
       fireEvent.click(screen.getByRole("button", { name: testCase.relation }));
       const row = within(records).getByRole("option", {
         name: new RegExp(testCase.record.title),
@@ -2650,20 +2321,14 @@ describe("Dashboard artifact workbench visual contract", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("Asset과 Design도 Metadata의 inline HTML iframe 경로를 사용한다", () => {
+  it("Asset도 Metadata의 inline HTML iframe 경로를 사용한다", () => {
     const asset = createAsset({
       html: "<!doctype html><html><head></head><body>Inline asset marker</body></html>",
       id: 70,
       title: "Inline asset",
     });
-    const design = createDesign({
-      html: "<!doctype html><html><head></head><body>Inline design marker</body></html>",
-      id: 80,
-      title: "Inline design",
-    });
     const context = createProjectContext({
       assets: [asset],
-      designs: [design],
     });
 
     render(
@@ -2676,29 +2341,13 @@ describe("Dashboard artifact workbench visual contract", () => {
       />,
     );
 
-    let detailPane = screen.getByRole("complementary", {
+    const detailPane = screen.getByRole("complementary", {
       name: "Inline asset",
     });
     expect(
       within(detailPane).getByTitle("Inline asset HTML preview"),
     ).toHaveAttribute("srcdoc", expect.stringContaining("Inline asset marker"));
 
-    fireEvent.click(screen.getByRole("button", { name: /Designs/ }));
-    const records = screen.getByRole("listbox", { name: "Artifact records" });
-    fireEvent.click(
-      within(records).getByRole("option", { name: /Inline design/ }),
-    );
-    detailPane = screen.getByRole("complementary", {
-      name: "Inline design",
-    });
-    expect(
-      within(detailPane).getByTitle(
-        getDesktopHtmlPreviewTitle("Inline design"),
-      ),
-    ).toHaveAttribute(
-      "srcdoc",
-      expect.stringContaining("Inline design marker"),
-    );
     expect(
       within(detailPane).queryByRole("tab"),
     ).not.toBeInTheDocument();
@@ -2835,13 +2484,6 @@ describe("Dashboard artifact workbench visual contract", () => {
         relationName: /Assets/,
         role: "option",
         rowName: /Workbench interface tokens/,
-        status: "HTML",
-        typeLabelOccurrences: 0,
-      },
-      {
-        relationName: /Designs/,
-        role: "option",
-        rowName: /Workbench production UI/,
         status: "HTML",
         typeLabelOccurrences: 0,
       },

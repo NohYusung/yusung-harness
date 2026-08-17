@@ -4,7 +4,6 @@ import type {
   ArtifactRecord,
   Asset,
   Database,
-  Design,
   Domain,
   Erd,
   Plan,
@@ -85,22 +84,6 @@ export function createWireframe(
     index: "1",
     version: 1,
     html: "<!doctype html><html><head><title>User journey</title></head><body><a href='#next'>Next</a><section id='next'>Next step</section></body></html>",
-    ...overrides,
-  };
-}
-
-export function createDesign(overrides: Partial<Design> = {}): Design {
-  const asset = overrides.asset ?? createAsset();
-  const wireframe = overrides.wireframe ?? createWireframe();
-
-  return {
-    ...createArtifactRecord({ title: "Design" }),
-    assetId: asset.id,
-    wireframeId: wireframe.id,
-    version: 1,
-    asset,
-    wireframe,
-    html: "<!doctype html><html><head><style>body{color:#171b2a}</style></head><body><main>Production design</main></body></html>",
     ...overrides,
   };
 }
@@ -280,7 +263,6 @@ export function createProjectContext(
     architectures: [],
     wireframes: [],
     assets: [],
-    designs: [],
     requests: [],
     reviews: [],
     workLogs: [],
@@ -309,7 +291,6 @@ export function createProjectSummary(
       architectures: architectureWorkspaceCount,
       wireframes: context.wireframes.length,
       assets: context.assets.length,
-      designs: context.designs.length,
       requests: context.requests.length,
       reviews: context.reviews.length,
       workLogs: context.workLogs.length,

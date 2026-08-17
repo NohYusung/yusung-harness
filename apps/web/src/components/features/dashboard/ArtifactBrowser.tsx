@@ -40,7 +40,6 @@ export type WorkspaceRelation =
   | "architectures"
   | "wireframes"
   | "assets"
-  | "designs"
   | "requests"
   | "workLogs"
   | "databases"
@@ -142,11 +141,6 @@ const relationConfig: Record<
     label: "Asset",
     tone: "bg-warning-soft text-warning",
   },
-  designs: {
-    code: "DS",
-    label: "Design",
-    tone: "bg-success-soft text-success",
-  },
   requests: {
     code: "RQ",
     label: "Request",
@@ -205,11 +199,6 @@ function getEntries(
     return context.wireframes.map((artifact) => ({ artifact, relation }));
   }
 
-  /** Design workspace는 HTML preview record를 제공한다. */
-  if (relation === "designs") {
-    return context.designs.map((artifact) => ({ artifact, relation }));
-  }
-
   /** Request workspace는 lifecycle 상태가 포함된 text 문서를 제공한다. */
   if (relation === "requests") {
     return context.requests.map((artifact) => ({ artifact, relation }));
@@ -237,12 +226,8 @@ function getEntries(
 /** HTML workspace 여부를 좁혀 text content detail과 preview detail을 분기한다. */
 function isHtmlWorkspaceRelation(
   relation: WorkspaceRelation,
-): relation is "wireframes" | "assets" | "designs" {
-  return (
-    relation === "wireframes" ||
-    relation === "assets" ||
-    relation === "designs"
-  );
+): relation is "wireframes" | "assets" {
+  return relation === "wireframes" || relation === "assets";
 }
 
 function getEntryMeta(entry: ArtifactEntry): string {
@@ -299,7 +284,6 @@ function getHtmlArtifactKind(
   relation: WorkspaceRelation,
 ): HtmlArtifactKind {
   if (relation === "wireframes") return "Wireframe";
-  if (relation === "designs") return "Design";
   if (relation === "assets") return "Asset";
 
   throw new Error(`${relation} does not contain an HTML artifact.`);
@@ -321,9 +305,6 @@ function getHtmlArtifactSelection(
     }
     if (key.kind === "Wireframe") {
       return context.wireframes.find((wireframe) => wireframe.id === key.id);
-    }
-    if (key.kind === "Design") {
-      return context.designs.find((design) => design.id === key.id);
     }
     return undefined;
   })();
@@ -583,7 +564,7 @@ function ErdArtifactDetails({
   );
 }
 
-/** Wireframe/Asset/Design의 HTML을 본문 문자열로 노출하지 않고 side preview로 연다. */
+/** Wireframe/Asset의 HTML을 본문 문자열로 노출하지 않고 side preview로 연다. */
 function HtmlArtifactDetails({
   entry,
   headingRef,
@@ -668,16 +649,6 @@ function RecordRelations({
       </ul>
     ) : (
       <p className="text-sm leading-6 text-muted">No linked records.</p>
-    );
-  }
-
-  if (entry.relation === "designs") {
-    const design = entry.artifact as ProjectContext["designs"][number];
-    return (
-      <ul className="space-y-2">
-        <RelationRow label="Asset" value={design.asset.title} />
-        <RelationRow label="Wireframe" value={design.wireframe.title} />
-      </ul>
     );
   }
 
