@@ -1,5 +1,4 @@
-import type { ProjectContext } from "@/types/dashboard";
-import type { WorkspaceRelation } from "./ArtifactBrowser";
+import type { ProjectContext, WorkspaceRelation } from "@/types/dashboard";
 import {
   ProjectWorkspaceNavScroller,
   type ProjectWorkspaceNavItem,

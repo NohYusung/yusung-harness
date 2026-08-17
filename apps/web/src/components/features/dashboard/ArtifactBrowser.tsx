@@ -29,21 +29,10 @@ import type {
   ProjectContext,
   Request,
   Research,
+  Review,
   Task,
+  WorkspaceRelation,
 } from "@/types/dashboard";
-
-/** 상단 workspace 메뉴와 URL type query가 공유하는 relation. */
-export type WorkspaceRelation =
-  | "plans"
-  | "research"
-  | "domains"
-  | "architectures"
-  | "wireframes"
-  | "assets"
-  | "requests"
-  | "workLogs"
-  | "databases"
-  | "erds";
 
 /** ArtifactBrowser의 text 문서와 HTML 문서 record union. */
 type WorkspaceArtifact =
@@ -53,6 +42,7 @@ type WorkspaceArtifact =
   | Architecture
   | Erd
   | Request
+  | Review
   | HtmlArtifactDocument;
 
 /** workspace relation과 해당 relation의 record를 묶은 목록 항목. */
@@ -141,6 +131,11 @@ const relationConfig: Record<
     label: "Asset",
     tone: "bg-warning-soft text-warning",
   },
+  reviews: {
+    code: "RV",
+    label: "Review",
+    tone: "bg-danger-soft text-danger",
+  },
   requests: {
     code: "RQ",
     label: "Request",
@@ -202,6 +197,11 @@ function getEntries(
   /** Request workspace는 lifecycle 상태가 포함된 text 문서를 제공한다. */
   if (relation === "requests") {
     return context.requests.map((artifact) => ({ artifact, relation }));
+  }
+
+  /** Review workspace는 현행 프로젝트를 평가한 Markdown 문서를 제공한다. */
+  if (relation === "reviews") {
+    return context.reviews.map((artifact) => ({ artifact, relation }));
   }
 
   /** WorkLog workspace는 작업 이력 Markdown 문서를 제공한다. */

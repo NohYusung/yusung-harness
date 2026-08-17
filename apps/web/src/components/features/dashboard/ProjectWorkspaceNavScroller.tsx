@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import type { WorkspaceRelation } from "./ArtifactBrowser";
+import type { WorkspaceRelation } from "@/types/dashboard";
 
 /** RSC 경계를 통과하는 단일 workspace 메뉴의 primitive 표시 정보. */
 export interface ProjectWorkspaceNavItem {

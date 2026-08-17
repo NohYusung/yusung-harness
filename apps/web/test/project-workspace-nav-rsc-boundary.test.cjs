@@ -18,7 +18,10 @@ test("ProjectWorkspaceNav server wrapper는 context를 primitive nav items로 �
 
   assert.doesNotMatch(wrapper, /^[\s\S]*?["']use client["']/);
   assert.doesNotMatch(wrapper, /\buseEffect\b|\buseRef\b|scrollIntoView/);
-  assert.match(wrapper, /import\s+type\s*\{\s*ProjectContext\s*\}/);
+  assert.match(
+    wrapper,
+    /import\s+type\s*\{[^}]*\bProjectContext\b[^}]*\bWorkspaceRelation\b[^}]*\}\s+from\s+["']@\/types\/dashboard["']/,
+  );
   assert.doesNotMatch(wrapper, /getLatestDomainErd|domain-erd/);
   assert.doesNotMatch(wrapper, /getLatestDeploymentArchitecture/);
   assert.match(
@@ -62,8 +65,12 @@ test("ProjectWorkspaceNavScroller client leaf는 primitive props와 active revea
   assert.match(scroller, /\bcount:\s*number/);
   assert.match(scroller, /\blabel:\s*string/);
   assert.match(scroller, /\brelation:\s*WorkspaceRelation/);
+  assert.match(
+    scroller,
+    /import\s+type\s*\{\s*WorkspaceRelation\s*\}\s+from\s+["']@\/types\/dashboard["']/,
+  );
   assert.doesNotMatch(
     scroller,
-    /ProjectContext|@\/types\/dashboard|domain-erd|deployment-architecture|\bfrom\s+["']zod["']/,
+    /ProjectContext|domain-erd|deployment-architecture|\bfrom\s+["']zod["']/,
   );
 });
