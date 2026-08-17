@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 SKILL_PATH = Path(__file__).resolve().parents[1] / "SKILL.md"
+CODE_SKILL_PATH = SKILL_PATH.parents[1] / "code" / "SKILL.md"
 CODE_SCRIPTS = SKILL_PATH.parents[1] / "code" / "scripts"
 INTEGRATION_SCRIPTS = SKILL_PATH.parent / "scripts"
 CONFIG_PATH = SKILL_PATH.parents[2] / "integration.toml"
@@ -134,6 +135,8 @@ class IntegrationSkillContractTests(unittest.TestCase):
             "worktree.py ready",
             "--branch",
             "--expected-head",
+            "--config-revision",
+            "--targeted-check-json",
             "merge.py prepare",
             "--source",
             "--target",
@@ -169,7 +172,8 @@ class IntegrationSkillContractTests(unittest.TestCase):
             'conflict_policy = "evidence-only"',
             "[verification.prepare.source]",
             "[verification.prepare.candidate]",
-            "[verification.source.",
+            "[verification.source.web-dashboard]",
+            "[verification.source.harness-policy]",
             "[verification.candidate.test]",
             "[verification.candidate.typecheck]",
             "[verification.candidate.lint]",
@@ -177,6 +181,32 @@ class IntegrationSkillContractTests(unittest.TestCase):
         ):
             with self.subTest(exact=exact):
                 self.assertIn(exact, config)
+
+    def test_legacy_ready_target_config_and_subset_contract_is_documented(self) -> None:
+        code_skill = CODE_SKILL_PATH.read_text(encoding="utf-8")
+        combined = "\n".join((code_skill, self.skill))
+
+        for fragment in (
+            ".worktree/<WORKTREE_NAME>",
+            "--config-revision <FULL_TARGET_SHA>",
+            "--targeted-check-json <SOURCE_PROFILE_JSON>",
+            "web-dashboard",
+            "harness-policy",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, combined)
+
+        for rule in (
+            "source commit",
+            "target",
+            "configured",
+            "subset",
+            "stale",
+            "fail-closed",
+            "shell",
+        ):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, combined)
 
     def test_skill_documents_state_machine_conflict_review_and_cleanup_boundaries(self) -> None:
         for state in RUN_STATES:

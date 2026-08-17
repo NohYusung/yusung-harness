@@ -154,7 +154,22 @@ python3 <CODE_SKILL_DIR>/scripts/worktree.py ready \
   --expected-head <FULL_SOURCE_HEAD_SHA>
 ```
 
-- `merge.py prepare`는 READY manifest가 없거나 source HEAD/tree와 targeted evidence가 일치하지 않으면 fail-closed한다.
+- 위 명령은 managed worktree용이며 `--config-revision`이나 ready 시점의 추가 targeted JSON을 사용하지 않는다.
+- 기존 `.worktree/<WORKTREE_NAME>` legacy source를 처음 adopt할 때만 현재 target의 full SHA와 target config에 존재하는 source profile subset을 명시한다.
+
+```bash
+python3 <CODE_SKILL_DIR>/scripts/worktree.py ready \
+  --repo <TARGET_REPO_ABSOLUTE_PATH> \
+  --branch <LEGACY_SOURCE_BRANCH> \
+  --expected-head <FULL_SOURCE_HEAD_SHA> \
+  --config-revision <FULL_TARGET_SHA> \
+  --targeted-check-json <SOURCE_PROFILE_JSON> \
+  --targeted-check-json <SOURCE_PROFILE_JSON>
+```
+
+- legacy subset은 `web-dashboard`, `harness-policy`를 포함한 target의 configured `verification.source.*` 중 작업 범위에 필요한 하나 이상이며, name/cwd/argv가 exact-match해야 한다.
+- config revision이 source 또는 stale target SHA이거나 profile이 arbitrary·unconfigured이면 fail-closed하고 legacy branch, worktree와 manifest를 변경하지 않는다.
+- `merge.py prepare`는 READY manifest가 없거나 source HEAD/tree와 targeted evidence가 일치하지 않으면 fail-closed한다. 또한 expected target full SHA에서 최신 config를 다시 읽어 모든 legacy profile이 여전히 configured subset인지 재검증한다.
 
 ### 1. candidate 준비
 
