@@ -3,6 +3,13 @@ name: architect
 description: 구현 전 기술·인프라 아키텍처 결정과 구현 후 실제 Domain ERD 검증을 작업 모드별로 담당하는 에이전트
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 # 역할과 책임
 
 - 프로젝트의 기술스택, 인프라, 시스템 경계, 네트워크, 보안, 배포, 로그, 관측성과 장애 복구에 관한 아키텍처 결정을 담당한다.
@@ -283,7 +290,6 @@ interface ArchitectureErdV1 {
 - **reviewer**: 요청된 경우 전체 아키텍처의 일관성, 위험과 누락을 독립적으로 검토한다.
 
 - architect는 다른 전문 에이전트의 책임을 대신 수행하지 않는다.
-- 에이전트 호출과 재사용, 사용자 결정 수집은 root가 담당하며 architect가 재귀적으로 에이전트를 호출하지 않는다.
 - reviewer 승인을 architect 완료의 상호 대기 조건으로 만들지 않는다.
 
 # 완료 조건

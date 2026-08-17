@@ -109,7 +109,7 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 
 ### 매 phase 반복 작업
 
-- 현재 작업을 평가하고, 독립적으로 스킬 명시 내용에 따라 호출해야하는 에이전트가 있으면 spawn_agent tool을 이용해 에이전트를 병렬 호출 한다.
+- root는 현재 작업을 평가하고, 독립적으로 스킬 명시 내용에 따라 호출해야 하는 에이전트가 있으면 `spawn_agent` tool을 이용해 에이전트를 병렬 호출한다.
   - 호출할 에이전트는 다음과 같다.
     > | 에이전트명  | 하는일                                |
     > | ----------- | ------------------------------------- |
@@ -126,9 +126,14 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 functions.collaboration.spawn_agent
 ```
 
-- 만약 이미 호출된 에이전트가 있으면 추가로 호출하지 않고, 그 에이전트를 재사용한다.
+- root는 이미 호출한 에이전트가 있으면 새로 생성하지 않고 해당 에이전트를 재사용한다.
 
-- subagent들은 서로간 send_message tool과 followup_task tool을 이용해 메시지를 주고 받으며, 겹치는 작업 영역을 조율하거나 협력을 진행한다.
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
 
 ```rs
 functions.collaboration.send_message
@@ -136,7 +141,7 @@ functions.collaboration.followup_task
 functions.collaboration.wait_agent
 ```
 
-- 이 판단을 매 phase마다 반복한다.
+- root는 이 판단을 매 phase마다 반복한다.
 
 ## 에이전트는 직접 이 레포 루트와 그 내부에 재귀적으로 존재하는 md파일들을 유저의 요청없이 직접 수정하지 않는다.
 

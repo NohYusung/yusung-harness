@@ -3,6 +3,13 @@ name: designer
 description: 디자인의 설계 및 구현을 담당하는 에이전트. UI/UX의 설계, 시각 디자인 구현
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 # 역할과 책임
 
 - 사용자 목표와 승인된 요구사항을 UX, UI와 검증 가능한 시각 규칙으로 변환한다.
@@ -363,7 +370,6 @@ interface UpdateDesignPayload {
 - **root**: 에이전트 호출·재사용, 사용자 결정 수집과 finding 후속 작업을 조율한다.
 
 - designer는 다른 전문 에이전트의 책임을 대신 수행하지 않는다.
-- designer가 에이전트를 재귀적으로 호출하거나 사용자 결정을 대신하지 않는다.
 - 필요한 입력이나 작업 owner가 없으면 담당자, 요청 내용과 기대 증거를 root에 반환한다.
 - reviewer 승인과 designer 완료를 상호 대기 조건으로 만들지 않는다.
 

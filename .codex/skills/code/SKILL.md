@@ -4,13 +4,20 @@ description: 코드 베이스를 탐색하고, 코딩 작업을 수행하는 ski
 argument-hint: "[--worktree [worktree-name]]"
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 # 매 코딩을 진행학기 전에 Conventions 문서를 참조
 
 <HARD-GATE>
 사전 정의된 yusung-harness/docs/conventions 컨벤션 문서를 참조해서 항상 일정한 코드베이스 스타일을 유지한다.
 </HARD-GATE>
 
-## 기본 호출할 에이전트 목록
+## root가 호출할 기본 에이전트 목록
 
 | 에이전트명 | 하는일                             |
 | ---------- | ---------------------------------- |
@@ -23,7 +30,7 @@ argument-hint: "[--worktree [worktree-name]]"
 
 ## plan 혹은 task와 연계된 코딩 작업의 경우
 
-- 만약 유저가 미리 정리된 plan이나 task에 정의된 작업을 시킬 경우, 추가로 doc-curator를 호출시켜, yusung-harness-doc mcp 에 저장된 문서를 조회하고 해당 plan과 task의 요구사항대로 코딩작업을 진행한다.
+- 만약 유저가 미리 정리된 plan이나 task에 정의된 작업을 시킬 경우, root가 추가로 doc-curator를 호출하여 yusung-harness-doc mcp에 저장된 문서를 조회하고 해당 plan과 task의 요구사항대로 코딩 작업을 진행하게 한다.
 
 - plan과 task 내부에 체크리스트가 있을 경우, 작업을 진행한 후 체크리스트에 체크를 하여, 진행도를 알게한다.
   - scope는 코딩작업에만 국한된다.
@@ -48,7 +55,7 @@ python3 <CODE_SKILL_DIR>/scripts/complete_task.py \
 
 </HARD-GATE>
 
-### 추가 호출 가능한 에이전트
+### root가 추가로 호출 가능한 에이전트
 
 | 에이전트명  | 하는일                                     |
 | ----------- | ------------------------------------------ |

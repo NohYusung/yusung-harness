@@ -3,6 +3,13 @@ name: wireframe
 description: UX 기반의 와이어 프레임을 만드는 스킬
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 UX 디자인 기반의 와이어 프레임을 만드는 스킬. click, scroll, page navigation 등의 인터렉트가 구현되어야 함.
 
 <HARD-GATE>
@@ -10,7 +17,7 @@ UX 디자인 기반의 와이어 프레임을 만드는 스킬. click, scroll, p
 - 만약 project로 등록이 되어있지 않으면, 'project로 등록되지 않았습니다. 먼저 레포를 project로 등록하세요' 라고 반환한 후 메인 에이전트의 대화를 종료한다.
 </HARD-GATE>
 
-## 호출할 에이전트 목록
+## root가 호출할 에이전트 목록
 
 | 에이전트명  | 하는일                                                          |
 | ----------- | --------------------------------------------------------------- |

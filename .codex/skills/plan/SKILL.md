@@ -3,6 +3,13 @@ name: plan
 description: 요구사항과 검증된 코드 근거를 구현 Plan과 기능 결과 단위 Task로 구조화하거나 기존 Plan을 수정할 때 사용하는 스킬. AS-IS/TO-BE 분석, Task 의존성·검증 기준·완료 조건 작성과 yusung-harness-doc MCP 저장이 필요한 구현 계획 작업에 사용한다.
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 # 목적과 책임 경계
 
 - 사용자의 구현 요구사항을 구현자가 추가 기획 결정을 하지 않아도 되는 Plan과 Task로 변환한다.
@@ -11,7 +18,7 @@ description: 요구사항과 검증된 코드 근거를 구현 Plan과 기능 �
 - 목표, 사용자 가치 또는 핵심 범위가 안정되지 않았으면 Plan을 억지로 작성하지 말고 `draft` 단계가 필요하다는 blocker를 반환한다.
 - 기술스택, 인프라, 배포, 로그 또는 시스템 경계의 새로운 결정이 필요하면 `architect`의 결정을 선행한다.
 
-# 작업 에이전트
+# root가 호출할 작업 에이전트
 
 | 에이전트 | 호출 조건 | 책임 |
 | --- | --- | --- |
@@ -23,11 +30,10 @@ description: 요구사항과 검증된 코드 근거를 구현 Plan과 기능 �
 | `reviewer` | 고위험 변경 또는 독립 검토가 필요할 때 | 범위 누락, 충돌, 위험과 검증 가능성 검토 |
 
 - root가 에이전트 호출과 재사용을 조율한다.
-- planner가 다른 에이전트를 재귀적으로 호출하거나 전문 에이전트의 결정을 대신하지 않게 한다.
 
 # Hard gate: MCP와 프로젝트 등록 확인
 
-- 다른 에이전트를 호출하거나 Plan 초안을 작성하기 전에 `doc-curator`가 다음 순서로 확인하게 한다.
+- root가 다른 에이전트를 호출하거나 Plan 초안을 작성하기 전에 `doc-curator`가 다음 순서로 확인하게 한다.
   1. `yusung-harness-doc` MCP와 `get_project` 도구가 노출됐는지 확인한다.
   2. 첫 실제 연결 확인을 겸해 `get_project({})`로 프로젝트 목록을 조회한다.
   3. 대상 저장소의 절대 경로와 `repoPaths[].path`를 exact-match하고 `repoType: LOCAL`인 프로젝트를 선택한다.

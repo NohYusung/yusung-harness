@@ -3,6 +3,13 @@ name: db
 description: 기존 프로젝트 저장소의 migration, DDL, schema snapshot과 ORM schema/entity를 분석하여 특정 source revision의 현행 물리 데이터베이스 구조를 테이블별 상세 Markdown 문서로 생성하거나 갱신하는 스킬. DB 테이블 구조 정리, 스키마 문서화, 컬럼·키·제약조건·인덱스·관계 분석, 기존 DB 문서 동기화 요청에 사용한다.
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 # DB 구조 문서화
 
 - 특정 source revision에 선언된 AS-IS 물리 스키마만 문서화한다.
@@ -10,7 +17,7 @@ description: 기존 프로젝트 저장소의 migration, DDL, schema snapshot과
 - 목표 스키마 설계, 운영 DB drift 검사와 HTML ERD 생성은 이 스킬의 범위에 포함하지 않는다.
 - ERD가 필요하면 `erd` 스킬로 분리한다.
 
-## 담당 에이전트
+## root가 호출할 담당 에이전트
 
 | 에이전트 | 책임 |
 | --- | --- |

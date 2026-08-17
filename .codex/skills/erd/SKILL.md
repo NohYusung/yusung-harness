@@ -3,6 +3,13 @@ name: erd
 description: 기존 프로젝트 저장소의 migration, DDL, schema snapshot과 ORM schema/entity를 분석하여 특정 source revision의 현행 물리 DB 관계를 Dineug ERD Editor v3 .erd JSON으로 생성하거나 갱신하는 스킬. DB ERD, 테이블 관계도, FK 시각화, Dineug ERD 생성과 기존 ERD 동기화 요청에 사용한다.
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 # Dineug v3 물리 DB ERD
 
 - 선택한 source revision과 database scope의 AS-IS table, ordered column, PK, UK와 FK만 시각화한다.
@@ -10,7 +17,7 @@ description: 기존 프로젝트 저장소의 migration, DDL, schema snapshot과
 - 산출물은 Dineug ERD Editor v3가 직접 여는 결정론적 `.erd` JSON이다.
 - HTML, Mermaid, SVG와 Excalidraw를 신규 ERD 저장 형식으로 만들지 않는다.
 
-## 담당 에이전트
+## root가 호출할 담당 에이전트
 
 | 에이전트 | 책임 |
 | --- | --- |
