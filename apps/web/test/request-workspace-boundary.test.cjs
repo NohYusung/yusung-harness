@@ -56,6 +56,7 @@ test("API와 route는 Request REST list와 type=requests를 dashboard에 연결�
 });
 
 test("ArtifactWorkbench는 Request 메뉴, count, status, record URL을 조립한다", () => {
+  const types = source("types/dashboard.ts");
   const browser = source(
     "components/features/dashboard/ArtifactBrowser.tsx",
   );
@@ -64,8 +65,12 @@ test("ArtifactWorkbench는 Request 메뉴, count, status, record URL을 조립�
   );
 
   assert.match(
-    browser,
+    types,
     /export\s+type\s+WorkspaceRelation\s*=[\s\S]*?["']requests["']/,
+  );
+  assert.match(
+    browser,
+    /import\s+type\s*\{[\s\S]*?\bWorkspaceRelation\b[\s\S]*?\}\s+from\s+["']@\/types\/dashboard["']/,
   );
   assert.match(
     workbench,
@@ -83,6 +88,12 @@ test("ArtifactWorkbench는 Request 메뉴, count, status, record URL을 조립�
     workbench,
     /entry\.relation\s*===\s*["']requests["'][\s\S]*?Request[\s\S]*?status/,
   );
-  assert.match(workbench, /`\/projects\/\$\{context\.id\}\?type=\$\{relation\}`/);
-  assert.match(workbench, /relationEntries\.length/);
+  assert.match(
+    workbench,
+    /router\.replace\(\s*`\/projects\/\$\{context\.id\}\?type=\$\{item\.relation\}`/,
+  );
+  assert.match(
+    workbench,
+    /const\s+firstEntry\s*=\s*relationEntries\s*\[\s*0\s*\]\s*\?\?\s*null/,
+  );
 });

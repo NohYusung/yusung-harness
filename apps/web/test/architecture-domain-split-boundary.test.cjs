@@ -116,9 +116,17 @@ test("통합 Workbench는 Domain과 Architecture record type을 독립적으로 
   assert.match(page, /workspaceRelations\s*=\s*\[[^\]]*["']domains["'][^\]]*["']architectures["']/s);
 });
 
-test("Architecture workspace는 중앙 Plan Current 탭만으로 typed record를 분리한다", () => {
+test("Architecture workspace는 Explorer Plan Current 진입점과 중앙 탭으로 typed record를 분리한다", () => {
   const workbench = source("components/features/dashboard/ArtifactWorkbench.tsx");
 
+  assert.match(
+    workbench,
+    /architectureView:\s*["']plan["'][\s\S]*?code:\s*["']AP["'][\s\S]*?label:\s*["']Architecture Plan["']/,
+  );
+  assert.match(
+    workbench,
+    /architectureView:\s*["']current["'][\s\S]*?code:\s*["']CA["'][\s\S]*?label:\s*["']Current Architecture["']/,
+  );
   assert.match(workbench, /aria-label=["']Architecture views["']/);
   assert.match(workbench, />\s*Plan\s*</);
   assert.match(workbench, />\s*Current\s*</);

@@ -1,9 +1,12 @@
-import type { ProjectContext, ProjectSummary } from "@/types/dashboard";
+import type {
+  ProjectContext,
+  ProjectSummary,
+  WorkspaceRelation,
+} from "@/types/dashboard";
 import {
   ArtifactWorkbench,
   type ArchitectureView,
 } from "./ArtifactWorkbench";
-import type { WorkspaceRelation } from "./ArtifactBrowser";
 
 /** 프로젝트 shell과 URL 기반 workspace 선택을 조립하는 dashboard props. */
 interface DashboardProps {

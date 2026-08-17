@@ -5,6 +5,20 @@ export type RequestStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
 /** Architecture workspace 안에서 구현 계획과 현행 구조를 구분하는 저장 type. */
 export type ArchitectureType = "PLAN" | "PRODUCTION";
 
+/** 프로젝트 대시보드 URL과 workspace 선택이 공유하는 relation. */
+export type WorkspaceRelation =
+  | "plans"
+  | "research"
+  | "domains"
+  | "architectures"
+  | "wireframes"
+  | "assets"
+  | "reviews"
+  | "requests"
+  | "workLogs"
+  | "databases"
+  | "erds";
+
 /** 새 Request 문서 생성에 필요한 입력. */
 export interface CreateRequestInput {
   title: string;

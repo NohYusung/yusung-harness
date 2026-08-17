@@ -112,6 +112,52 @@ test("dashboard DTO와 Zod schema는 Designs를 제외한 프로젝트 산출물
   );
 });
 
+test("workspace relation 타입은 dashboard 공용 경계에서 Review를 포함하고 Task 메뉴를 제외한다", () => {
+  const types = source("types/dashboard.ts");
+  const artifactBrowser = source(
+    "components/features/dashboard/ArtifactBrowser.tsx",
+  );
+  const workbench = source(
+    "components/features/dashboard/ArtifactWorkbench.tsx",
+  );
+  const dashboard = source("components/features/dashboard/Dashboard.tsx");
+  const projectPage = source("app/projects/[projectId]/page.tsx");
+
+  const relationType = types.match(
+    /export\s+type\s+WorkspaceRelation\s*=([\s\S]*?);/,
+  )?.[1];
+  assert.ok(relationType);
+
+  for (const relation of [
+    "plans",
+    "research",
+    "domains",
+    "architectures",
+    "wireframes",
+    "assets",
+    "reviews",
+    "requests",
+    "workLogs",
+    "databases",
+    "erds",
+  ]) {
+    assert.match(relationType, new RegExp(`["']${relation}["']`));
+  }
+  assert.doesNotMatch(relationType, /["']tasks["']/);
+
+  for (const component of [artifactBrowser, workbench, dashboard]) {
+    assert.match(component, /WorkspaceRelation[\s\S]*?from\s+["']@\/types\/dashboard["']/);
+  }
+  assert.doesNotMatch(
+    artifactBrowser,
+    /export\s+type\s+WorkspaceRelation\s*=/,
+  );
+  assert.match(
+    projectPage,
+    /import\s+type\s*\{\s*WorkspaceRelation\s*\}\s+from\s+["']@\/types\/dashboard["']/,
+  );
+});
+
 test("API client는 Designs를 제외한 REST list의 Zod 조립 경계를 소유한다", () => {
   const api = source("lib/api.ts");
 
@@ -190,13 +236,42 @@ test("App Router page는 목록 redirect/empty와 project Server Component 경�
   assert.match(projectPage, /<Dashboard\b/);
   assert.doesNotMatch(projectPage, /\bpeek\b|isOverviewPeekOpen/);
   assert.match(projectPage, /query\.taskId/);
+  assert.match(
+    projectPage,
+    /const\s+selectedTaskId\s*=\s*activeRelation\s*===\s*["']plans["']\s*\?\s*toArtifactId\(query\.taskId\)\s*:\s*null/,
+  );
+  assert.match(projectPage, /selectedTaskId=\{selectedTaskId\}/);
+  assert.doesNotMatch(
+    projectPage,
+    /selectedTaskId=\{toArtifactId\(query\.taskId\)\}/,
+  );
   assert.match(projectPage, /:\s*["']plans["']/);
   assert.match(
     projectPage,
-    /workspaceRelations\s*=\s*\[[^\]]*["']plans["'][^\]]*["']research["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["']/s,
+    /workspaceRelations\s*=\s*\[[^\]]*["']plans["'][^\]]*["']research["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']reviews["'][^\]]*["']requests["'][^\]]*["']workLogs["'][^\]]*["']databases["'][^\]]*["']erds["']/s,
+  );
+  assert.doesNotMatch(
+    projectPage.match(/workspaceRelations\s*=\s*\[([^\]]*)\]/s)?.[1] ?? "",
+    /["']tasks["']/,
   );
   assert.doesNotMatch(projectPage, /["']drafts["']/);
   assert.doesNotMatch(projectPage, /["']architecturePlans["']/);
+});
+
+test("Review route는 type=reviews&id 직접 진입을 공용 workspace relation으로 허용한다", () => {
+  const projectPage = source("app/projects/[projectId]/page.tsx");
+
+  assert.match(
+    projectPage,
+    /workspaceRelations\s*=\s*\[[^\]]*["']reviews["']/s,
+  );
+  assert.match(projectPage, /selectedArtifactId\s*=\s*toArtifactId\(query\.id\)/);
+  assert.match(projectPage, /activeRelation=\{activeRelation\}/);
+  assert.match(projectPage, /selectedArtifactId=\{selectedArtifactId\}/);
+  assert.match(
+    projectPage,
+    /query\.type\s*&&\s*!isWorkspaceRelation\(query\.type\)[\s\S]*?notFound\(\)/,
+  );
 });
 
 test("Architecture route는 view=plan|current만 허용하고 legacy architecturePlans type을 notFound 처리한다", () => {
@@ -282,6 +357,75 @@ test("Dashboard는 Designs를 제외한 통합 Artifact Workbench를 조립한�
     workbench,
     /relationOrder\s*:[^=]*=\s*\[[^\]]*["']plans["'][^\]]*["']tasks["'][^\]]*["']research["'][^\]]*["']domains["'][^\]]*["']architectures["'][^\]]*["']wireframes["'][^\]]*["']assets["'][^\]]*["']reviews["']/s,
   );
+  const navigationSectionsSource = workbench.match(
+    /const\s+navigationSections\s*=\s*(\[[\s\S]*\])\s+as\s+const\s+satisfies\s+readonly\s+NavigationSectionDescriptor\[\]\s*;/,
+  )?.[1];
+  assert.ok(navigationSectionsSource);
+  const navigationSections = JSON.parse(
+    navigationSectionsSource
+      .replace(/([{,]\s*)([A-Za-z][A-Za-z0-9]*)\s*:/g, '$1"$2":')
+      .replace(/,\s*([}\]])/g, "$1"),
+  );
+  assert.deepEqual(navigationSections, [
+    {
+      id: "planning-work",
+      label: "Planning & Work",
+      items: [
+        { code: "PL", id: "plans", label: "Plans", relation: "plans" },
+        {
+          code: "RS",
+          id: "research",
+          label: "Research",
+          relation: "research",
+        },
+        {
+          architectureView: "plan",
+          code: "AP",
+          id: "architecture-plan",
+          label: "Architecture Plan",
+          relation: "architectures",
+        },
+        { code: "AS", id: "assets", label: "Assets", relation: "assets" },
+        {
+          code: "WF",
+          id: "wireframes",
+          label: "Wireframes",
+          relation: "wireframes",
+        },
+        {
+          code: "RQ",
+          id: "requests",
+          label: "Requests",
+          relation: "requests",
+        },
+        {
+          code: "WL",
+          id: "work-logs",
+          label: "WorkLogs",
+          relation: "workLogs",
+        },
+      ],
+    },
+    {
+      id: "project-status",
+      label: "Project Status",
+      items: [
+        {
+          architectureView: "current",
+          code: "CA",
+          id: "current-architecture",
+          label: "Current Architecture",
+          relation: "architectures",
+        },
+        { code: "DB", id: "databases", label: "DB", relation: "databases" },
+        { code: "ERD", id: "erds", label: "ERD", relation: "erds" },
+        { code: "DM", id: "domains", label: "Domains", relation: "domains" },
+        { code: "RV", id: "reviews", label: "Reviews", relation: "reviews" },
+      ],
+    },
+  ]);
+  assert.match(workbench, /role=["']group["']/);
+  assert.match(workbench, /aria-labelledby=\{headingId\}/);
   assert.match(workbench, /research:\s*\{[\s\S]*?code:\s*["']RS["'][\s\S]*?label:\s*["']Research["']/);
   assert.doesNotMatch(workbench, /drafts:\s*\{|code:\s*["']DR["']/);
   assert.doesNotMatch(workbench, /\bDesign\b|\bdesigns\b/);

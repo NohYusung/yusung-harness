@@ -445,7 +445,7 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
   });
 
-  it("Architecture는 logical root 하나와 Plan Current 중앙 탭을 제공하고 Current를 우선한다", () => {
+  it("Architecture Plan과 Current Architecture Explorer 진입점은 중앙 탭·URL과 양방향 동기화된다", () => {
     const plan = {
       ...createArtifact({ id: 531, title: "Unified architecture plan" }),
       html: "<!doctype html><html><head><title>Plan</title></head><body><main>Unified plan diagram</main></body></html>",
@@ -477,9 +477,12 @@ describe("Dashboard artifact workbench visual contract", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: /^Architecture\s*1$/ }),
-    ).toBeInTheDocument();
+    const planNavigation = screen.getByRole("button", {
+      name: "Architecture Plan 1",
+    });
+    const currentNavigation = screen.getByRole("button", {
+      name: "Current Architecture 1",
+    });
     const records = screen.getByRole("region", { name: "Records" });
     const views = within(records).getByRole("tablist", {
       name: "Architecture views",
@@ -487,6 +490,8 @@ describe("Dashboard artifact workbench visual contract", () => {
     const planTab = within(views).getByRole("tab", { name: "Plan" });
     const currentTab = within(views).getByRole("tab", { name: "Current" });
 
+    expect(planNavigation).toHaveAttribute("aria-pressed", "false");
+    expect(currentNavigation).toHaveAttribute("aria-pressed", "true");
     expect(currentTab).toHaveAttribute("aria-selected", "true");
     expect(planTab).toHaveAttribute("aria-selected", "false");
     expect(
@@ -503,8 +508,10 @@ describe("Dashboard artifact workbench visual contract", () => {
       }),
     ).toHaveTextContent("Unified current API");
 
-    fireEvent.click(planTab);
+    fireEvent.click(planNavigation);
 
+    expect(planNavigation).toHaveAttribute("aria-pressed", "true");
+    expect(currentNavigation).toHaveAttribute("aria-pressed", "false");
     expect(planTab).toHaveAttribute("aria-selected", "true");
     expect(routerReplace).toHaveBeenLastCalledWith(
       "/projects/1?type=architectures&view=plan",
@@ -518,6 +525,33 @@ describe("Dashboard artifact workbench visual contract", () => {
         name: /Unified production snapshot/,
       }),
     ).not.toBeInTheDocument();
+
+    fireEvent.click(currentNavigation);
+
+    expect(currentNavigation).toHaveAttribute("aria-pressed", "true");
+    expect(currentTab).toHaveAttribute("aria-selected", "true");
+    expect(routerReplace).toHaveBeenLastCalledWith(
+      "/projects/1?type=architectures&view=current",
+      { scroll: false },
+    );
+
+    fireEvent.click(planTab);
+
+    expect(planNavigation).toHaveAttribute("aria-pressed", "true");
+    expect(planTab).toHaveAttribute("aria-selected", "true");
+    expect(routerReplace).toHaveBeenLastCalledWith(
+      "/projects/1?type=architectures&view=plan",
+      { scroll: false },
+    );
+
+    fireEvent.click(currentTab);
+
+    expect(currentNavigation).toHaveAttribute("aria-pressed", "true");
+    expect(currentTab).toHaveAttribute("aria-selected", "true");
+    expect(routerReplace).toHaveBeenLastCalledWith(
+      "/projects/1?type=architectures&view=current",
+      { scroll: false },
+    );
   });
 
   it("Current가 없으면 Plan을 기본 선택하고 둘 다 없으면 Plan empty state를 표시한다", () => {
@@ -538,6 +572,12 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
 
     let views = screen.getByRole("tablist", { name: "Architecture views" });
+    expect(
+      screen.getByRole("button", { name: "Architecture Plan 1" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Current Architecture 0" }),
+    ).toHaveAttribute("aria-pressed", "false");
     expect(within(views).getByRole("tab", { name: "Plan" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -558,6 +598,12 @@ describe("Dashboard artifact workbench visual contract", () => {
     );
 
     views = screen.getByRole("tablist", { name: "Architecture views" });
+    expect(
+      screen.getByRole("button", { name: "Architecture Plan 0" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Current Architecture 0" }),
+    ).toHaveAttribute("aria-pressed", "false");
     expect(within(views).getByRole("tab", { name: "Plan" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -1609,7 +1655,8 @@ describe("Dashboard artifact workbench visual contract", () => {
       "Plans",
       "Research",
       "Domains",
-      "Architecture",
+      "Architecture Plan",
+      "Current Architecture",
       "Wireframes",
       "Assets",
       "Reviews",
@@ -2467,7 +2514,7 @@ describe("Dashboard artifact workbench visual contract", () => {
         role: "treeitem" as const,
       },
       {
-        relationName: /^Architecture\s*1$/,
+        relationName: /^Current Architecture\s*1$/,
         rowName: /Harness production/,
         status: "Snapshot",
         typeLabelOccurrences: 0,
@@ -2893,6 +2940,39 @@ describe("Dashboard artifact workbench visual contract", () => {
     expect(treePane).toHaveClass("flex");
     expect(recordsPane).toHaveClass("hidden");
     expect(detailPane).toHaveClass("hidden");
+
+    const planningSection = within(treePane).getByRole("group", {
+      name: "Planning & Work",
+    });
+    const statusSection = within(treePane).getByRole("group", {
+      name: "Project Status",
+    });
+    const planningButtons = [
+      "Plans 2",
+      "Research 1",
+      "Architecture Plan 0",
+      "Assets 1",
+      "Wireframes 3",
+      "Requests 0",
+      "WorkLogs 0",
+    ].map((name) => within(planningSection).getByRole("button", { name }));
+    const statusButtons = [
+      "Current Architecture 1",
+      "DB 0",
+      "ERD 0",
+      "Domains 1",
+      "Reviews 1",
+    ].map((name) => within(statusSection).getByRole("button", { name }));
+
+    expect(within(planningSection).getAllByRole("button")).toEqual(
+      planningButtons,
+    );
+    expect(within(statusSection).getAllByRole("button")).toEqual(
+      statusButtons,
+    );
+    expect(
+      within(treePane).queryByRole("button", { name: /^Tasks/ }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(
       within(mobileNavigation).getByRole("button", { name: "Open records" }),

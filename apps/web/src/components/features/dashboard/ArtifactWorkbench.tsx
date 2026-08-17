@@ -43,11 +43,11 @@ import type {
   Review,
   Task,
   Wireframe,
+  WorkspaceRelation,
 } from "@/types/dashboard";
 import { ArchitectureWorkspace } from "./ArchitectureWorkspace";
-import type { WorkspaceRelation } from "./ArtifactBrowser";
 
-type WorkbenchRelation = WorkspaceRelation | "tasks" | "reviews";
+type WorkbenchRelation = WorkspaceRelation | "tasks";
 
 type WorkbenchRecord =
   | ArtifactDocument
@@ -93,6 +93,22 @@ interface RelationConfig {
   label: string;
   plural: string;
   dotClassName: string;
+}
+
+/** 좌측 Explorer의 하나의 workspace 진입점. */
+interface NavigationItemDescriptor {
+  architectureView?: ArchitectureView;
+  code: string;
+  id: string;
+  label: string;
+  relation: WorkspaceRelation;
+}
+
+/** 작업 관리와 현행 프로젝트 상태를 분리하는 고정 navigation section. */
+interface NavigationSectionDescriptor {
+  id: string;
+  items: readonly NavigationItemDescriptor[];
+  label: string;
 }
 
 const relationOrder: readonly WorkbenchRelation[] = [
@@ -185,6 +201,69 @@ const relationConfig: Record<WorkbenchRelation, RelationConfig> = {
   },
 };
 
+/**
+ * 좌측 Explorer의 정보 구조.
+ * Task는 별도 메뉴로 복제하지 않고 Plan 계층 안에서 관리한다.
+ */
+const navigationSections = [
+  {
+    id: "planning-work",
+    label: "Planning & Work",
+    items: [
+      { code: "PL", id: "plans", label: "Plans", relation: "plans" },
+      {
+        code: "RS",
+        id: "research",
+        label: "Research",
+        relation: "research",
+      },
+      {
+        architectureView: "plan",
+        code: "AP",
+        id: "architecture-plan",
+        label: "Architecture Plan",
+        relation: "architectures",
+      },
+      { code: "AS", id: "assets", label: "Assets", relation: "assets" },
+      {
+        code: "WF",
+        id: "wireframes",
+        label: "Wireframes",
+        relation: "wireframes",
+      },
+      {
+        code: "RQ",
+        id: "requests",
+        label: "Requests",
+        relation: "requests",
+      },
+      {
+        code: "WL",
+        id: "work-logs",
+        label: "WorkLogs",
+        relation: "workLogs",
+      },
+    ],
+  },
+  {
+    id: "project-status",
+    label: "Project Status",
+    items: [
+      {
+        architectureView: "current",
+        code: "CA",
+        id: "current-architecture",
+        label: "Current Architecture",
+        relation: "architectures",
+      },
+      { code: "DB", id: "databases", label: "DB", relation: "databases" },
+      { code: "ERD", id: "erds", label: "ERD", relation: "erds" },
+      { code: "DM", id: "domains", label: "Domains", relation: "domains" },
+      { code: "RV", id: "reviews", label: "Reviews", relation: "reviews" },
+    ],
+  },
+] as const satisfies readonly NavigationSectionDescriptor[];
+
 /** Desktop detail pane이 viewport에서 차지하는 초기 비율과 조절 범위. */
 const defaultDetailPaneRatio = 30;
 const minimumDetailPaneRatio = 15;
@@ -263,6 +342,7 @@ function keepsEmptySelection(relation: WorkbenchRelation): boolean {
     relation === "domains" ||
     relation === "research" ||
     relation === "architectures" ||
+    relation === "reviews" ||
     relation === "requests" ||
     relation === "workLogs" ||
     relation === "databases" ||
@@ -737,8 +817,7 @@ function getRelationHref(entry: WorkbenchEntry, projectId: number): string {
     return `/projects/${projectId}?type=architectures&view=${view}`;
   }
 
-  const relation = entry.relation === "reviews" ? "plans" : entry.relation;
-  return `/projects/${projectId}?type=${relation}&id=${entry.record.id}`;
+  return `/projects/${projectId}?type=${entry.relation}&id=${entry.record.id}`;
 }
 
 function useSearchShortcut(searchRef: RefObject<HTMLInputElement | null>) {
@@ -840,7 +919,7 @@ export function ArtifactWorkbench({
         : null;
     }
 
-    if (selectedTaskId) {
+    if (activeRelation === "plans" && selectedTaskId) {
       return allEntries.find(
         (entry) =>
           entry.relation === "tasks" && entry.record.id === selectedTaskId,
@@ -1064,9 +1143,15 @@ export function ArtifactWorkbench({
   const isRequestView = typeFilter === "requests";
   const isDomainView = typeFilter === "domains";
   const isResearchView = typeFilter === "research";
+  const isReviewView = typeFilter === "reviews";
   /** 명시한 Research ID가 없으면 최신 record로 조용히 대체하지 않는다. */
   const isResearchNotFound =
     activeRelation === "research" &&
+    selectedArtifactId !== null &&
+    (initialEntry === null || initialEntry === undefined);
+  /** 명시한 Review ID가 없으면 다른 relation record로 대체하지 않는다. */
+  const isReviewNotFound =
+    activeRelation === "reviews" &&
     selectedArtifactId !== null &&
     (initialEntry === null || initialEntry === undefined);
   const isArchitectureView = typeFilter === "architectures";
@@ -1288,6 +1373,51 @@ export function ArtifactWorkbench({
       `/projects/${context.id}?type=architectures&view=${view}`,
       { scroll: false },
     );
+  }
+
+  /** 좌측 section 항목을 선택하고 relation·Architecture view·URL을 하나의 상태로 맞춘다. */
+  function selectNavigationItem(item: NavigationItemDescriptor) {
+    const relationEntries = allEntries.filter(
+      (entry) => entry.relation === item.relation,
+    );
+
+    setTypeFilter(item.relation);
+    setDomainNotFoundId(null);
+    setVersionFilter(null);
+    setMobilePane("records");
+    setStatusFilter("All");
+    setRequestEditorMode(null);
+
+    /** Architecture 진입점은 그룹별 PLAN/PRODUCTION view와 canonical URL을 직접 선택한다. */
+    if (item.relation === "architectures" && item.architectureView) {
+      const architecture = getArchitectureForView(
+        context.architectures,
+        item.architectureView,
+      );
+
+      setSelectedArchitectureView(item.architectureView);
+      setSelectedKey(
+        architecture
+          ? getEntryKey({ record: architecture, relation: "architectures" })
+          : null,
+      );
+      router.replace(
+        `/projects/${context.id}?type=architectures&view=${item.architectureView}`,
+        { scroll: false },
+      );
+      return;
+    }
+
+    /** Relation 전환 시 해당 relation의 첫 record만 선택해 교차 relation detail fallback을 차단한다. */
+    const firstEntry = relationEntries[0] ?? null;
+    setSelectedKey(
+      item.relation === "domains" || firstEntry === null
+        ? null
+        : getEntryKey(firstEntry),
+    );
+    router.replace(`/projects/${context.id}?type=${item.relation}`, {
+      scroll: false,
+    });
   }
 
   /** Architecture 탭은 수평 방향키와 Home/End로 선택과 focus를 함께 이동한다. */
@@ -1689,101 +1819,70 @@ export function ArtifactWorkbench({
             </div>
 
             <nav aria-label="Artifact types" className="px-2 pt-2 pb-3">
-              <p className="m-0 px-2.5 py-2 font-mono text-[10px] tracking-[0.1em] text-sidebar-subtle uppercase">
-                Project records
-              </p>
-              {relationOrder
-                .filter((relation) => relation !== "tasks")
-                .map((relation) => {
-                  const config = relationConfig[relation];
-                  const relationEntries = allEntries.filter(
-                    (entry) => entry.relation === relation,
-                  );
-                  /** Architecture는 PLAN/PRODUCTION row 수와 무관하게 단일 workspace로 집계한다. */
-                  const relationCount =
-                    relation === "architectures"
-                      ? relationEntries.length > 0
-                        ? 1
-                        : 0
-                      : relationEntries.length;
-                  return (
-                    <div key={relation}>
-                      <button
-                        aria-pressed={
-                          typeFilter === relation
-                        }
-                        className="flex min-h-11 w-full items-center gap-[9px] rounded-control border-0 bg-transparent px-[9px] py-[7px] text-left text-[13px] text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-ink aria-pressed:bg-sidebar-selected aria-pressed:text-sidebar-ink aria-pressed:shadow-[inset_3px_0_var(--color-accent)] focus-visible:ring-2 focus-visible:ring-focus-dark focus-visible:outline-none"
-                        onClick={() => {
-                          setTypeFilter(relation);
-                          setDomainNotFoundId(null);
-                          /** Relation 전환마다 explicit version을 비워 각 workspace의 최신 version을 다시 선택한다. */
-                          setVersionFilter(null);
-                          setMobilePane("records");
+              {navigationSections.map((section) => {
+                const headingId = `artifact-section-${section.id}`;
 
-                          /** Architecture 진입은 Current 우선 규칙과 canonical view URL을 적용한다. */
-                          if (relation === "architectures") {
-                            const nextView = getInitialArchitectureView(
-                              context.architectures,
-                              null,
-                              null,
-                            );
-                            const architecture = getArchitectureForView(
-                              context.architectures,
-                              nextView,
-                            );
-
-                            setSelectedArchitectureView(nextView);
-                            setSelectedKey(
-                              architecture
-                                ? getEntryKey({
-                                    record: architecture,
-                                    relation: "architectures",
-                                  })
-                                : null,
-                            );
-                            setStatusFilter("All");
-                            setRequestEditorMode(null);
-                            router.replace(
-                              `/projects/${context.id}?type=architectures&view=${nextView}`,
-                              { scroll: false },
-                            );
-                            return;
-                          }
-
-                          /** 독립 workspace 진입 시 이전 도메인의 선택·편집 상태를 노출하지 않는다. */
-                          if (keepsEmptySelection(relation)) {
-                            setSelectedKey(
-                              relation === "domains"
-                                ? null
-                                : relationEntries[0]
-                                ? getEntryKey(relationEntries[0])
-                                : null,
-                            );
-                            setStatusFilter("All");
-                            setRequestEditorMode(null);
-                          }
-
-                          router.replace(
-                            `/projects/${context.id}?type=${relation}`,
-                            { scroll: false },
-                          );
-                        }}
-                        type="button"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="w-[18px] text-center font-mono text-[11px] text-sidebar-subtle"
+                return (
+                  <section
+                    aria-labelledby={headingId}
+                    className="pb-2 last:pb-0"
+                    key={section.id}
+                    role="group"
+                  >
+                    <h3
+                      className="m-0 px-2.5 py-2 font-mono text-[10px] tracking-[0.1em] text-sidebar-subtle uppercase"
+                      id={headingId}
+                    >
+                      {section.label}
+                    </h3>
+                    {section.items.map((item) => {
+                      const architectureView =
+                        "architectureView" in item
+                          ? item.architectureView
+                          : undefined;
+                      const architecture = architectureView
+                        ? getArchitectureForView(
+                            context.architectures,
+                            architectureView,
+                          )
+                        : null;
+                      /** Architecture 진입점은 각 type의 단일 record 존재 여부로 0|1을 표시한다. */
+                      const count = architectureView
+                        ? architecture
+                          ? 1
+                          : 0
+                        : allEntries.filter(
+                            (entry) => entry.relation === item.relation,
+                          ).length;
+                      const isActive = architectureView
+                        ? typeFilter === "architectures" &&
+                          selectedArchitectureView === architectureView
+                        : typeFilter === item.relation;
+                      return (
+                        <button
+                          aria-label={`${item.label} ${count}`}
+                          aria-pressed={isActive}
+                          className="flex min-h-11 w-full items-center gap-[9px] rounded-control border-0 bg-transparent px-[9px] py-[7px] text-left text-[13px] text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-ink aria-pressed:bg-sidebar-selected aria-pressed:text-sidebar-ink aria-pressed:shadow-[inset_3px_0_var(--color-accent)] focus-visible:ring-2 focus-visible:ring-focus-dark focus-visible:outline-none"
+                          key={item.id}
+                          onClick={() => selectNavigationItem(item)}
+                          type="button"
                         >
-                          {config.code}
-                        </span>
-                        <span className="flex-1">{config.plural}</span>
-                        <span className="font-mono text-[10px] text-sidebar-subtle">
-                          {relationCount}
-                        </span>
-                      </button>
-                    </div>
-                  );
-                })}
+                          <span
+                            aria-hidden="true"
+                            className="w-[18px] text-center font-mono text-[11px] text-sidebar-subtle"
+                          >
+                            {item.code}
+                          </span>
+                          <span className="flex-1">{item.label}</span>
+                          <span className="font-mono text-[10px] text-sidebar-subtle">
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </section>
+                );
+              })}
             </nav>
           </div>
         </aside>
@@ -2198,6 +2297,8 @@ export function ArtifactWorkbench({
                     : "No Current Architecture records"
                   : isResearchView && context.research.length === 0
                     ? "No Research records"
+                  : isReviewView && context.reviews.length === 0
+                    ? "No Review records"
                   : isDomainView && context.domains.length === 0
                   ? "No Domain pages"
                   : isDomainView
@@ -2212,6 +2313,8 @@ export function ArtifactWorkbench({
                   : "Save a production deployment snapshot through the Architecture workflow."
                 : isResearchView && context.research.length === 0
                   ? "Run the Research workflow to save verified findings and sources."
+                : isReviewView && context.reviews.length === 0
+                  ? "Run the Review workflow to assess the current project state."
                 : isDomainView && context.domains.length === 0
                 ? "Create business Domain pages through the Domain MCP workflow."
                 : isDomainView
@@ -2272,6 +2375,10 @@ export function ArtifactWorkbench({
                         ? isResearchNotFound
                           ? "Research not found"
                           : "Select a Research"
+                        : isReviewView
+                          ? isReviewNotFound
+                            ? "Review not found"
+                            : "Select a Review"
                         : isDomainView
                         ? domainNotFoundId === null
                           ? "Select a Domain"
@@ -2515,6 +2622,20 @@ export function ArtifactWorkbench({
                   {isResearchNotFound
                     ? `Research #${selectedArtifactId} does not exist in this project.`
                     : "Choose a Research record to read its verified findings and sources."}
+                </p>
+              </section>
+            ) : isReviewView ? (
+              <section
+                aria-label="Review selection state"
+                className="rounded-card border border-line bg-surface px-6 py-10 text-center shadow-card"
+              >
+                <h3 className="m-0 text-base font-semibold text-ink">
+                  {isReviewNotFound ? "Review not found" : "Select a Review"}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  {isReviewNotFound
+                    ? `Review #${selectedArtifactId} does not exist in this project.`
+                    : "Choose a Review record to read its project assessment and recommendations."}
                 </p>
               </section>
             ) : isDomainView ? (

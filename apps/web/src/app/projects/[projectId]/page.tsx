@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Dashboard } from "@/components/features/dashboard/Dashboard";
 import { getProjectDashboard, HarnessApiError } from "@/lib/api";
-import type { WorkspaceRelation } from "@/components/features/dashboard/ArtifactBrowser";
+import type { WorkspaceRelation } from "@/types/dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,7 @@ const workspaceRelations = [
   "architectures",
   "wireframes",
   "assets",
+  "reviews",
   "requests",
   "workLogs",
   "databases",
@@ -99,6 +100,9 @@ export default async function ProjectPage({
   }
   const selectedPlanId =
     activeRelation === "plans" ? selectedArtifactId : null;
+  /** Task deep link는 Plan workspace에서만 선택 상태로 전달한다. */
+  const selectedTaskId =
+    activeRelation === "plans" ? toArtifactId(query.taskId) : null;
 
   const { projects, context } = await getProjectDashboard(
     projectId,
@@ -118,7 +122,7 @@ export default async function ProjectPage({
       activeRelation={activeRelation}
       architectureView={architectureView}
       selectedArtifactId={selectedArtifactId}
-      selectedTaskId={toArtifactId(query.taskId)}
+      selectedTaskId={selectedTaskId}
     />
   );
 }
