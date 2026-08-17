@@ -80,7 +80,7 @@ test("RequestsController update API는 project/request ID와 body를 service에 
   };
   const updated = { id: 31, projectId: 17, ...body };
   const requestsService = {
-    update: async (input) => {
+    userUpdate: async (input) => {
       calls.push(input);
       return updated;
     },

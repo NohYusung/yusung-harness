@@ -4,7 +4,28 @@ from pathlib import Path
 
 
 SKILL_PATH = Path(__file__).resolve().parents[1] / "SKILL.md"
+CODE_SCRIPTS = SKILL_PATH.parents[1] / "code" / "scripts"
+INTEGRATION_SCRIPTS = SKILL_PATH.parent / "scripts"
+CONFIG_PATH = SKILL_PATH.parents[2] / "integration.toml"
 HARD_GATE_PATTERN = re.compile(r"<HARD-GATE>(.*?)</HARD-GATE>", re.DOTALL)
+RUN_STATES = (
+    "INITIALIZING",
+    "PREPARED",
+    "CONFLICTED",
+    "ALREADY_MERGED",
+    "RESOLVED",
+    "CANDIDATE_COMMITTED",
+    "VERIFYING",
+    "VERIFIED",
+    "PROMOTING",
+    "PROMOTED",
+    "CLEANED",
+    "CLEANUP_PARTIAL",
+    "STALE",
+    "DECISION_REQUIRED",
+    "ABORTED",
+    "FAILED",
+)
 
 
 class IntegrationSkillContractTests(unittest.TestCase):
@@ -96,6 +117,117 @@ class IntegrationSkillContractTests(unittest.TestCase):
         for rule in expected_rules:
             with self.subTest(rule=rule):
                 self.assertIn(rule, self.merge_section)
+
+    def test_worktree_and_merge_cli_contracts_are_documented(self) -> None:
+        for script in ("scripts/worktree.py", "scripts/merge.py"):
+            self.assertIn(script, self.skill)
+        for fragment in (
+            "worktree.py create",
+            "--repo",
+            "--name",
+            "--base",
+            "--expected-base-head",
+            "--agent",
+            "--project-id",
+            "--task-id",
+            "--targeted-check-json",
+            "worktree.py ready",
+            "--branch",
+            "--expected-head",
+            "merge.py prepare",
+            "--source",
+            "--target",
+            "--expected-source-head",
+            "--expected-target-head",
+            "merge.py status",
+            "merge.py resolve",
+            "--classification",
+            "merge.py finalize",
+            "merge.py review",
+            "--verdict",
+            "--reviewer",
+            "--evidence",
+            "merge.py verify",
+            "--phase",
+            "--check",
+            "merge.py promote",
+            "merge.py abort",
+            "--run-id",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.skill)
+
+    def test_config_has_exact_engine_policy_and_verification_sections(self) -> None:
+        config = CONFIG_PATH.read_text(encoding="utf-8")
+        for exact in (
+            "schema_version = 1",
+            "configured = true",
+            'branch_prefix = "codex/"',
+            'management_root = ".yusung-harness"',
+            'merge_strategy = "no-ff"',
+            'cleanup = "worktree-and-branch"',
+            'conflict_policy = "evidence-only"',
+            "[verification.prepare.source]",
+            "[verification.prepare.candidate]",
+            "[verification.source.",
+            "[verification.candidate.test]",
+            "[verification.candidate.typecheck]",
+            "[verification.candidate.lint]",
+            "[verification.candidate.build]",
+        ):
+            with self.subTest(exact=exact):
+                self.assertIn(exact, config)
+
+    def test_skill_documents_state_machine_conflict_review_and_cleanup_boundaries(self) -> None:
+        for state in RUN_STATES:
+            with self.subTest(state=state):
+                self.assertIn(state, self.merge_section)
+        for rule in (
+            "mechanical",
+            "semantic",
+            "code|test|plan|user:<reference>",
+            "PASS",
+            "FAIL",
+            "reviewer",
+            "target",
+            "unchanged",
+            "bundle",
+            "worktree-and-branch",
+            "remote",
+            "삭제하지",
+        ):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, self.merge_section)
+
+    def test_engine_sources_encode_atomic_lock_config_and_prune_hardening(self) -> None:
+        source_paths = [CODE_SCRIPTS / "worktree.py", INTEGRATION_SCRIPTS / "merge.py"]
+        source_paths.extend(
+            path
+            for path in INTEGRATION_SCRIPTS.glob("*.py")
+            if not path.name.startswith("test_") and path.name != "merge.py"
+        )
+        sources = "\n".join(path.read_text(encoding="utf-8") for path in source_paths)
+
+        self.assertNotRegex(sources, r"\bimport\s+tomllib\b|\bfrom\s+tomllib\b")
+        for token in (
+            "fcntl",
+            "LOCK_NB",
+            "0o600",
+            "os.replace",
+            "fsync",
+            "sha256",
+            "git show",
+            "--dry-run",
+            "--verbose",
+            "worktree",
+            "prune",
+            "update-ref",
+            "--ff-only",
+            "yusung-integration/",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, sources)
+        self.assertNotRegex(sources, r"push[\s\S]{0,80}(?:--delete|:\s*refs/remotes)")
 
 
 if __name__ == "__main__":

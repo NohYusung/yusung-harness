@@ -28,6 +28,7 @@ next-env.d.ts
 .turbo/
 .vercel/
 /.worktree/
+/.yusung-harness/
 
 # Prisma generated client and local SQLite databases
 apps/server/src/generated/prisma/
