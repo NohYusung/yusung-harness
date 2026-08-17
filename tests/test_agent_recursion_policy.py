@@ -21,6 +21,22 @@ EXPECTED_AGENT_ROLES = frozenset(
         "tester",
     }
 )
+ROLE_TASK_NAMES = {
+    "architect": "architect",
+    "coder": "coder",
+    "designer": "designer",
+    "doc-curator": "doc_curator",
+    "planner": "planner",
+    "researcher": "researcher",
+    "reviewer": "reviewer",
+    "tester": "tester",
+}
+TASK_NAME_PATTERN = re.compile(r"^[a-z0-9_]+$")
+ROLE_MAPPING_ROW_PATTERN = re.compile(
+    r"^\|\s*`(?P<role>[a-z][a-z0-9-]*)`\s*"
+    r"\|\s*`(?P<task_name>[a-z][a-z0-9_]*)`\s*\|$",
+    re.MULTILINE,
+)
 AGENT_CALLING_SKILLS = frozenset(
     {
         "architecturePlan",
@@ -65,6 +81,16 @@ SKILL_POLICY_TOKENS = (
     "직접 또는 간접",
     "root에 handoff",
 )
+ROOT_LIFECYCLE_POLICY_TOKENS = (
+    "하나의 root task 안에서는 역할별로 하나의 에이전트만 유지한다",
+    "매 작업 배정 전에 `list_agents`",
+    "`completed`, `idle`, `running`",
+    "`followup_task`",
+    "`send_message`는 보조 정보 전달에만 사용",
+    "동일 역할의 중복 `spawn_agent`",
+    "suffix나 작업 설명을 붙인 `task_name`",
+    "재사용에 실패해도 중복 에이전트를 생성하지 않고",
+)
 SPAWN_ALLOWANCE_PHRASES = (
     "호출할 수 있다",
     "호출한다",
@@ -96,6 +122,20 @@ ROLE_TOKEN_PATTERN = re.compile(
 
 
 class AgentRecursionPolicyTest(unittest.TestCase):
+    def parse_role_task_name_mapping(self, content: str) -> dict[str, str]:
+        """루트 정책 표에서 역할별 canonical task_name을 추출한다."""
+
+        return {
+            match.group("role"): match.group("task_name")
+            for match in ROLE_MAPPING_ROW_PATTERN.finditer(content)
+        }
+
+    def assert_is_canonical_task_name(self, task_name: str) -> None:
+        """task_name이 허용 문법과 canonical 역할 매핑을 모두 만족하는지 검사한다."""
+
+        self.assertRegex(task_name, TASK_NAME_PATTERN)
+        self.assertIn(task_name, ROLE_TASK_NAMES.values())
+
     def assert_contains_policy(
         self,
         content: str,
@@ -148,6 +188,48 @@ class AgentRecursionPolicyTest(unittest.TestCase):
         self.assertIn(CANONICAL_POLICY, content)
         self.assert_contains_policy(content, ROLE_POLICY_TOKENS, source=agents_path)
         self.assert_has_no_unapproved_spawn_allowance(content, source=agents_path)
+
+    def test_root_agent_task_names_follow_canonical_mapping(self) -> None:
+        """root spawn의 task_name은 역할명과 같고 doc-curator만 underscore를 사용한다."""
+
+        agents_path = REPOSITORY_ROOT / "AGENTS.md"
+        content = agents_path.read_text(encoding="utf-8")
+        discovered_mapping = self.parse_role_task_name_mapping(content)
+
+        self.assertEqual(set(ROLE_TASK_NAMES), EXPECTED_AGENT_ROLES)
+        self.assertEqual(discovered_mapping, ROLE_TASK_NAMES)
+        self.assertEqual(
+            {
+                role: task_name
+                for role, task_name in ROLE_TASK_NAMES.items()
+                if role != task_name
+            },
+            {"doc-curator": "doc_curator"},
+        )
+        self.assertEqual(len(set(ROLE_TASK_NAMES.values())), len(ROLE_TASK_NAMES))
+        for task_name in ROLE_TASK_NAMES.values():
+            with self.subTest(task_name=task_name):
+                self.assert_is_canonical_task_name(task_name)
+
+    def test_root_agents_policy_requires_singleton_reuse_lifecycle(self) -> None:
+        """root가 모든 상태의 동일 역할을 followup_task로 재사용하도록 강제한다."""
+
+        agents_path = REPOSITORY_ROOT / "AGENTS.md"
+        content = agents_path.read_text(encoding="utf-8")
+
+        self.assert_contains_policy(
+            content,
+            ROOT_LIFECYCLE_POLICY_TOKENS,
+            source=agents_path,
+        )
+
+    def test_noncanonical_task_names_are_rejected(self) -> None:
+        """작업 설명이나 중복 suffix를 사용한 task_name을 거부한다."""
+
+        for task_name in ("investigate_empty_dirs", "coder_2"):
+            with self.subTest(task_name=task_name):
+                with self.assertRaises(AssertionError):
+                    self.assert_is_canonical_task_name(task_name)
 
     def test_all_codex_agent_roles_share_the_same_boundary(self) -> None:
         """모든 Codex 역할의 Markdown과 TOML이 동일한 금지 정책을 상속한다."""

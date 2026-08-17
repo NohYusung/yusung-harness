@@ -115,7 +115,43 @@ yusung-harness는 기획/개발/리뷰/배포 전반의 워크플로우를 담�
 functions.collaboration.spawn_agent
 ```
 
-- root는 이미 호출한 에이전트가 있으면 새로 생성하지 않고 해당 에이전트를 재사용한다.
+#### 역할별 singleton lifecycle
+
+- 하나의 root task 안에서는 역할별로 하나의 에이전트만 유지한다.
+- root는 매 작업 배정 전에 `list_agents`로 현재 agent tree를 확인한다.
+- 동일 역할의 에이전트가 `completed`, `idle`, `running` 중 어느 상태로든 존재하면 `followup_task`로 재사용한다.
+- `send_message`는 보조 정보 전달에만 사용하고, 기존 에이전트에 새 작업을 배정할 때는 `followup_task`를 사용한다.
+- 동일 역할의 중복 `spawn_agent` 호출은 금지한다.
+- 역할명에 suffix나 작업 설명을 붙인 `task_name`은 사용하지 않는다.
+- 재사용에 실패해도 중복 에이전트를 생성하지 않고 실패 원인을 보고한다.
+- root는 동일 역할의 에이전트가 없을 때만 `spawn_agent`를 호출하며 아래 canonical mapping을 사용한다.
+
+| `agent_type` / 역할명 | `task_name` |
+| --------------------- | ----------- |
+| `architect` | `architect` |
+| `coder` | `coder` |
+| `designer` | `designer` |
+| `doc-curator` | `doc_curator` |
+| `planner` | `planner` |
+| `researcher` | `researcher` |
+| `reviewer` | `reviewer` |
+| `tester` | `tester` |
+
+- `doc-curator`만 `task_name`의 허용 문자 규칙 때문에 `doc_curator`를 사용한다.
+
+```text
+역할 작업 배정
+      │
+      ▼
+ list_agents
+      │
+      ├─ 동일 역할 있음 (completed / idle / running)
+      │        └─ followup_task
+      │                 └─ 실패 시 보고하고 중단
+      │
+      └─ 동일 역할 없음
+               └─ spawn_agent(agent_type=역할명, task_name=canonical 값)
+```
 
 ## 에이전트 호출 경계
 

@@ -306,7 +306,11 @@ yusung-harness/
 ## 운영 원칙
 
 - 매 단계에서 현재 작업을 평가하고 필요한 전문 에이전트만 호출합니다.
-- 이미 실행 중인 에이전트가 있으면 새로 만들지 않고 기존 에이전트를 재사용합니다.
+- 하나의 root task 안에서는 역할별로 하나의 에이전트만 유지합니다.
+- 매 작업 배정 전에 `list_agents`를 확인하고, 같은 역할이 `completed`, `idle`, `running` 상태로 존재하면 `followup_task`로 재사용합니다.
+- `send_message`는 보조 정보 전달에만 사용하며 새 작업 배정에는 사용하지 않습니다.
+- 같은 역할이 없을 때만 canonical 역할별 `task_name`으로 `spawn_agent`를 호출하고, `doc-curator`의 `task_name`만 `doc_curator`를 사용합니다.
+- 재사용이 실패해도 중복 에이전트를 생성하지 않고 원인을 보고합니다.
 - 구현은 저장소의 conventions와 테스트 우선 원칙을 따릅니다.
 - 에이전트가 만든 계획과 산출물은 Doc Curator를 통해 프로젝트 문맥에 연결합니다.
 - 하네스 자체의 Markdown 정책 파일은 사용자의 명시적인 요청 없이 수정하지 않습니다.
