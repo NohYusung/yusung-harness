@@ -14,4 +14,4 @@ goals = true
 
 [features.multi_agent_v2]
 enabled = true
-max_concurrent_threads_per_session = 10
+max_concurrent_threads_per_session = 5
