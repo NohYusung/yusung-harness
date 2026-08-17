@@ -4,9 +4,16 @@ description: 작성한 코드를 머지하고, 병합하는 스킬
 argument-hint: "--commit <branch-name> | --merge --source <feature-branch> --target <target-branch>"
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 사용자가 스킬을 호출할 때 옵션 및 브랜치 인자를 파싱해 Git 관련 통합 작업을 수행
 
-# 호출할 에이전트 목록
+# root가 호출할 에이전트 목록
 
 | 에이전트명 | 하는일              |
 | ---------- | ------------------- |

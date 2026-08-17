@@ -3,6 +3,13 @@ name: research
 description: 제품 문제·대상 사용자·가치·성공 신호·가설·대안을 탐색하고 현재 시점의 live 웹 검색으로 외부 사실과 사례를 검증하여 하나의 Research Markdown 산출물로 생성·수정하는 스킬. Plan 이전 제품 방향 탐색, 시장·기술·정책 조사, 최신 사실 검증과 출처가 필요한 비교에 사용한다.
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 # Research Discovery and Evidence
 
 Research는 제품 탐색 책임과 live 외부 근거 검증을 하나의 workflow로 통합한다.
@@ -27,7 +34,6 @@ Research는 제품 탐색 책임과 live 외부 근거 검증을 하나의 workf
 | doc-curator | Project 확인, Markdown 계약 검증, MCP 저장·재조회 |
 
 - planner는 Research 작성에 참여하지 않는다. planner는 명시적으로 Plan 단계에 진입한 뒤 Research를 입력으로 사용한다.
-- researcher는 하위 에이전트를 재귀 호출하지 않는다.
 
 ## 통합 workflow
 

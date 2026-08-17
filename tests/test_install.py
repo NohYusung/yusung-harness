@@ -419,5 +419,40 @@ class InstallerTestCase(unittest.TestCase):
         self.assertEqual(invalid_backup.exception.code, 2)
 
 
+class RepositoryPolicyInstallTest(unittest.TestCase):
+    def test_current_agent_recursion_policy_is_installed_verbatim(self) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        policy_heading = "## 에이전트 호출 경계"
+        policy_paths = [Path("AGENTS.md")]
+        policy_paths.extend(
+            sorted(
+                path.relative_to(repository_root)
+                for path in repository_root.glob(".codex/agents/*/*.*")
+                if path.suffix in {".md", ".toml"}
+            )
+        )
+        policy_paths.extend(
+            sorted(
+                path.relative_to(repository_root)
+                for path in repository_root.glob(".codex/skills/*/SKILL.md")
+                if policy_heading in path.read_text(encoding="utf-8")
+            )
+        )
+        self.assertEqual(len(policy_paths), 27)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "installed"
+            options = installer.InstallOptions(target=target)
+            with mock.patch.object(installer, "SOURCE_ROOT", repository_root):
+                result = installer.install(options, runner=FakeRunner())
+
+            self.assertEqual(result, 0)
+            for relative in policy_paths:
+                with self.subTest(relative=str(relative)):
+                    source_content = repository_root.joinpath(relative).read_bytes()
+                    installed_content = target.joinpath(relative).read_bytes()
+                    self.assertEqual(installed_content, source_content)
+
+
 if __name__ == "__main__":
     unittest.main()

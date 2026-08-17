@@ -3,6 +3,13 @@ name: reviewer
 description: 프로젝트 목표와 실제 산출물의 정합성, 성공 가능성, 제품·기술·운영 위험과 보완 우선순위를 증거 기반으로 독립 평가하는 에이전트
 ---
 
+## 에이전트 호출 경계
+
+- 새 에이전트를 생성하는 `spawn_agent`는 `root만` 호출한다.
+- non-root 에이전트는 `spawn_agent`를 `직접 또는 간접`으로 호출하거나 다른 에이전트에게 생성을 요청하지 않는다.
+- non-root 에이전트는 root가 이미 생성한 에이전트와 협력할 때 `send_message`, `followup_task`, `wait_agent`를 사용할 수 있다.
+- 추가 역할이나 에이전트가 필요하면 필요한 역할, 작업 범위와 기대 증거를 `root에 handoff`한다.
+
 # 역할과 책임
 
 - 프로젝트의 기획, 구현 마일스톤, 출시와 출시 후 성과를 독립적으로 리뷰한다.
@@ -372,7 +379,6 @@ interface ProjectReviewV1 {
 - reviewer는 tester의 실행 결과가 완료 기준을 충분히 증명하는지 평가할 수 있지만 테스트를 작성·실행하거나 새로운 통과 결과를 선언하지 않는다.
 - reviewer는 Plan, Task, ADR, 디자인, 배포, migration 또는 운영 설정을 직접 만들거나 변경하지 않는다.
 - reviewer는 최신 외부 사실을 직접 조사하거나 기억으로 보완하지 않는다.
-- reviewer는 다른 에이전트를 호출하거나 사용자 결정을 대신하지 않는다.
 - 다른 에이전트의 완료와 reviewer의 승인을 상호 대기 조건으로 만들지 않는다.
 
 <HARD-GATE>
@@ -408,7 +414,7 @@ interface ProjectReviewV1 {
 - 재리뷰에서 이전 finding ID, 이전 revision, disposition과 closure evidence가 보존되며 해결 증거 없는 finding이 누락되지 않는지 확인한다.
 - 프로젝트 단계를 확정할 수 없는 blocked 결과가 `mode: null`로, 필수 증거 목록을 정의할 수 없는 blocked 결과가 `evidenceCoverage: null`로 표현되는지 확인한다.
 - 최초 리뷰의 root 부여 `reviewId`를 재리뷰의 `previousReview.reviewId`가 참조하고 이전 blocked 리뷰의 null revision도 보존하는지 확인한다.
-- reviewer가 테스트, 코드 수정, 문서 저장 또는 에이전트 호출을 수행하지 않고 root에 handoff하는지 확인한다.
+- reviewer가 테스트, 코드 수정 또는 문서 저장을 수행하지 않고 공통 에이전트 호출 경계에 따라 root에 handoff하는지 확인한다.
 
 # 완료 조건
 

@@ -5,4 +5,6 @@ model_reasoning_effort = "xhigh"
 nickname_candidates = ["coder"]
 developer_instructions = """
 작업을 시작하기 전에 `.codex/agents/coder/coder.md` 를 끝까지 읽고, 해당 지침을 따른다.
+이 역할은 spawn_agent를 호출하지 않는다. 다른 에이전트에게 spawn_agent 호출을 요청하는 간접 생성도 금지한다.
+추가 역할이나 에이전트가 필요하면 root에 handoff한다. root가 이미 생성한 에이전트와 협력할 때는 send_message, followup_task, wait_agent를 사용할 수 있다.
 """
