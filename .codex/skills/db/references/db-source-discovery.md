@@ -11,7 +11,7 @@
 - [탐색 절차](#탐색-절차)
 - [근거 선택 알고리즘](#근거-선택-알고리즘)
 - [충돌 기록 규칙](#충돌-기록-규칙)
-- [Evidence catalog 계약](#evidence-catalog-계약)
+- [내부 근거 검증 계약](#내부-근거-검증-계약)
 - [완료 점검](#완료-점검)
 
 ## 불변 원칙
@@ -83,7 +83,7 @@ repository path + source revision
               +----> ORM/schema DDL 보강
               |
               v
- table별 evidence catalog + conflict 목록
+ table별 내부 근거 기록 + conflict 목록
 ```
 
 1. `rg --files`로 DB config, migration, schema snapshot, ORM model과 repository 후보를 찾는다.
@@ -95,7 +95,7 @@ repository path + source revision
 7. index의 방식, column/expression 순서, 정렬 방향, unique, include와 predicate를 수집한다.
 8. FK마다 outbound와 inbound 관계, cardinality, `ON UPDATE`, `ON DELETE`를 양쪽 table 문서에 연결한다.
 9. ORM schema와 schema-bearing raw SQL을 비교하여 물리 구조 근거를 보강하고 불일치를 기록한다. API와 application read/write 사용처는 분석하지 않는다.
-10. `db-table-template.md`에 맞춰 table별 문서를 만들고 evidence ID가 실제 경로와 revision을 참조하는지 검증한다.
+10. `db-table-template.md`에 맞춰 table별 문서를 만들고 저장 content 밖의 내부 근거 기록이 실제 source revision과 schema source를 참조하는지 검증한다.
 
 ## 근거 선택 알고리즘
 
@@ -113,7 +113,7 @@ digraph db_source_selection {
   compare [label="snapshot / ORM / schema DDL과 비교"];
   mismatch [label="불일치 존재?"];
   conflict [label="상위 우선순위 값 유지\n불일치 기록"];
-  verified [label="근거 catalog에 기록"];
+  verified [label="내부 근거 기록에 연결"];
 
   start -> canonical;
   canonical -> use_canonical [label="yes"];
@@ -143,20 +143,21 @@ digraph db_source_selection {
 - 선택된 canonical 물리 근거의 FK action과 ORM cascade 설정이 다르면 canonical 근거의 `ON UPDATE`와 `ON DELETE`를 기록한다.
 - rename인지 drop/create인지 증명되지 않으면 동일 객체로 합치지 않는다.
 
-## Evidence catalog 계약
+## 내부 근거 검증 계약
 
-- evidence ID는 문서 안에서 유일한 `E-001` 형식을 사용한다.
-- 모든 evidence에는 `kind`, source revision, 저장소 상대 경로, migration ID 또는 code symbol, 확인한 사실을 기록한다.
-- line number는 보조 위치로 사용할 수 있지만 migration ID와 symbol을 대신하지 않는다.
-- 생성된 파일, build artifact, dependency 내부 schema는 소유권과 생성 원본이 확인된 경우에만 보조 근거로 사용한다.
-- 일반 application query와 API 사용처는 evidence catalog에 넣지 않는다.
-- 실제 row 수, row 값, token, password, host credential과 전체 connection URL은 evidence가 될 수 없다.
+- schema source의 종류, source revision, 저장소 상대 위치, migration identifier 또는 code symbol과 확인한 사실은 저장 content 밖의 내부 분석 기록에서 관리한다.
+- line number는 내부 탐색의 보조 위치로 사용할 수 있지만 migration identifier와 symbol을 대신하지 않는다.
+- 내부 분석 기록으로 각 table의 column, constraint, index와 relationship을 재현할 수 있어야 한다.
+- generated file, build artifact와 dependency 내부 schema는 소유권과 생성 원본이 확인된 경우에만 내부 보조 근거로 사용한다.
+- 일반 application query와 API 사용처는 schema source 검증에 사용하지 않는다.
+- 실제 row 수, row 값, token, password, host credential과 전체 connection URL은 내부 근거가 될 수 없다.
+- 내부 근거 식별자, source mapping, 저장소 경로, 파일명, line number와 code symbol은 `DBTableDoc/2.0` 저장 content에 포함하지 않는다.
 
 ## 완료 점검
 
 - 포함 대상 table 수와 생성할 DB 문서 수가 일치한다.
 - 제외된 database object마다 제외 이유가 있다.
-- 모든 column, constraint와 index가 migration 근거 또는 명시된 대체 근거를 가진다.
+- 모든 column, constraint와 index가 내부 분석에서 migration 근거 또는 명시된 대체 근거로 재현된다.
 - 모든 FK의 outbound와 inbound 설명이 같은 constraint와 action을 가리킨다.
 - source revision, dialect와 migration 순서를 다시 사용해 같은 inventory를 재현할 수 있다.
 - 저장소 근거만 확인한 문서를 운영 데이터베이스의 현재 상태라고 표현하지 않는다.
