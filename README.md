@@ -25,7 +25,7 @@
 | 구성 요소 | 역할 |
 | --- | --- |
 | Agent Team | Architect, Coder, Designer 등 8개 역할이 작업을 분담합니다. |
-| Workflow Skills | 조사, 설계, 구현, 테스트와 통합을 14개 스킬로 표준화합니다. |
+| Workflow Skills | 조사, 설계, 구현, 검증, 통합과 운영을 14개 스킬로 표준화합니다. |
 | Installer | Codex 하네스와 전체 `apps/` workspace를 프로젝트에 안전하게 배포합니다. |
 | Document MCP | 에이전트 산출물을 39개 MCP 도구로 조회·생성·수정합니다. |
 | Project Workbench | 프로젝트의 요청, 계획, 태스크, 설계와 작업 기록을 웹에서 탐색합니다. |
@@ -57,17 +57,17 @@ flowchart LR
 
 ### 1. 와이어프레임 검토
 
-![Project Workbench에서 포트폴리오 와이어프레임을 검토하는 화면](./docs/images/readme/portfolio-wireframe.png)
+![Project Workbench에서 계층형 와이어프레임과 버전별 미리보기를 검토하는 화면](./docs/images/readme/portfolio-wireframe.png)
 
 - 화면 구조와 콘텐츠 흐름을 구현 전에 확인합니다.
 - 레코드 메타데이터와 HTML 미리보기를 한 화면에서 비교합니다.
 
 ### 2. 디자인 에셋 탐색
 
-![Project Workbench에서 포트폴리오 디자인 에셋 팔레트를 탐색하는 화면](./docs/images/readme/portfolio-asset-palette.png)
+![Project Workbench에서 항목별로 독립 저장된 디자인 에셋을 탐색하는 화면](./docs/images/readme/portfolio-asset-palette.png)
 
 - 워드마크, 로고, 컬러 팔레트 같은 디자인 자산을 프로젝트별로 축적합니다.
-- 산출물의 버전과 연결 관계를 유지한 채 브라우저에서 확인합니다.
+- 에셋 항목마다 독립된 HTML과 Asset 레코드를 저장하고 브라우저에서 미리 봅니다.
 
 ## Agent Team
 
@@ -89,7 +89,26 @@ flowchart LR
 | 발견 | `curate`, `research` | 프로젝트 등록, 제품 탐색, live 근거 조사와 초기 제안 |
 | 설계 | `plan`, `architecturePlan`, `domain`, `db`, `erd` | 실행 계획, 아키텍처, 계층형 업무 Domain 문서와 데이터 구조 |
 | 제작 | `asset`, `wireframe`, `code` | 디자인 자산, 화면 흐름과 실제 코드 |
-| 검증·관리 | `test`, `integration` | 테스트, 커밋과 병합 |
+| 검증·통합 | `test`, `integration` | 테스트, 격리 worktree 생성, READY 검증, 커밋과 병합 |
+| 운영 | `infra`, `deploy` | 원격 인프라 제어, push, IaC, CI/CD, 배포·승격과 롤백 |
+
+`integration`은 구현 브랜치의 전체 수명주기를 소유합니다.
+
+```text
+integration --worktree
+        │
+        ▼
+ACTIVE: .worktree/<name>에서 구현·테스트
+        │
+        ▼
+integration --commit → source 검증 → READY
+        │
+        ▼
+integration --merge → candidate 품질 게이트 → target 반영
+```
+
+- `infra`의 변경 작업과 `deploy`의 `PUSH`, `INFRA_CHANGE`, `PIPELINE_RUN`, `RELEASE`, `ROLLBACK`은 정확한 대상과 revision을 사용자에게 제시하고 작업별 명시 승인을 받은 뒤 실행합니다.
+- 외부 작업은 명령 성공만으로 완료 처리하지 않고 authoritative 상태를 다시 조회해 결과를 검증합니다.
 
 ## 빠른 설치
 
@@ -106,7 +125,7 @@ Codex 프로필은 저장소의 `.codex/config.toml`에 멀티 에이전트 설�
 ```toml
 [features.multi_agent_v2]
 enabled = true
-max_concurrent_threads_per_session = 10
+max_concurrent_threads_per_session = 5
 ```
 
 ### 1. 변경 범위 미리 확인
@@ -125,6 +144,18 @@ python3 install.py /path/to/target-project
 > [!TIP]
 > 처음에는 항상 `--dry-run`으로 생성·충돌 범위를 확인하는 것을 권장합니다. 기본 설치는 대상 프로젝트에서 이미 수정된 파일을 덮어쓰지 않습니다.
 
+### 3. 프로젝트별 통합 프로필 설정
+
+설치기는 대상 프로젝트의 `.codex/integration.toml`이 없을 때 다음과 같이 fail-closed 상태로 생성합니다.
+
+```toml
+configured = false
+```
+
+- 대상 저장소에서 실제로 실행할 `verification.source.*`와 `verification.candidate.*` 명령을 설정한 뒤 `configured = true`로 전환합니다.
+- `configured = false`이거나 필수 source 검증 프로필이 없으면 `integration --worktree`는 worktree와 branch를 만들지 않고 중단합니다.
+- 이 파일은 프로젝트별 설정이므로 이후 `--force`, `--backup`, `--sync`에서도 기존 내용을 보존합니다.
+
 ## 설치 범위
 
 ```text
@@ -132,9 +163,12 @@ yusung-harness                 대상 프로젝트
 ├── AGENTS.md ───────────────> ├── AGENTS.md
 ├── docs/ ───────────────────> ├── docs/
 ├── .codex/ ─────────────────> ├── .codex/
-└── apps/ ───────────────────> └── apps/
+│                                 └── integration.toml # 최초 생성 후 보존
+└── apps/ ───────────────────> ├── apps/
                                   ├── server/.env       # 최초 생성 후 보존
                                   └── web/.env.local    # 최초 생성 후 보존
+                                └── .yusung-harness/
+                                    └── install-manifest.json
 ```
 
 - 설치기는 Codex 전용이며 `AGENTS.md`, `docs/`, `.codex/`, 전체 `apps/` workspace를 함께 배포합니다.
@@ -144,6 +178,8 @@ yusung-harness                 대상 프로젝트
 - 설치기가 처음 만든 `apps/server/.env`와 `apps/web/.env.local`은 이후 강제 업데이트와 sync에서도 보존합니다.
 - 파일 적용 후 `TARGET/apps`에서 `pnpm install --frozen-lockfile`만 실행합니다.
 - build, Prisma generate/migrate, DB 작업, dev/start와 service 관리는 실행하지 않습니다.
+- Git 대상에서는 `.git/info/exclude`의 managed block에 `/.worktree/`와 `/.yusung-harness/`를 한 번씩 등록합니다.
+- 설치기는 `.worktree/`를 만들지 않습니다. `integration --worktree`가 `TARGET/.worktree/<name>`에 격리 source를 만들고 lifecycle manifest와 검증 evidence를 `TARGET/.yusung-harness/state/worktrees/`에 기록합니다.
 
 ### 기존 설치 업데이트
 
@@ -169,6 +205,7 @@ python3 install.py /path/to/target-project \
 - `--sync`도 manifest hash가 현재 파일과 일치할 때만 obsolete 파일을 삭제합니다.
 - 안전 삭제 대상은 `--backup` 옵션과 관계없이 `.yusung-harness/backups/<run-id>/`에 먼저 보관합니다.
 - 환경 파일, DB와 runtime 산출물은 `--force`, `--backup`, `--sync`와 관계없이 보존합니다.
+- 이전 manifest가 소유권을 증명하는 `.codex/skills/code/scripts/worktree.py`는 `--sync`에서 먼저 backup한 뒤 정리하고, 새 엔진은 `.codex/skills/integration/scripts/worktree.py`에 설치합니다. 사용자가 수정한 이전 파일은 보존하고 충돌로 보고합니다.
 - 자세한 설치 정책은 [`install.md`](./install.md)에서 확인할 수 있습니다.
 
 ## Project Workbench 실행
@@ -218,6 +255,31 @@ pnpm dev
 | `http://127.0.0.1:4000/mcp` | MCP Streamable HTTP endpoint |
 | `http://127.0.0.1:4000/projects` | 프로젝트 REST API |
 
+### Workbench 정보 구조
+
+```text
+Project Explorer
+├── Planning & Work
+│   ├── Plans
+│   │   └── Tasks
+│   ├── Research
+│   ├── Architecture Plan
+│   ├── Assets
+│   ├── Wireframes
+│   ├── Requests
+│   └── WorkLogs
+└── Project Status
+    ├── Current Architecture
+    ├── DB
+    ├── ERD
+    ├── Domains
+    └── Reviews
+```
+
+- Task는 별도 최상위 메뉴가 아니라 소속 Plan 아래에서 관리합니다.
+- Architecture workspace는 구현 전 `Plan`과 구현 후 `Current(PRODUCTION)`를 구분합니다.
+- 각 workspace는 Records 목록과 선택 레코드의 Metadata·미리보기 detail pane을 함께 제공합니다.
+
 ## MCP 연결
 
 Codex의 `doc-curator` 프로필에는 로컬 문서 서버 연결이 미리 정의되어 있습니다.
@@ -234,8 +296,8 @@ MCP 서버는 프로젝트와 산출물을 다루는 39개 도구를 제공합�
 | Context | `get_context`, `get_project` | DB 구조와 프로젝트 전체 맥락을 조회합니다. |
 | Research | `get_research`, `create_research`, `update_research` | 제품 탐색과 live 근거를 프로젝트별 Research로 저장·수정합니다. |
 | Planning | `create_plan`, `update_plan`, `create_task`, `update_task` | 실행 계획을 저장하고 진행 상태를 갱신합니다. |
-| Architecture | `get_architecture`, `upsert_architecture`, `create_domain`, `update_domain`, `create_db`, `create_erd` | 하나의 Architecture에서 PLAN과 PRODUCTION 최신본, 계층형 업무 Domain Markdown과 데이터 구조를 기록합니다. |
-| Visual | `create_asset`, `create_wireframe` | HTML 기반 시각 산출물과 버전을 저장합니다. |
+| Architecture & Data | `get_architecture`, `upsert_architecture`, `create_domain`, `update_domain`, `create_db`, `update_db`, `create_erd`, `update_erd` | PLAN·PRODUCTION Architecture, 계층형 업무 Domain, DB 문서와 canonical ERD를 기록합니다. |
+| Visual | `get_asset`, `create_asset`, `update_asset`, `get_wireframe`, `create_wireframe`, `update_wireframe` | 항목별 독립 Asset HTML과 버전·계층형 Wireframe HTML을 저장합니다. |
 | Execution | `create_request`, `update_request`, `create_workLog`, `get_review` | 요청 수명주기와 작업 기록, 리뷰를 관리합니다. |
 | Files | `create_file`, `get_file`, `update_file`, `delete_file` | 프로젝트에 연결된 임시 파일과 업로드 상태를 관리합니다. |
 
@@ -244,8 +306,9 @@ MCP 서버는 프로젝트와 산출물을 다루는 39개 도구를 제공합�
 - `Request` → `Plan` → `Task`로 이어지는 실행 흐름
 - 문제·사용자·가치·가설·대안과 live 근거를 함께 담는 `Research`
 - 하나의 `Architecture` 안에서 관리하는 구현 전 `Plan`과 구현 후 `Current(PRODUCTION)`
-- 한 업무 Domain당 한 Markdown 페이지로 구성된 무제한 `Domain` 계층, DB 문서와 ERD
-- 디자인 에셋 팔레트인 `Asset`
+- 한 업무 Domain당 한 Markdown 페이지로 구성된 무제한 `Domain` 계층과 테이블별 DB 문서
+- memo나 annotation 없이 테이블·컬럼·PK·UK와 FK 관계를 담는 canonical Dineug ERD Editor v3 `.erd` JSON
+- 디자인 요소마다 독립된 완전한 HTML 문서로 저장하는 `Asset`
 - 버전과 계층 구조를 가진 `Wireframe`
 - 작업 과정의 `WorkLog`와 결과를 평가하는 `Review`
 - Markdown 문서와 sandbox iframe으로 미리 보는 HTML 아티팩트
@@ -268,20 +331,24 @@ MCP 서버는 프로젝트와 산출물을 다루는 39개 도구를 제공합�
 
 ```text
 yusung-harness/
+├── .codex-plugin/            # Codex plugin manifest, installer 제외
 ├── .codex/
 │   ├── agents/              # Codex 전용 역할과 실행 설정
 │   ├── skills/              # 단계별 워크플로우 스킬
-│   └── config.toml          # 모델, 권한과 멀티 에이전트 설정
-├── .agents/                 # 범용 에이전트용 역할과 스킬
-├── .claude/                 # Claude Code용 에이전트 정의
+│   ├── config.toml          # 모델, 권한과 멀티 에이전트 설정
+│   └── integration.toml     # worktree·merge 검증 프로필
+├── .agents/                 # 범용 에이전트용 역할과 스킬, installer 제외
+├── .claude/                 # Claude Code용 에이전트 정의, installer 제외
 ├── apps/
 │   ├── server/              # NestJS + MCP + Prisma + SQLite
 │   └── web/                 # Next.js Project Workbench
 ├── docs/
 │   ├── architecture/        # 하네스 문서 도메인 구조
 │   └── conventions/         # Backend / Frontend 코드 규칙
+├── examples/
+│   └── commerce-erd-example.erd # memo-free Dineug v3 ERD 예시
+├── tests/                   # installer와 agent policy 테스트
 ├── AGENTS.md                # 에이전트 공통 운영 규칙
-├── CLAUDE.md                # Claude Code 진입 규칙
 ├── install.py               # Codex + apps 설치·안전 동기화 도구
 └── install.md               # 설치기의 상세 동작 문서
 ```
@@ -297,11 +364,12 @@ yusung-harness/
 | Test | Node.js Test Runner, Vitest, Testing Library |
 | Installer | Python 3.10+, `pathlib`, `shutil`, SHA-256 manifest |
 
-## 선택 연동
+## 디자인 생성 전제와 선택 연동
 
-- `asset`, `wireframe` 워크플로우는 Open Design MCP를 활용할 수 있습니다.
-- Open Design을 사용할 수 없는 환경에서는 해당 에이전트 규칙에 따라 설치 여부나 대체 진행 방식을 먼저 확인합니다.
-- 일반적인 기획, 코딩, 테스트와 문서 관리에는 Open Design이 필요하지 않습니다.
+- `asset`, `wireframe` 생성·수정 워크플로우는 디자인과 IA를 확정할 때 `image_gen`을 필수로 호출합니다.
+- `image_gen`을 호출할 수 없거나 생성에 실패하면 임의의 대체 이미지나 HTML로 진행하지 않고 작업을 중단합니다.
+- Open Design 같은 외부 디자인 도구는 선택적으로 활용할 수 있지만 필수 전제나 `image_gen`의 대체 경로는 아닙니다.
+- 일반적인 기획, 코딩, 테스트, 문서 관리, 인프라 조회와 배포 상태 조회에는 `image_gen`이 필요하지 않습니다.
 
 ## 운영 원칙
 
@@ -311,6 +379,8 @@ yusung-harness/
 - `send_message`는 보조 정보 전달에만 사용하며 새 작업 배정에는 사용하지 않습니다.
 - 같은 역할이 없을 때만 canonical 역할별 `task_name`으로 `spawn_agent`를 호출하고, `doc-curator`의 `task_name`만 `doc_curator`를 사용합니다.
 - 재사용이 실패해도 중복 에이전트를 생성하지 않고 원인을 보고합니다.
+- 격리 worktree의 생성, READY 검증과 병합 상태 전이는 `integration`이 소유하고 root만 mutation을 실행합니다.
+- 원격 인프라와 배포 mutation은 대상·revision·영향 범위를 고정해 작업별 사용자 승인을 받은 뒤 root가 실행하고, 실제 원격 상태를 재조회해 검증합니다.
 - 구현은 저장소의 conventions와 테스트 우선 원칙을 따릅니다.
 - 에이전트가 만든 계획과 산출물은 Doc Curator를 통해 프로젝트 문맥에 연결합니다.
 - 하네스 자체의 Markdown 정책 파일은 사용자의 명시적인 요청 없이 수정하지 않습니다.
