@@ -30,7 +30,7 @@ description: 기존 프로젝트 저장소의 migration, DDL, schema snapshot과
 ## 참조 문서
 
 - 분석을 시작하기 전에 [schema source 탐색 규칙](./references/db-source-discovery.md)을 읽는다.
-- 테이블 문서를 작성하기 전에 [DBTableDoc/1.0 템플릿](./references/db-table-template.md)을 읽고 섹션 순서를 그대로 사용한다.
+- 테이블 문서를 작성하기 전에 [DBTableDoc/2.0 템플릿](./references/db-table-template.md)을 읽고 섹션 순서를 그대로 사용한다.
 - 복합 제약조건이나 불일치 표현이 필요하면 [테이블 문서 예시](./references/db-table-example.md)를 읽는다.
 
 ## 안전 경계
@@ -64,7 +64,7 @@ migration·DDL·ORM source 탐색
 canonical table inventory 작성
           │
           ▼
-테이블별 DBTableDoc/1.0 작성
+테이블별 DBTableDoc/2.0 작성
           │
           ▼
 get_db → create/update/blocked 판정
@@ -74,13 +74,13 @@ get_db 재조회 → 저장 결과 검증
 ```
 
 1. `get_project` 결과의 repository 경로와 사용자 요청 범위를 대조한다.
-2. source revision을 commit hash로 기록한다. working tree 변경을 포함하면 `HEAD+dirty`로 표시하고 관련 변경 경로를 근거 목록에 기록한다.
+2. source revision을 commit hash로 기록한다. working tree 변경을 포함하면 `HEAD+dirty`로 표시하고 관련 변경 경로를 저장 content 밖의 내부 분석 기록에 남긴다.
 3. `db-source-discovery.md`에 따라 schema snapshot, migration·DDL, ORM schema/entity를 찾는다.
 4. 재생 가능한 migration은 외부 연결이 차단된 임시 DB에서만 적용하여 최종 schema를 확인한다. 안전한 재생을 보장할 수 없으면 정적으로 분석한다.
 5. 물리 테이블과 join table의 canonical inventory를 만들고 view, trigger, system table과 migration metadata table을 제외 목록에 분리한다.
 6. 각 테이블의 컬럼 순서, 물리 타입, nullable, default/generated, PK, FK, UNIQUE, CHECK, index와 referential action을 정규화한다.
 7. schema source가 다르면 `db-source-discovery.md`의 우선순위가 높은 물리 근거를 채택하고 차이를 `불일치·미확인`에 기록한다. 동일 우선순위 근거가 충돌하면 영향을 받는 테이블을 blocked 처리한다.
-8. 각 테이블을 `DBTableDoc/1.0`으로 작성하고 컬럼·제약조건·인덱스·관계가 직접 근거와 연결되는지 교차 검증한다.
+8. 각 테이블을 `DBTableDoc/2.0`으로 작성하고 컬럼·제약조건·인덱스·관계가 내부 직접 근거로 재현되는지 교차 검증한다. 내부 근거 식별자와 source 위치는 저장 content에 노출하지 않는다.
 9. `get_db`로 기존 문서를 조회한 뒤 테이블별 create/update 분기를 결정한다.
 10. 저장 후 `get_db`를 다시 호출하여 title, content와 문서 수를 inventory와 대조한다.
 
@@ -89,10 +89,14 @@ get_db 재조회 → 저장 결과 검증
 - `title`은 SQL quote 구분자만 제거하고 물리 테이블 identifier의 casing과 문자를 그대로 보존한다.
 - 서로 다른 database 또는 schema에서 같은 테이블명이 충돌할 때만 `database.schema.table` 형식의 fully-qualified title을 사용한다.
 - 비교용 normalized key는 내부 판정에만 사용하고 저장 title을 변경하지 않는다.
-- `content`는 `DBTableDoc/1.0` Markdown 전체를 사용한다.
+- `content`는 `DBTableDoc/2.0` Markdown 전체를 사용한다.
+- `content`는 `역할`, `구조 요약`, `컬럼`, `제약조건`, `인덱스`, `관계`, `데이터 수명주기`, `불일치와 미확인 항목`의 고정 8개 섹션만 사용한다.
+- `content`에 source mapping, 근거 목록, 검증 체크리스트, 내부 근거 ID, 저장소 경로, 파일명, line number 또는 code symbol을 기록하지 않는다.
+- 구조 표에는 확인 결과 자체만 기록하고 역할 섹션은 목적, 소유 도메인과 객체 종류로 제한한다.
 - 각 문서는 자신의 outbound FK와 대상 테이블에서 확인한 inbound 관계를 함께 기록한다.
 - 관계의 constraint, 컬럼, 대상 컬럼, `ON UPDATE`, `ON DELETE`가 양쪽 문서에서 일치하도록 검증한다.
 - 확인되지 않은 역할, cardinality 또는 비즈니스 규칙은 추론하지 말고 `미확인`으로 기록한다.
+- 데이터 수명주기는 단일 `text` ASCII 구조도로 작성한다. `[CREATE]`에서 `[ACTIVE]`로 전이하고, `[ACTIVE]` 아래에 `UPDATE`, `LOCK`, `DELETE`를 둔다. `DELETE` 아래에는 soft-delete column 분기와 hard-delete rule 분기를 둔다. `[SOFT DELETED]`는 soft-delete column이 확인된 table에서만 출력하고, column이 없으면 `soft delete column: 없음`만 출력하며 해당 노드와 전이를 만들지 않는다. `[RETENTION / PARTITION]`은 별도 블록으로 표시한다. 저장소에서 확인한 값만 채우고 hard delete 동작은 직접 근거가 없으면 `미확인`으로 기록한다.
 - 문서와 목록은 database, schema, table, column ordinal, constraint name, index name 순으로 결정론적으로 정렬한다.
 
 ## 동기화 알고리즘
@@ -140,10 +144,10 @@ digraph db_document_sync {
 ## 완료 조건
 
 - canonical inventory의 모든 검증된 물리 테이블에 정확히 한 개의 문서가 존재한다.
-- 각 문서가 `DBTableDoc/1.0`의 모든 고정 섹션을 포함한다.
+- 각 문서가 `DBTableDoc/2.0`의 고정 8개 섹션을 순서대로 포함한다.
 - 컬럼 ordinal과 복합 키·제약조건·인덱스의 컬럼 순서를 보존한다.
 - 모든 FK가 양쪽 테이블 문서에서 동일한 대상으로 표현된다.
-- 모든 구조 정보가 revision과 schema source 근거에 연결된다.
+- 모든 구조 정보가 저장 content 밖의 내부 분석에서 revision과 schema source 근거로 재현된다.
 - 사실, schema source 선택, 불일치와 미확인 정보를 구분한다.
 - 중복 문서와 stale 문서를 자동으로 덮어쓰거나 삭제하지 않는다.
 - 실제 데이터와 비밀값이 문서와 결과 보고에 포함되지 않는다.
